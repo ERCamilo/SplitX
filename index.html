@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CashFlow Pro - Distribución de Nómina</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        bill: {
+                            2000: '#e5e7eb',
+                            1000: '#bfdbfe',
+                            500: '#86efac',
+                            200: '#fca5a5',
+                            100: '#fdba74',
+                            50: '#fde047', 
+                            default: '#e2e8f0'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Animaciones y estilos custom */
+        .bill-anim { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .bill-enter { animation: popIn 0.3s ease-out forwards; }
+        
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Scrollbar fina */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
+        .tab-inactive { color: #64748b; }
+        .tab-inactive:hover { color: #334155; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg shadow-lg">
+                        <i class="fa-solid fa-money-bill-wave text-xl"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-800">CashFlow<span class="text-blue-600">Pro</span></span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="app.resetAll()" class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors">
+                        <i class="fa-solid fa-trash-can mr-1"></i> Borrar Todo
+                    </button>
+                    <button onclick="document.getElementById('configModal').classList.remove('hidden')" class="p-2 text-slate-500 hover:text-blue-600 transition-colors">
+                        <i class="fa-solid fa-gear text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 gap-6 flex flex-col lg:flex-row">
+        
+        <!-- Left Panel: Inventory & Controls -->
+        <aside class="w-full lg:w-1/3 flex flex-col gap-6">
+            
+            <!-- Tabs -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-1 flex">
+                <button onclick="app.switchTab('inventory')" id="tab-inventory" class="flex-1 py-2 text-sm text-center rounded-lg transition-all tab-active">
+                    <i class="fa-solid fa-wallet mr-2"></i>Mi Caja
+                </button>
+                <button onclick="app.switchTab('bank')" id="tab-bank" class="flex-1 py-2 text-sm text-center rounded-lg transition-all tab-inactive">
+                    <i class="fa-solid fa-building-columns mr-2"></i>Banco
+                </button>
+            </div>
+
+            <!-- Inventory Panel -->
+            <div id="view-inventory" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h2 class="font-semibold text-slate-700">Inventario Actual</h2>
+                    <span id="totalInventoryDisplay" class="font-mono font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">$0.00</span>
+                </div>
+                
+                <div class="p-4 overflow-y-auto flex-grow space-y-3" id="inventoryList">
+                    <!-- Inventory Items injected here -->
+                </div>
+
+                <!-- Advisor Section (Updated Logic) -->
+                <div id="inventoryAdvisor" class="bg-orange-50 p-3 border-t border-orange-100 text-xs hidden">
+                    <!-- Dynamic Suggestions -->
+                </div>
+
+                <div class="p-4 border-t border-slate-200 bg-slate-50">
+                    <div class="text-xs text-slate-500 mb-2 flex justify-between">
+                        <span>Cobertura de Pendientes:</span>
+                        <span id="cashStatusText">Calculando...</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="cashProgressBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bank Planner Panel -->
+            <div id="view-bank" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+                <div class="p-4 bg-blue-50 border-b border-blue-100">
+                    <h2 class="font-semibold text-blue-900 mb-1">Planificador de Retiro</h2>
+                    <p class="text-xs text-blue-600">Solo calcula para empleados <span class="font-bold">NO pagados</span>.</p>
+                </div>
+                
+                <div class="overflow-y-auto flex-grow">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-3">Billete</th>
+                                <th class="px-2 py-3 text-center">Ideal</th>
+                                <th class="px-2 py-3 text-center">Límite</th>
+                                <th class="px-4 py-3 text-right">Pedir</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bankTableBody" class="divide-y divide-slate-100">
+                            <!-- Bank Rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-4 border-t border-slate-200 bg-slate-50">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-medium text-slate-600">Faltante por Retirar:</span>
+                        <span id="bankTotalDisplay" class="font-bold text-xl text-slate-800">$0.00</span>
+                    </div>
+                    <button onclick="app.applyBankToInventory()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i> Aplicar a Mi Caja
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Panel: Employees & Distribution -->
+        <section class="w-full lg:w-2/3 flex flex-col gap-6">
+            
+            <!-- Add Employee Input -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="empName" placeholder="Nombre (ej. Juan Pérez)" class="flex-grow px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                    <input type="number" id="empAmount" placeholder="Monto (ej. 450.50)" step="0.01" class="w-full sm:w-40 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono">
+                    <button onclick="app.addEmployee()" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-sm">
+                        <i class="fa-solid fa-plus mr-1"></i> Agregar
+                    </button>
+                </div>
+                <div class="mt-2 text-xs text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-yellow-500"></i>
+                    <span>Tip: Puedes escribir "Juan 400" o pegar una lista como "1. Juan 100"</span>
+                </div>
+            </div>
+
+            <!-- Employee List -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-grow flex flex-col min-h-[500px]">
+                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <div class="flex items-center gap-2">
+                        <h2 class="font-semibold text-slate-700">Lista de Distribución</h2>
+                        <span id="employeeCountBadge" class="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="totalPayrollDisplay" class="font-mono font-bold text-slate-700">$0.00</span>
+                        <div class="h-4 w-px bg-slate-300"></div>
+                        <button onclick="app.openImportModal()" class="text-slate-500 hover:text-blue-600 text-sm flex items-center gap-1" title="Importar JSON">
+                            <i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">Importar</span>
+                        </button>
+                        <button onclick="app.exportToCSV()" class="text-slate-500 hover:text-blue-600 text-sm flex items-center gap-1" title="Exportar CSV">
+                            <i class="fa-solid fa-file-csv"></i> <span class="hidden sm:inline">CSV</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="employeeList" class="p-4 space-y-3 overflow-y-auto flex-grow bg-slate-50/50">
+                    <!-- Employee cards injected here -->
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fa-solid fa-users-viewfinder text-4xl mb-3 opacity-30"></i>
+                        <p>No hay empleados en la lista.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Config Modal -->
+    <div id="configModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-slate-700">Configurar Denominaciones</h3>
+                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <p class="text-sm text-slate-500 mb-4">Agrega o elimina los tipos de billetes/monedas que maneja tu sistema.</p>
+                <div class="flex gap-2 mb-4">
+                    <input type="number" id="newDenomInput" placeholder="Valor (ej. 2000)" class="flex-grow px-3 py-2 border rounded-lg">
+                    <button onclick="app.addDenomination()" class="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700">Agregar</button>
+                </div>
+                <div id="denomListConfig" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <!-- Chips -->
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 text-right">
+                <button onclick="app.resetDenominations()" class="text-xs text-red-500 hover:underline mr-4">Restaurar valores por defecto</button>
+                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm">Listo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="importModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out]">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center">
+                <h3 class="font-bold text-slate-700">Importar Empleados (JSON)</h3>
+                <button onclick="app.closeImportModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <p class="text-xs text-slate-500 mb-2">Pega tu lista de empleados en formato JSON. Se aceptan campos "nombre" y "monto".</p>
+                <div class="bg-slate-50 p-2 rounded border border-slate-200 mb-3">
+                    <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wide mb-1">Ejemplo de formato:</p>
+                    <code class="text-xs font-mono text-blue-600 block whitespace-pre">
+[
+  { "nombre": "Juan Perez", "monto": 2500 },
+  { "id": 2, "nombre": "Maria", "monto": 1450.50 }
+]</code>
+                </div>
+                <textarea id="jsonImportInput" class="w-full h-40 p-3 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" placeholder='[{"nombre": "Empleado 1", "monto": 100}, ...]'></textarea>
+                <p id="importErrorMsg" class="text-xs text-red-500 mt-2 hidden"></p>
+            </div>
+            <div class="p-4 bg-slate-50 text-right flex justify-end gap-2">
+                <button onclick="app.closeImportModal()" class="px-4 py-2 text-slate-600 text-sm hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button>
+                <button onclick="app.processImport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm">
+                    <i class="fa-solid fa-file-import mr-1"></i> Cargar Datos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const app = (() => {
+            // --- STATE ---
+            let state = {
+                denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
+                inventory: {}, 
+                employees: [], 
+                bankLimits: {}, 
+                mode: 'inventory'
+            };
+
+            // --- INIT ---
+            const init = () => {
+                loadData();
+                renderAll();
+                setupEventListeners();
+            };
+
+            const loadData = () => {
+                const saved = localStorage.getItem('cashflow_data');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    state = { ...state, ...parsed };
+                } else {
+                    state.denominations.sort((a,b) => b-a).forEach(d => state.inventory[d] = 0);
+                }
+            };
+
+            const saveData = () => {
+                localStorage.setItem('cashflow_data', JSON.stringify(state));
+                renderAll();
+            };
+
+            // --- CORE LOGIC: DISTRIBUTION ---
+            const fmt = (num) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(num);
+
+            // 1. Calculate Distribution and Return LEFTOVER Inventory (Practical Approach)
+            const calculateDistribution = () => {
+                // We create a deep copy of inventory to simulate payments
+                let currentInventory = { ...state.inventory };
+                
+                const results = state.employees.map(emp => {
+                    let distribution = {};
+                    let status = 'ok';
+                    let notes = [];
+
+                    if (emp.paid) {
+                        // For PAID employees, we just calculate ideal for display
+                        // We DO NOT deduct from currentInventory because payment is done.
+                        let remaining = emp.amount;
+                        for (let denom of state.denominations) {
+                             let count = Math.floor(remaining / denom);
+                             if (count > 0) {
+                                 distribution[denom] = count;
+                                 remaining = parseFloat((remaining - (count * denom)).toFixed(2));
+                             }
+                        }
+                    } else {
+                        // For UNPAID, we strictly try to use available inventory
+                        let remaining = emp.amount;
+                        for (let denom of state.denominations) {
+                            if (remaining <= 0) break;
+                            let needed = Math.floor(remaining / denom);
+                            if (needed > 0) {
+                                let available = currentInventory[denom] || 0;
+                                let take = Math.min(needed, available);
+                                
+                                if (take > 0) {
+                                    distribution[denom] = take;
+                                    currentInventory[denom] -= take;
+                                    remaining = parseFloat((remaining - (take * denom)).toFixed(2));
+                                }
+                            }
+                        }
+                        if (remaining > 0) {
+                            status = 'error';
+                            // We attach the remaining amount to the employee object for the advisor
+                            emp._missingAmount = remaining; 
+                            notes.push(`Faltan ${fmt(remaining)}`);
+                        } else {
+                            emp._missingAmount = 0;
+                        }
+                    }
+
+                    return { ...emp, distribution, status, notes };
+                });
+
+                // Return both the mapped employees AND what's left in the inventory
+                return { results, leftoverInventory: currentInventory };
+            };
+
+            // 2. Bank Planner (Calculates needs ONLY for Unpaid employees)
+            const calculateBankNeeds = () => {
+                let tempTotalBreakdown = {};
+                state.denominations.forEach(d => tempTotalBreakdown[d] = 0);
+
+                // Filter only UNPAID employees
+                const pendingEmployees = state.employees.filter(e => !e.paid);
+
+                pendingEmployees.forEach(emp => {
+                    let rem = emp.amount;
+                    state.denominations.forEach(denom => {
+                        let count = Math.floor(rem / denom);
+                        if (count > 0) {
+                            tempTotalBreakdown[denom] += count;
+                            rem = parseFloat((rem - (count * denom)).toFixed(2));
+                        }
+                    });
+                });
+
+                // Apply Limits & Cascade
+                let finalOrder = {};
+                let carryOverAmount = 0;
+
+                state.denominations.forEach(denom => {
+                    let needed = tempTotalBreakdown[denom];
+                    if (carryOverAmount > 0) {
+                        let extraNeeded = Math.floor(carryOverAmount / denom);
+                        needed += extraNeeded;
+                        carryOverAmount = parseFloat((carryOverAmount - (extraNeeded * denom)).toFixed(2));
+                    }
+                    let limit = state.bankLimits[denom];
+                    let actualLimit = (limit === undefined || limit === null || limit === "") ? Infinity : parseInt(limit);
+
+                    let take = Math.min(needed, actualLimit);
+                    finalOrder[denom] = {
+                        ideal: tempTotalBreakdown[denom], 
+                        neededAfterCarry: needed, 
+                        final: take
+                    };
+
+                    let diffCount = needed - take;
+                    if (diffCount > 0) carryOverAmount += (diffCount * denom);
+                });
+                
+                return { breakdown: finalOrder, remainder: carryOverAmount };
+            };
+
+            // 3. Smart Advisor: Compares leftovers vs Actual needs of unpaid
+            const generateSmartAdvisorData = (leftoverInventory, processedEmployees) => {
+                // 1. Calculate the IDEAL bills needed ONLY for the missing amounts
+                //    (The amounts that couldn't be covered by current inventory)
+                let idealMissingBreakdown = {};
+                state.denominations.forEach(d => idealMissingBreakdown[d] = 0);
+
+                processedEmployees.forEach(emp => {
+                    if (!emp.paid && emp._missingAmount > 0) {
+                        let rem = emp._missingAmount;
+                        state.denominations.forEach(d => {
+                            let count = Math.floor(rem / d);
+                            if (count > 0) {
+                                idealMissingBreakdown[d] += count;
+                                rem = parseFloat((rem - (count * d)).toFixed(2));
+                            }
+                        });
+                    }
+                });
+
+                let surplus = [];
+                let deficit = [];
+
+                // Surplus = Whatever is left in 'leftoverInventory'
+                state.denominations.forEach(d => {
+                    if (leftoverInventory[d] > 0) {
+                        surplus.push({ denom: d, count: leftoverInventory[d] });
+                    }
+                });
+
+                // Deficit = What we calculated above based on missing amounts
+                state.denominations.forEach(d => {
+                    if (idealMissingBreakdown[d] > 0) {
+                        deficit.push({ denom: d, count: idealMissingBreakdown[d] });
+                    }
+                });
+
+                return { surplus, deficit };
+            };
+
+            // --- ACTIONS ---
+
+            const addEmployee = () => {
+                const nameInput = document.getElementById('empName');
+                const amtInput = document.getElementById('empAmount');
+                
+                let name = nameInput.value.trim();
+                let valStr = amtInput.value.trim();
+
+                if (!name && !valStr) return;
+                if (name && !valStr) {
+                    const match = name.match(/^[\d\.\-\)\s]*([a-zA-Z\u00C0-\u00FF\s]+)[,\s]+(\d+(\.\d+)?)/);
+                    if (match) { name = match[1].trim(); valStr = match[2]; }
+                }
+
+                if (name && valStr) {
+                    const amount = parseFloat(valStr);
+                    if (!isNaN(amount)) {
+                        state.employees.push({
+                            id: Date.now(),
+                            name,
+                            amount,
+                            paid: false
+                        });
+                        nameInput.value = '';
+                        amtInput.value = '';
+                        nameInput.focus();
+                        saveData();
+                    }
+                }
+            };
+
+            const removeEmployee = (id) => {
+                state.employees = state.employees.filter(e => e.id !== id);
+                saveData();
+            };
+            
+            const togglePaid = (id) => {
+                state.employees = state.employees.map(e => 
+                    e.id === id ? { ...e, paid: !e.paid } : e
+                );
+                saveData();
+            };
+
+            const updateInventory = (denom, val) => {
+                state.inventory[denom] = parseInt(val) || 0;
+                saveData();
+            };
+
+            const updateBankLimit = (denom, val) => {
+                if (val === '') state.bankLimits[denom] = null;
+                else state.bankLimits[denom] = parseInt(val);
+                saveData();
+            };
+
+            const applyBankToInventory = () => {
+                const bankData = calculateBankNeeds();
+                state.denominations.forEach(d => {
+                    if (bankData.breakdown[d]) {
+                        state.inventory[d] = bankData.breakdown[d].final;
+                    } else {
+                        state.inventory[d] = 0;
+                    }
+                });
+                state.mode = 'inventory';
+                switchTab('inventory');
+                saveData();
+                alert('Inventario actualizado para los empleados pendientes.');
+            };
+
+            const addDenomination = () => {
+                const val = parseFloat(document.getElementById('newDenomInput').value);
+                if (val && !state.denominations.includes(val)) {
+                    state.denominations.push(val);
+                    state.denominations.sort((a,b) => b-a);
+                    state.inventory[val] = 0;
+                    document.getElementById('newDenomInput').value = '';
+                    saveData();
+                    renderConfigModal();
+                }
+            };
+
+            const removeDenom = (val) => {
+                state.denominations = state.denominations.filter(d => d !== val);
+                delete state.inventory[val];
+                saveData();
+                renderConfigModal();
+            };
+
+            const resetAll = () => {
+                if(confirm('¿Borrar todos los datos?')) {
+                    localStorage.removeItem('cashflow_data');
+                    location.reload();
+                }
+            };
+
+            const resetDenominations = () => {
+                state.denominations = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
+                saveData();
+                renderConfigModal();
+            };
+
+            const exportToCSV = () => {
+                const { results } = calculateDistribution();
+                let csv = "No.,Nombre,Monto,Pagado,Detalle,Estado\n";
+                results.forEach((row, index) => {
+                    let details = [];
+                    for(const [d, count] of Object.entries(row.distribution)) {
+                        details.push(`${count}x${d}`);
+                    }
+                    const paidStatus = row.paid ? "SI" : "NO";
+                    csv += `${index+1},"${row.name}",${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.setAttribute('hidden', '');
+                a.setAttribute('href', url);
+                a.setAttribute('download', 'nomina_cashflow.csv');
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+
+            const openImportModal = () => {
+                document.getElementById('importModal').classList.remove('hidden');
+                document.getElementById('jsonImportInput').value = '';
+                document.getElementById('importErrorMsg').classList.add('hidden');
+            };
+
+            const closeImportModal = () => {
+                document.getElementById('importModal').classList.add('hidden');
+            };
+
+            const processImport = () => {
+                const rawText = document.getElementById('jsonImportInput').value;
+                const errEl = document.getElementById('importErrorMsg');
+                
+                try {
+                    const parsed = JSON.parse(rawText);
+                    if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
+                    
+                    let newEmps = [];
+                    parsed.forEach((item, idx) => {
+                        const name = item.nombre || item.name;
+                        const amount = parseFloat(item.monto || item.amount);
+
+                        if (!name || isNaN(amount)) {
+                            throw new Error(`Error en elemento #${idx + 1}: Faltan datos (nombre o monto)`);
+                        }
+                        
+                        newEmps.push({
+                            id: Date.now() + idx,
+                            name: name,
+                            amount: amount,
+                            paid: item.paid || false
+                        });
+                    });
+
+                    if (newEmps.length > 0) {
+                        if(confirm(`Se han detectado ${newEmps.length} empleados. ¿Deseas reemplazar la lista actual (OK) o agregarlos al final (Cancelar)?`)) {
+                            state.employees = newEmps;
+                        } else {
+                            state.employees = [...state.employees, ...newEmps];
+                        }
+                        saveData();
+                        closeImportModal();
+                    } else {
+                        throw new Error("La lista está vacía.");
+                    }
+
+                } catch (e) {
+                    errEl.innerText = "Error: " + e.message;
+                    errEl.classList.remove('hidden');
+                }
+            };
+
+            // --- UI RENDERING ---
+
+            const renderAll = () => {
+                // Must calculate distribution FIRST to get current inventory state vs leftovers
+                const { results, leftoverInventory } = calculateDistribution();
+                
+                // Now render UI parts passing data where needed
+                renderInventory(leftoverInventory, results);
+                renderEmployees(results);
+                renderBank();
+                renderConfigModal();
+                updateTotals();
+            };
+
+            const renderInventory = (leftoverInventory, processedEmployees) => {
+                const container = document.getElementById('inventoryList');
+                container.innerHTML = '';
+                
+                state.denominations.forEach(denom => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100 hover:border-blue-300 transition-colors";
+                    div.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-8 rounded flex items-center justify-center font-bold text-xs shadow-sm bg-slate-100 text-slate-700 border border-slate-300">
+                                ${denom}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="app.adjustInv(${denom}, -1)" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors">-</button>
+                            <input type="number" 
+                                value="${state.inventory[denom] || 0}" 
+                                onchange="app.updateInventory(${denom}, this.value)"
+                                class="w-16 text-center border-none bg-transparent font-mono font-bold text-slate-700 focus:ring-0">
+                            <button onclick="app.adjustInv(${denom}, 1)" class="w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 flex items-center justify-center transition-colors">+</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+
+                // Render Smart Advisor
+                if (processedEmployees) {
+                    const advisorData = generateSmartAdvisorData(leftoverInventory, processedEmployees);
+                    const advisorEl = document.getElementById('inventoryAdvisor');
+                    
+                    if (advisorData.deficit.length > 0) {
+                        advisorEl.classList.remove('hidden');
+
+                        // Determine Logic for Yellow vs Red
+                        // Rule: If missing denomination < smallest available surplus denomination -> Yellow (Just change)
+                        // Rule: Else -> Red (Real money missing)
+                        
+                        let minSurplus = advisorData.surplus.length > 0 
+                            ? Math.min(...advisorData.surplus.map(s => s.denom)) 
+                            : Infinity;
+                        
+                        // We check each deficit line
+                        let deficitHTML = `<div class="font-semibold flex flex-col gap-1 mt-2">`;
+                        
+                        advisorData.deficit.forEach(d => {
+                            let colorClass = "text-red-600";
+                            let icon = "fa-arrow-trend-down";
+                            
+                            // Yellow Condition: I'm missing a bill SMALLER than the smallest bill I have extra.
+                            // OR I have enough surplus value in general but just wrong bills (simplified check)
+                            if (d.denom < minSurplus && minSurplus !== Infinity) {
+                                colorClass = "text-yellow-600"; 
+                                icon = "fa-rotate"; // Icon indicating "Change/Swap"
+                            }
+
+                            deficitHTML += `<div class="${colorClass}"><i class="fa-solid ${icon} mr-1"></i>Faltan: ${d.count}x$${d.denom}</div>`;
+                        });
+                        deficitHTML += `</div>`;
+
+                        let surplusHTML = advisorData.surplus.length > 0 
+                            ? `<div class="mb-1 text-green-700 font-semibold"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Sobran: ` + advisorData.surplus.map(s => `${s.count}x$${s.denom}`).join(', ') + `</div>`
+                            : `<div class="mb-1 text-slate-500 italic text-[10px]">No hay sobrantes útiles.</div>`;
+                        
+                        advisorEl.innerHTML = `
+                            <p class="font-bold text-orange-800 mb-2 border-b border-orange-200 pb-1">Asesor de Cambio</p>
+                            ${surplusHTML}
+                            ${deficitHTML}
+                            <p class="mt-2 text-[10px] text-orange-700 italic">Consejo: Usa los sobrantes para cubrir los faltantes amarillos.</p>
+                        `;
+                    } else {
+                        advisorEl.classList.add('hidden');
+                    }
+                }
+            };
+
+            const adjustInv = (denom, delta) => {
+                const current = state.inventory[denom] || 0;
+                const newVal = Math.max(0, current + delta);
+                updateInventory(denom, newVal);
+            };
+
+            const renderEmployees = (data) => {
+                const container = document.getElementById('employeeList');
+                
+                if (!data || data.length === 0) {
+                    container.innerHTML = `<div class="text-center py-10 text-slate-400 flex flex-col items-center">
+                        <i class="fa-solid fa-users-viewfinder text-4xl mb-3 opacity-30"></i>
+                        <p>No hay empleados en la lista.</p>
+                    </div>`;
+                    document.getElementById('employeeCountBadge').innerText = '0';
+                    return;
+                }
+
+                document.getElementById('employeeCountBadge').innerText = data.length;
+                container.innerHTML = '';
+
+                data.forEach((emp, index) => {
+                    let breakdownHTML = '';
+                    state.denominations.forEach(d => {
+                        if (emp.distribution[d]) {
+                            let colorClass = 'bg-slate-200 text-slate-700';
+                            if(d >= 2000) colorClass = 'bg-slate-200 border-slate-300';
+                            if(d === 1000) colorClass = 'bg-blue-200 text-blue-800 border-blue-300';
+                            if(d === 500) colorClass = 'bg-green-200 text-green-800 border-green-300';
+                            if(d === 200) colorClass = 'bg-red-200 text-red-800 border-red-300';
+                            if(d === 100) colorClass = 'bg-orange-200 text-orange-800 border-orange-300';
+                            if(d <= 50) colorClass = 'bg-yellow-200 text-yellow-800 border-yellow-300';
+
+                            breakdownHTML += `
+                                <div class="flex flex-col items-center mx-1">
+                                    <div class="relative group cursor-default">
+                                        <div class="${colorClass} w-10 h-6 rounded border shadow-sm flex items-center justify-center text-[10px] font-bold select-none relative z-10">
+                                            ${d}
+                                        </div>
+                                        <span class="absolute -top-2 -right-2 bg-slate-800 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full z-20 shadow">${emp.distribution[d]}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    let statusColor = emp.status === 'ok' ? 'border-l-4 border-green-500' : 'border-l-4 border-red-500 bg-red-50';
+                    let statusIcon = emp.status === 'ok' ? '<i class="fa-solid fa-check text-green-500"></i>' : '<i class="fa-solid fa-triangle-exclamation text-red-500"></i>';
+                    let notesHTML = emp.notes.length ? `<div class="text-xs text-red-600 mt-1">${emp.notes.join(', ')}</div>` : '';
+                    
+                    const isPaid = emp.paid || false;
+                    const cardOpacity = isPaid ? 'opacity-60 grayscale bg-slate-100' : 'bg-white';
+                    const checkIcon = isPaid ? 'fa-solid fa-square-check text-blue-600' : 'fa-regular fa-square text-slate-400';
+
+                    const card = document.createElement('div');
+                    card.className = `${cardOpacity} p-3 rounded-lg shadow-sm border border-slate-200 ${statusColor} bill-anim relative transition-all duration-300`;
+                    card.innerHTML = `
+                        <div class="flex items-start mb-2">
+                            <button onclick="app.togglePaid(${emp.id})" class="text-2xl hover:scale-110 transition-transform mr-3 pt-0.5 focus:outline-none" title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
+                                <i class="${checkIcon}"></i>
+                            </button>
+                            <div class="flex-grow">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex items-start gap-2">
+                                        <span class="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-mono mt-1">#${index+1}</span>
+                                        <div>
+                                            <h3 class="font-bold text-slate-800 leading-tight ${isPaid ? 'line-through decoration-slate-400' : ''}">${emp.name}</h3>
+                                            <div class="font-mono text-sm text-slate-500">${fmt(emp.amount)}</div>
+                                        </div>
+                                    </div>
+                                    <button onclick="app.removeEmployee(${emp.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+                                        <i class="fa-solid fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="flex flex-wrap items-end gap-y-2 pt-2 border-t border-slate-100 border-dashed mt-2">
+                                    ${breakdownHTML || '<span class="text-xs text-slate-400 italic">Esperando efectivo...</span>'}
+                                </div>
+                                ${notesHTML}
+                            </div>
+                        </div>
+                        <div class="absolute bottom-2 right-2 opacity-50 pointer-events-none">
+                            ${statusIcon}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            };
+
+            const renderBank = () => {
+                const tbody = document.getElementById('bankTableBody');
+                const bankData = calculateBankNeeds();
+                tbody.innerHTML = '';
+
+                let totalToWithdraw = 0;
+
+                state.denominations.forEach(denom => {
+                    const rowData = bankData.breakdown[denom] || { ideal: 0, neededAfterCarry: 0, final: 0 };
+                    
+                    const userLimit = state.bankLimits[denom];
+                    const isLimited = (userLimit !== undefined && userLimit !== null && userLimit !== "") && rowData.neededAfterCarry > rowData.final;
+                    
+                    const row = document.createElement('tr');
+                    row.className = "bg-white border-b hover:bg-slate-50";
+                    row.innerHTML = `
+                        <td class="px-4 py-3 font-medium text-slate-900">${denom}</td>
+                        <td class="px-2 py-3 text-center text-slate-500 text-xs">${rowData.neededAfterCarry}</td>
+                        <td class="px-2 py-3 text-center">
+                            <input type="number" 
+                                placeholder="∞" 
+                                value="${userLimit === undefined || userLimit === null ? '' : userLimit}" 
+                                onchange="app.updateBankLimit(${denom}, this.value)"
+                                class="w-16 px-2 py-1 text-center text-sm border rounded bg-slate-50 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none ${isLimited ? 'border-orange-400 text-orange-600 font-bold' : 'border-slate-200'}">
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-blue-700">
+                            ${rowData.final}
+                            ${rowData.final > rowData.ideal ? `<span class="text-[10px] text-green-500 block">+${rowData.final - rowData.ideal} por ajuste</span>` : ''}
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+
+                    totalToWithdraw += (rowData.final * denom);
+                });
+
+                document.getElementById('bankTotalDisplay').innerText = fmt(totalToWithdraw);
+            };
+
+            const renderConfigModal = () => {
+                const container = document.getElementById('denomListConfig');
+                container.innerHTML = '';
+                state.denominations.forEach(d => {
+                    const chip = document.createElement('div');
+                    chip.className = "px-3 py-1 bg-white border border-slate-300 rounded-full text-sm flex items-center gap-2";
+                    chip.innerHTML = `
+                        ${d}
+                        <button onclick="app.removeDenom(${d})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
+                    `;
+                    container.appendChild(chip);
+                });
+            };
+
+            const updateTotals = () => {
+                // Cash in Box
+                let totalBox = 0;
+                state.denominations.forEach(d => totalBox += d * (state.inventory[d] || 0));
+                document.getElementById('totalInventoryDisplay').innerText = fmt(totalBox);
+
+                // Total Payroll (Only Pending)
+                let totalPending = state.employees
+                    .filter(e => !e.paid)
+                    .reduce((sum, e) => sum + e.amount, 0);
+                
+                let totalAll = state.employees.reduce((sum, e) => sum + e.amount, 0);
+
+                if (state.employees.some(e => e.paid)) {
+                    document.getElementById('totalPayrollDisplay').innerHTML = `<span class="text-xs text-slate-400 line-through mr-1">${fmt(totalAll)}</span> ${fmt(totalPending)}`;
+                } else {
+                    document.getElementById('totalPayrollDisplay').innerText = fmt(totalPending);
+                }
+
+                // Progress Bar Logic (Based on PENDING needs)
+                let percent = totalPending > 0 ? Math.min(100, (totalBox / totalPending) * 100) : (totalBox > 0 ? 100 : 0);
+                document.getElementById('cashProgressBar').style.width = `${percent}%`;
+                
+                // Status Text
+                const statusEl = document.getElementById('cashStatusText');
+                if (totalPending === 0 && state.employees.length > 0) {
+                     statusEl.innerHTML = `<span class="text-green-600 font-bold">¡Todo Pagado!</span>`;
+                     document.getElementById('cashProgressBar').classList.add('bg-green-500');
+                } else if (totalBox >= totalPending) {
+                    statusEl.innerHTML = `<span class="text-green-600 font-bold">Cubierto (Sobra ${fmt(totalBox - totalPending)})</span>`;
+                    document.getElementById('cashProgressBar').classList.remove('bg-red-500');
+                    document.getElementById('cashProgressBar').classList.add('bg-blue-600');
+                } else {
+                    statusEl.innerHTML = `<span class="text-red-600 font-bold">Faltan ${fmt(totalPending - totalBox)}</span>`;
+                    document.getElementById('cashProgressBar').classList.remove('bg-blue-600');
+                    document.getElementById('cashProgressBar').classList.add('bg-red-500');
+                }
+            };
+
+            const switchTab = (tabName) => {
+                const invView = document.getElementById('view-inventory');
+                const bankView = document.getElementById('view-bank');
+                const tabInv = document.getElementById('tab-inventory');
+                const tabBank = document.getElementById('tab-bank');
+
+                if (tabName === 'inventory') {
+                    invView.classList.remove('hidden');
+                    bankView.classList.add('hidden');
+                    tabInv.classList.add('tab-active');
+                    tabInv.classList.remove('tab-inactive');
+                    tabBank.classList.remove('tab-active');
+                    tabBank.classList.add('tab-inactive');
+                } else {
+                    invView.classList.add('hidden');
+                    bankView.classList.remove('hidden');
+                    tabInv.classList.remove('tab-active');
+                    tabInv.classList.add('tab-inactive');
+                    tabBank.classList.add('tab-active');
+                    tabBank.classList.remove('tab-inactive');
+                    renderBank(); // Refresh calculation
+                }
+            };
+
+            const setupEventListeners = () => {
+                document.getElementById('empAmount').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addEmployee();
+                });
+                document.getElementById('empName').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') document.getElementById('empAmount').focus();
+                });
+            };
+
+            return {
+                init,
+                addEmployee,
+                removeEmployee,
+                togglePaid,
+                updateInventory,
+                adjustInv,
+                resetAll,
+                switchTab,
+                updateBankLimit,
+                applyBankToInventory,
+                addDenomination,
+                removeDenom,
+                resetDenominations,
+                renderConfigModal,
+                exportToCSV,
+                openImportModal,
+                closeImportModal,
+                processImport
+            };
+        })();
+
+        window.onload = app.init;
+    </script>
+</body>
+</html>
