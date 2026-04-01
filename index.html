@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CashFlow Pro - Distribución de Nómina</title>
+    <title>Split X - Distribución de Nómina</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome -->
@@ -65,7 +65,7 @@
                     <div class="bg-blue-600 text-white p-2 rounded-lg shadow-lg">
                         <i class="fa-solid fa-money-bill-wave text-xl"></i>
                     </div>
-                    <span class="font-bold text-xl tracking-tight text-slate-800">CashFlow<span class="text-blue-600">Pro</span></span>
+                    <span class="font-bold text-xl tracking-tight text-slate-800">Split<span class="text-blue-600">X</span></span>
                 </div>
                 <div class="flex items-center gap-4">
                     <button onclick="app.resetAll()" class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors">
@@ -185,7 +185,11 @@
                     <div class="flex items-center gap-3">
                         <span id="totalPayrollDisplay" class="font-mono font-bold text-slate-700">$0.00</span>
                         <div class="h-4 w-px bg-slate-300"></div>
-                        <button onclick="app.openImportModal()" class="text-slate-500 hover:text-blue-600 text-sm flex items-center gap-1" title="Importar JSON">
+                        <button onclick="app.roundAllAmounts()" class="text-slate-500 hover:text-amber-600 text-sm flex items-center gap-1" title="Quitar centavos de todos los montos">
+                            <i class="fa-solid fa-scissors"></i> <span class="hidden sm:inline">Centavos</span>
+                        </button>
+                        <div class="h-4 w-px bg-slate-300"></div>
+                        <button onclick="app.openImportModal()" class="text-slate-500 hover:text-blue-600 text-sm flex items-center gap-1" title="Importar">
                             <i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">Importar</span>
                         </button>
                         <button onclick="app.exportToCSV()" class="text-slate-500 hover:text-blue-600 text-sm flex items-center gap-1" title="Exportar CSV">
@@ -235,22 +239,48 @@
     <div id="importModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out]">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="font-bold text-slate-700">Importar Empleados (JSON)</h3>
+                <h3 class="font-bold text-slate-700">Importar Empleados</h3>
                 <button onclick="app.closeImportModal()" class="text-slate-400 hover:text-slate-600">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
             <div class="p-4">
-                <p class="text-xs text-slate-500 mb-2">Pega tu lista de empleados en formato JSON. Se aceptan campos "nombre" y "monto".</p>
-                <div class="bg-slate-50 p-2 rounded border border-slate-200 mb-3">
-                    <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wide mb-1">Ejemplo de formato:</p>
+                <!-- Format Tabs -->
+                <div class="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg">
+                    <button id="importTab-excel" onclick="app.switchImportTab('excel')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white text-blue-700 shadow-sm">
+                        <i class="fa-solid fa-table mr-1"></i> Excel / TSV
+                    </button>
+                    <button id="importTab-json" onclick="app.switchImportTab('json')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 hover:text-slate-700">
+                        <i class="fa-solid fa-code mr-1"></i> JSON
+                    </button>
+                </div>
+
+                <!-- Excel Format Info -->
+                <div id="importInfo-excel" class="bg-blue-50 p-2 rounded border border-blue-100 mb-3">
+                    <p class="text-[10px] font-mono text-blue-500 uppercase tracking-wide mb-1 font-bold">Formato Excel (copiar y pegar)</p>
+                    <p class="text-xs text-blue-700 mb-1">Copia las filas directamente desde Excel. Se esperan columnas separadas por tabulaciones:</p>
+                    <code class="text-[10px] font-mono text-blue-600 block whitespace-pre bg-blue-100 rounded p-1"># │ Nombre │ ... │ Monto Neto</code>
+                    <p class="text-[10px] text-blue-500 mt-1">✓ El número de columnas entre nombre y monto no importa. <br>✓ Se usa la <strong>última columna</strong> como monto neto.</p>
+                </div>
+
+                <!-- JSON Format Info -->
+                <div id="importInfo-json" class="bg-slate-50 p-2 rounded border border-slate-200 mb-3 hidden">
+                    <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wide mb-1">Ejemplo de formato JSON:</p>
                     <code class="text-xs font-mono text-blue-600 block whitespace-pre">
 [
   { "nombre": "Juan Perez", "monto": 2500 },
-  { "id": 2, "nombre": "Maria", "monto": 1450.50 }
+  { "nombre": "Maria", "monto": 1450.50 }
 ]</code>
                 </div>
-                <textarea id="jsonImportInput" class="w-full h-40 p-3 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" placeholder='[{"nombre": "Empleado 1", "monto": 100}, ...]'></textarea>
+
+                <textarea id="jsonImportInput" class="w-full h-40 p-3 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" placeholder="Pega aquí las filas copiadas desde Excel..."></textarea>
+                
+                <!-- Preview -->
+                <div id="importPreview" class="hidden mt-2 bg-green-50 border border-green-200 rounded-lg p-2 max-h-28 overflow-y-auto">
+                    <p class="text-[10px] text-green-700 font-bold uppercase mb-1">Vista previa (<span id="importPreviewCount">0</span> empleados detectados)</p>
+                    <div id="importPreviewList" class="text-xs text-green-800 font-mono space-y-0.5"></div>
+                </div>
+
                 <p id="importErrorMsg" class="text-xs text-red-500 mt-2 hidden"></p>
             </div>
             <div class="p-4 bg-slate-50 text-right flex justify-end gap-2">
@@ -282,7 +312,7 @@
             };
 
             const loadData = () => {
-                const saved = localStorage.getItem('cashflow_data');
+                const saved = localStorage.getItem('Split_data');
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     state = { ...state, ...parsed };
@@ -292,7 +322,7 @@
             };
 
             const saveData = () => {
-                localStorage.setItem('cashflow_data', JSON.stringify(state));
+                localStorage.setItem('Split_data', JSON.stringify(state));
                 renderAll();
             };
 
@@ -532,7 +562,7 @@
 
             const resetAll = () => {
                 if(confirm('¿Borrar todos los datos?')) {
-                    localStorage.removeItem('cashflow_data');
+                    localStorage.removeItem('Split_data');
                     location.reload();
                 }
             };
@@ -560,16 +590,160 @@
                 const a = document.createElement('a');
                 a.setAttribute('hidden', '');
                 a.setAttribute('href', url);
-                a.setAttribute('download', 'nomina_cashflow.csv');
+                a.setAttribute('download', 'nomina_Split.csv');
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+            };
+
+            let importMode = 'excel'; // 'excel' | 'json'
+
+            const switchImportTab = (mode) => {
+                importMode = mode;
+                const tabs = ['excel', 'json'];
+                tabs.forEach(t => {
+                    const tab = document.getElementById(`importTab-${t}`);
+                    const info = document.getElementById(`importInfo-${t}`);
+                    if (t === mode) {
+                        tab.classList.add('bg-white', 'text-blue-700', 'shadow-sm');
+                        tab.classList.remove('text-slate-500');
+                        info.classList.remove('hidden');
+                    } else {
+                        tab.classList.remove('bg-white', 'text-blue-700', 'shadow-sm');
+                        tab.classList.add('text-slate-500');
+                        info.classList.add('hidden');
+                    }
+                });
+                // Update placeholder
+                const ta = document.getElementById('jsonImportInput');
+                ta.placeholder = mode === 'excel'
+                    ? 'Pega aquí las filas copiadas desde Excel...'
+                    : '[{"nombre": "Empleado 1", "monto": 100}, ...]';
+                // Clear preview and error
+                document.getElementById('importPreview').classList.add('hidden');
+                document.getElementById('importErrorMsg').classList.add('hidden');
+                parseImportPreview();
+            };
+
+            // Parse number from Excel: "1,300.00" or "1.300,00" → 1300.00
+            const parseExcelNumber = (str) => {
+                if (!str) return NaN;
+                str = str.trim();
+                // Remove currency symbols, spaces
+                str = str.replace(/[$RD\s]/g, '');
+                // If has comma and dot: "1,300.00" → remove commas
+                if (str.includes(',') && str.includes('.')) {
+                    str = str.replace(/,/g, '');
+                } else if (str.includes(',') && !str.includes('.')) {
+                    // Could be decimal comma: "1300,50" or thousands: "1,300"
+                    // If only one comma and <=2 digits after: decimal
+                    const parts = str.split(',');
+                    if (parts.length === 2 && parts[1].length <= 2) {
+                        str = str.replace(',', '.');
+                    } else {
+                        str = str.replace(/,/g, '');
+                    }
+                }
+                return parseFloat(str);
+            };
+
+            const parseExcelText = (rawText) => {
+                const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                let employees = [];
+                let errors = [];
+
+                lines.forEach((line, idx) => {
+                    // Split by tabs
+                    const cols = line.split('\t').map(c => c.trim());
+                    
+                    if (cols.length < 3) {
+                        errors.push(`Línea ${idx+1}: No tiene suficientes columnas (mínimo 3).`);
+                        return;
+                    }
+
+                    // Col 0 = order number (skip), Col 1 = name
+                    // Last non-empty column = net amount
+                    const name = cols[1];
+                    if (!name) { errors.push(`Línea ${idx+1}: Nombre vacío.`); return; }
+
+                    // Find last non-empty column value
+                    let amountStr = null;
+                    for (let i = cols.length - 1; i >= 2; i--) {
+                        if (cols[i] !== '' && cols[i] !== null) {
+                            amountStr = cols[i];
+                            break;
+                        }
+                    }
+
+                    if (!amountStr) { errors.push(`Línea ${idx+1}: No se encontró monto.`); return; }
+
+                    const amount = parseExcelNumber(amountStr);
+                    if (isNaN(amount) || amount < 0) {
+                        errors.push(`Línea ${idx+1}: Monto inválido ("${amountStr}").`);
+                        return;
+                    }
+
+                    employees.push({ name: name.replace(/^[\d\.\-\)\s]+/, '').trim() || name, amount, paid: false });
+                });
+
+                return { employees, errors };
+            };
+
+            const parseImportPreview = () => {
+                const rawText = document.getElementById('jsonImportInput').value.trim();
+                const previewEl = document.getElementById('importPreview');
+                const previewList = document.getElementById('importPreviewList');
+                const previewCount = document.getElementById('importPreviewCount');
+                const errEl = document.getElementById('importErrorMsg');
+
+                if (!rawText) { previewEl.classList.add('hidden'); return; }
+
+                try {
+                    let employees = [];
+                    if (importMode === 'excel') {
+                        const result = parseExcelText(rawText);
+                        employees = result.employees;
+                        if (result.errors.length > 0 && employees.length === 0) throw new Error(result.errors[0]);
+                    } else {
+                        const parsed = JSON.parse(rawText);
+                        if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
+                        employees = parsed.map((item, idx) => {
+                            const name = item.nombre || item.name;
+                            const amount = parseFloat(item.monto || item.amount);
+                            if (!name || isNaN(amount)) throw new Error(`Elemento #${idx+1}: Faltan nombre o monto.`);
+                            return { name, amount, paid: item.paid || false };
+                        });
+                    }
+
+                    if (employees.length > 0) {
+                        previewCount.innerText = employees.length;
+                        previewList.innerHTML = employees.slice(0, 8).map(e =>
+                            `<div class="flex justify-between"><span>${e.name}</span><span class="font-bold">${fmt(e.amount)}</span></div>`
+                        ).join('') + (employees.length > 8 ? `<div class="text-green-600 italic">... y ${employees.length - 8} más</div>` : '');
+                        previewEl.classList.remove('hidden');
+                        errEl.classList.add('hidden');
+                    } else {
+                        previewEl.classList.add('hidden');
+                    }
+                } catch(e) {
+                    previewEl.classList.add('hidden');
+                    if (rawText.length > 10) {
+                        errEl.innerText = "Error: " + e.message;
+                        errEl.classList.remove('hidden');
+                    }
+                }
             };
 
             const openImportModal = () => {
                 document.getElementById('importModal').classList.remove('hidden');
                 document.getElementById('jsonImportInput').value = '';
                 document.getElementById('importErrorMsg').classList.add('hidden');
+                document.getElementById('importPreview').classList.add('hidden');
+                importMode = 'excel';
+                switchImportTab('excel');
+                // Attach live preview listener
+                const ta = document.getElementById('jsonImportInput');
+                ta.oninput = parseImportPreview;
             };
 
             const closeImportModal = () => {
@@ -577,29 +751,33 @@
             };
 
             const processImport = () => {
-                const rawText = document.getElementById('jsonImportInput').value;
+                const rawText = document.getElementById('jsonImportInput').value.trim();
                 const errEl = document.getElementById('importErrorMsg');
                 
                 try {
-                    const parsed = JSON.parse(rawText);
-                    if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
-                    
                     let newEmps = [];
-                    parsed.forEach((item, idx) => {
-                        const name = item.nombre || item.name;
-                        const amount = parseFloat(item.monto || item.amount);
 
-                        if (!name || isNaN(amount)) {
-                            throw new Error(`Error en elemento #${idx + 1}: Faltan datos (nombre o monto)`);
+                    if (importMode === 'excel') {
+                        const result = parseExcelText(rawText);
+                        if (result.errors.length > 0 && result.employees.length === 0) {
+                            throw new Error(result.errors.join(' | '));
                         }
-                        
-                        newEmps.push({
+                        newEmps = result.employees.map((e, idx) => ({
                             id: Date.now() + idx,
-                            name: name,
-                            amount: amount,
-                            paid: item.paid || false
+                            name: e.name,
+                            amount: e.amount,
+                            paid: false
+                        }));
+                    } else {
+                        const parsed = JSON.parse(rawText);
+                        if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
+                        parsed.forEach((item, idx) => {
+                            const name = item.nombre || item.name;
+                            const amount = parseFloat(item.monto || item.amount);
+                            if (!name || isNaN(amount)) throw new Error(`Error en elemento #${idx + 1}: Faltan datos (nombre o monto)`);
+                            newEmps.push({ id: Date.now() + idx, name, amount, paid: item.paid || false });
                         });
-                    });
+                    }
 
                     if (newEmps.length > 0) {
                         if(confirm(`Se han detectado ${newEmps.length} empleados. ¿Deseas reemplazar la lista actual (OK) o agregarlos al final (Cancelar)?`)) {
@@ -610,7 +788,7 @@
                         saveData();
                         closeImportModal();
                     } else {
-                        throw new Error("La lista está vacía.");
+                        throw new Error("No se encontraron empleados válidos.");
                     }
 
                 } catch (e) {
@@ -714,6 +892,32 @@
                 updateInventory(denom, newVal);
             };
 
+            // Round all employee amounts, removing cents
+            const roundAllAmounts = () => {
+                const hasCents = state.employees.some(e => e.amount !== Math.floor(e.amount));
+                if (!hasCents) { alert('Todos los montos ya son enteros.'); return; }
+                const count = state.employees.filter(e => e.amount !== Math.floor(e.amount)).length;
+                if (!confirm(`Se quitarán los centavos de ${count} empleado(s). ¿Continuar?`)) return;
+                state.employees = state.employees.map(e => ({ ...e, amount: Math.floor(e.amount) }));
+                saveData();
+            };
+
+            // Update employee field inline
+            const updateEmployee = (id, field, value) => {
+                state.employees = state.employees.map(e => {
+                    if (e.id !== id) return e;
+                    if (field === 'amount') {
+                        const parsed = parseFloat(value);
+                        return isNaN(parsed) || parsed < 0 ? e : { ...e, amount: parsed };
+                    }
+                    if (field === 'name') {
+                        return value.trim() ? { ...e, name: value.trim() } : e;
+                    }
+                    return e;
+                });
+                saveData();
+            };
+
             const renderEmployees = (data) => {
                 const container = document.getElementById('employeeList');
                 
@@ -771,14 +975,29 @@
                             </button>
                             <div class="flex-grow">
                                 <div class="flex justify-between items-start">
-                                    <div class="flex items-start gap-2">
-                                        <span class="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-mono mt-1">#${index+1}</span>
-                                        <div>
-                                            <h3 class="font-bold text-slate-800 leading-tight ${isPaid ? 'line-through decoration-slate-400' : ''}">${emp.name}</h3>
-                                            <div class="font-mono text-sm text-slate-500">${fmt(emp.amount)}</div>
+                                    <div class="flex items-start gap-2 flex-grow mr-2">
+                                        <span class="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-mono mt-1 shrink-0">#${index+1}</span>
+                                        <div class="flex-grow">
+                                            <input
+                                                type="text"
+                                                value="${emp.name.replace(/"/g, '&quot;')}"
+                                                onblur="app.updateEmployee(${emp.id}, 'name', this.value)"
+                                                onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();event.preventDefault();this.closest('.flex-grow').querySelector('.amount-input').focus();}"
+                                                class="font-bold text-slate-800 leading-tight w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 focus:outline-none transition-colors text-sm ${isPaid ? 'line-through decoration-slate-400' : ''} cursor-text"
+                                                title="Clic para editar nombre"
+                                            />
+                                            <input
+                                                type="number"
+                                                value="${emp.amount}"
+                                                step="0.01"
+                                                onblur="app.updateEmployee(${emp.id}, 'amount', this.value)"
+                                                onkeydown="if(event.key==='Enter'){this.blur();}"
+                                                class="amount-input font-mono text-sm text-slate-500 w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 focus:outline-none transition-colors cursor-text mt-0.5"
+                                                title="Clic para editar monto"
+                                            />
                                         </div>
                                     </div>
-                                    <button onclick="app.removeEmployee(${emp.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+                                    <button onclick="app.removeEmployee(${emp.id})" class="text-slate-300 hover:text-red-500 transition-colors shrink-0">
                                         <i class="fa-solid fa-times"></i>
                                     </button>
                                 </div>
@@ -938,7 +1157,10 @@
                 exportToCSV,
                 openImportModal,
                 closeImportModal,
-                processImport
+                processImport,
+                switchImportTab,
+                roundAllAmounts,
+                updateEmployee
             };
         })();
 
