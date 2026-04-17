@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Split X - Distribución de Nómina</title>
-    <!-- Tailwind CSS -->
+    <title>SplitX — Distribución de Nómina</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -18,234 +18,604 @@
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        bill: {
-                            2000: '#e5e7eb',
-                            1000: '#bfdbfe',
-                            500: '#86efac',
-                            200: '#fca5a5',
-                            100: '#fdba74',
-                            50: '#fde047', 
-                            default: '#e2e8f0'
-                        }
                     }
                 }
             }
         }
     </script>
+
     <style>
-        /* Animaciones y estilos custom */
-        .bill-anim { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .bill-enter { animation: popIn 0.3s ease-out forwards; }
-        
-        @keyframes popIn {
-            0% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+        :root {
+            --blue: #2563eb;
+            --blue-light: #eff6ff;
+            --green: #16a34a;
+            --green-light: #f0fdf4;
+            --red: #dc2626;
+            --red-light: #fef2f2;
+            --amber: #d97706;
+            --amber-light: #fffbeb;
+            --slate-800: #1e293b;
         }
 
-        /* Scrollbar fina */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
+        * { box-sizing: border-box; }
+
+        @keyframes popIn {
+            0% { transform: scale(0.92) translateY(8px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .anim-pop   { animation: popIn   0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .anim-slide { animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .anim-fade  { animation: fadeIn  0.15s ease forwards; }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        /* KPI cards */
+        .kpi-card {
+            background: white;
+            border-radius: 14px;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: box-shadow 0.2s;
+        }
+        .kpi-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+        .kpi-label { font-size: 11px; font-weight: 500; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+        .kpi-value { font-size: 18px; font-weight: 700; color: #1e293b; font-family: 'JetBrains Mono', monospace; line-height: 1.2; }
+        .kpi-sub   { font-size: 11px; color: #94a3b8; }
+
+        /* Mobile segmented control */
+        .seg-control { display: flex; background: #f1f5f9; border-radius: 10px; padding: 3px; gap: 2px; }
+        .seg-btn { flex: 1; padding: 7px 12px; border-radius: 7px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: all .18s; color: #64748b; background: transparent; }
+        .seg-btn.active { background: white; color: #1e293b; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+
+        /* Mobile bottom nav */
+        .bottom-nav { display: none; }
+        @media (max-width: 1023px) {
+            .bottom-nav {
+                display: flex;
+                position: fixed;
+                bottom: 0; left: 0; right: 0;
+                background: white;
+                border-top: 1px solid #e2e8f0;
+                padding: 6px 0 env(safe-area-inset-bottom, 0);
+                z-index: 40;
+            }
+            body { padding-bottom: 70px; }
+        }
+        .bnav-item {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            gap: 2px; padding: 4px 0; cursor: pointer;
+            font-size: 10px; font-weight: 500; color: #94a3b8;
+            transition: color .15s;
+        }
+        .bnav-item.active { color: var(--blue); }
+        .bnav-icon {
+            width: 28px; height: 28px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; transition: background .15s;
+        }
+        .bnav-item.active .bnav-icon { background: var(--blue-light); }
+
+        /* FAB */
+        .fab {
+            display: none;
+            position: fixed; bottom: 80px; right: 16px; z-index: 39;
+            width: 52px; height: 52px; border-radius: 50%;
+            background: var(--blue); color: white;
+            box-shadow: 0 4px 16px rgba(37,99,235,.4);
+            align-items: center; justify-content: center;
+            font-size: 22px; cursor: pointer; border: none;
+            transition: transform .15s, box-shadow .15s;
+        }
+        .fab:hover { transform: scale(1.07); box-shadow: 0 6px 20px rgba(37,99,235,.5); }
+        @media (max-width: 1023px) { .fab { display: flex; } }
+
+        /* Add Employee Drawer (mobile) */
+        .add-drawer-backdrop {
+            display: none; position: fixed; inset: 0; z-index: 45;
+            background: rgba(15,23,42,.45); backdrop-filter: blur(3px);
+        }
+        .add-drawer-backdrop.open { display: block; }
+        .add-drawer {
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 46;
+            background: white; border-radius: 20px 20px 0 0;
+            padding: 16px 20px calc(20px + env(safe-area-inset-bottom, 0));
+            transform: translateY(100%); transition: transform .3s cubic-bezier(0.4,0,0.2,1);
+        }
+        .add-drawer.open { transform: translateY(0); }
+        .drawer-handle { width: 36px; height: 4px; background: #e2e8f0; border-radius: 2px; margin: 0 auto 16px; }
+
+        /* Desktop add form */
+        .desktop-add-form { display: none; }
+        @media (min-width: 1024px) {
+            .desktop-add-form { display: block; }
+            .fab { display: none !important; }
+        }
+
+        /* Employee card */
+        .emp-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #22c55e;
+            padding: 12px;
+            transition: box-shadow .2s, transform .15s;
+        }
+        .emp-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); transform: translateY(-1px); }
+        .emp-card.error { border-left-color: #ef4444; background: #fff5f5; }
+        .emp-card.paid { opacity: .55; filter: grayscale(.6); background: #f8fafc; border-left-color: #94a3b8; }
+
+        /* Bill chip */
+        .bill-chip {
+            position: relative; display: inline-flex;
+            align-items: center; justify-content: center;
+            border-radius: 6px; border: 1px solid rgba(0,0,0,.12);
+            font-weight: 700; font-size: 9px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.15);
+            overflow: visible;
+        }
+        .bill-badge {
+            position: absolute; top: -5px; right: -5px;
+            background: #1e293b; color: white;
+            border-radius: 50%; width: 14px; height: 14px;
+            font-size: 8px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,.3);
+        }
+
+        /* Progress bar */
+        .progress-track { background: #e2e8f0; border-radius: 99px; height: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 99px; transition: width .5s cubic-bezier(0.4,0,0.2,1), background-color .3s; }
+
+        /* Inventory row */
+        .inv-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 10px; border-radius: 8px;
+            border: 1px solid #f1f5f9; background: #fafafa;
+            transition: border-color .15s;
+        }
+        .inv-row:hover { border-color: #bfdbfe; }
+
+        .stepper-btn {
+            width: 26px; height: 26px; border-radius: 50%; border: 1px solid;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;
+        }
+        .stepper-btn.minus { border-color: #e2e8f0; color: #64748b; background: white; }
+        .stepper-btn.minus:hover { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
+        .stepper-btn.plus  { border-color: #bfdbfe; color: var(--blue); background: var(--blue-light); }
+        .stepper-btn.plus:hover { background: #dbeafe; }
+
+        /* Tab pills (inventory/bank) */
+        .panel-tab { padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+        .panel-tab.active { background: var(--blue); color: white; }
+        .panel-tab.inactive { color: #64748b; }
+        .panel-tab.inactive:hover { color: #1e293b; background: #f1f5f9; }
+
+        /* Section visibility helpers */
+        .mobile-only { display: block; }
+        .desktop-only { display: none; }
+        @media (min-width: 1024px) {
+            .mobile-only { display: none !important; }
+            .desktop-only { display: block !important; }
+        }
+
+        /* Mobile panel switching */
+        .mobile-panel { display: none; }
+        .mobile-panel.active { display: flex; flex-direction: column; }
+        @media (min-width: 1024px) {
+            .mobile-panel { display: flex !important; flex-direction: column; }
+        }
+
+        /* Action toolbar */
+        .toolbar-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 5px 10px; border-radius: 7px; font-size: 12px; font-weight: 500;
+            border: 1px solid #e2e8f0; background: white; color: #475569;
+            cursor: pointer; transition: all .15s; white-space: nowrap;
+        }
+        .toolbar-btn:hover { border-color: #94a3b8; color: #1e293b; }
+        .toolbar-btn.green:hover  { border-color: #86efac; color: #16a34a; background: #f0fdf4; }
+        .toolbar-btn.red:hover    { border-color: #fca5a5; color: #dc2626; background: #fef2f2; }
+        .toolbar-btn.amber:hover  { border-color: #fcd34d; color: #d97706; background: #fffbeb; }
+        .toolbar-btn.blue:hover   { border-color: #93c5fd; color: #2563eb; background: #eff6ff; }
+
+        /* Bank hint pill */
+        .bank-hint {
+            background: #eff6ff; border: 1px solid #bfdbfe;
+            border-radius: 10px; padding: 10px 14px;
+            font-size: 12px; color: #1e40af; cursor: pointer;
+            transition: background .15s;
+        }
+        .bank-hint:hover { background: #dbeafe; }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+
+        /* Advisor */
+        .advisor-box { background: #fff7ed; border-top: 1px solid #fed7aa; padding: 10px 12px; font-size: 11px; }
+
+        /* Modal backdrop */
+        .modal-backdrop { background: rgba(15,23,42,.5); backdrop-filter: blur(4px); }
+
+        /* Thin ring input */
+        .ring-input {
+            border: 1px solid #e2e8f0; border-radius: 9px; padding: 9px 13px;
+            font-size: 14px; outline: none; transition: border-color .15s, box-shadow .15s; width: 100%;
+            background: #fafafa; color: #1e293b;
+        }
+        .ring-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1); background: white; }
+
+        /* Tab active underline style */
         .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
         .tab-inactive { color: #64748b; }
         .tab-inactive:hover { color: #334155; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 font-sans">
 
-    <!-- Navbar -->
-    <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center gap-3">
-                    <div class="bg-blue-600 text-white p-2 rounded-lg shadow-lg">
-                        <i class="fa-solid fa-money-bill-wave text-xl"></i>
+    <!-- ═══════════════════════════════════════════
+         TOP NAVBAR
+    ═══════════════════════════════════════════ -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-30" style="box-shadow:0 1px 0 #e2e8f0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-5 lg:px-8">
+            <div class="flex justify-between items-center h-14">
+                <!-- Logo -->
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-money-bill-wave text-white text-sm"></i>
                     </div>
-                    <span class="font-bold text-xl tracking-tight text-slate-800">Split<span class="text-blue-600">X</span></span>
+                    <span class="font-bold text-lg tracking-tight text-slate-900">Split<span class="text-blue-600">X</span></span>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button onclick="app.resetAll()" class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors">
-                        <i class="fa-solid fa-trash-can mr-1"></i> Borrar Todo
+                <!-- Nav actions -->
+                <div class="flex items-center gap-1">
+                    <button onclick="app.openImportModal()" class="toolbar-btn blue hidden sm:flex">
+                        <i class="fa-solid fa-file-import text-xs"></i> Importar
                     </button>
-                    <button onclick="document.getElementById('configModal').classList.remove('hidden')" class="p-2 text-slate-500 hover:text-blue-600 transition-colors">
-                        <i class="fa-solid fa-gear text-lg"></i>
+                    <div class="flex items-center gap-1 ml-1">
+                        <button onclick="app.exportToExcel()" title="Exportar Excel" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all">
+                            <i class="fa-solid fa-file-excel text-sm"></i>
+                        </button>
+                        <button onclick="app.exportToPDF()" title="Exportar PDF" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all">
+                            <i class="fa-solid fa-file-pdf text-sm"></i>
+                        </button>
+                        <button onclick="app.exportToCSV()" title="Exportar CSV" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                            <i class="fa-solid fa-file-csv text-sm"></i>
+                        </button>
+                    </div>
+                    <div class="w-px h-5 bg-slate-200 mx-1"></div>
+                    <button onclick="document.getElementById('configModal').classList.remove('hidden')" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                        <i class="fa-solid fa-gear text-sm"></i>
+                    </button>
+                    <button onclick="app.resetAll()" title="Borrar todo" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
                     </button>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 gap-6 flex flex-col lg:flex-row">
-        
-        <!-- Left Panel: Inventory & Controls -->
-        <aside class="w-full lg:w-1/3 flex flex-col gap-6">
-            
-            <!-- Tabs -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-1 flex">
-                <button onclick="app.switchTab('inventory')" id="tab-inventory" class="flex-1 py-2 text-sm text-center rounded-lg transition-all tab-active">
-                    <i class="fa-solid fa-wallet mr-2"></i>Mi Caja
+    <!-- Storage Warning Banner (shown only when localStorage is blocked) -->
+    <div id="storageBanner" class="hidden bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
+        <span><strong>Almacenamiento bloqueado:</strong> El archivo está abierto desde OneDrive o una red compartida. Los datos <strong>no se guardan</strong> al cerrar la pestaña. Para guardar permanentemente, copia el archivo a una carpeta local de tu PC (ej. Escritorio).</span>
+        <button onclick="this.parentElement.classList.add('hidden')" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         KPI CARDS ROW
+    ═══════════════════════════════════════════ -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-5 lg:px-8 pt-4 pb-2">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- KPI 1: En caja -->
+            <div class="kpi-card">
+                <div class="kpi-label"><i class="fa-solid fa-wallet mr-1 text-blue-400"></i>En Caja</div>
+                <div class="kpi-value text-blue-600" id="kpiEnCaja">RD$ 0</div>
+                <div class="kpi-sub" id="kpiEnCajaSub">—</div>
+            </div>
+            <!-- KPI 2: Nómina pendiente -->
+            <div class="kpi-card">
+                <div class="kpi-label"><i class="fa-solid fa-users mr-1 text-slate-400"></i>Pendiente</div>
+                <div class="kpi-value" id="kpiPendiente">RD$ 0</div>
+                <div id="totalPayrollDisplay" class="kpi-sub">0 empleados</div>
+            </div>
+            <!-- KPI 3: Cubiertos -->
+            <div class="kpi-card">
+                <div class="kpi-label"><i class="fa-solid fa-circle-check mr-1 text-green-400"></i>Cubiertos</div>
+                <div class="kpi-value" id="kpiCubiertos">0 / 0</div>
+                <div class="kpi-sub" id="kpiCubiertosSub">—</div>
+            </div>
+            <!-- KPI 4: Retirar del banco -->
+            <div class="kpi-card cursor-pointer" onclick="app.switchTab('bank'); app.switchMobileView('caja')" title="Ver plan de retiro">
+                <div class="kpi-label"><i class="fa-solid fa-building-columns mr-1 text-amber-400"></i>Retirar Banco</div>
+                <div class="kpi-value text-amber-600" id="kpiRetirar">RD$ 0</div>
+                <div class="kpi-sub text-blue-500">Toca para ver plan →</div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mt-3 flex items-center gap-3">
+            <div class="progress-track flex-grow">
+                <div id="cashProgressBar" class="progress-fill bg-blue-500" style="width:0%"></div>
+            </div>
+            <div id="cashStatusText" class="text-xs text-slate-500 shrink-0 min-w-[120px] text-right">Calculando...</div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         MOBILE SEGMENTED CONTROL
+    ═══════════════════════════════════════════ -->
+    <div class="mobile-only max-w-7xl mx-auto px-4 pt-2 pb-1">
+        <div class="seg-control">
+            <button class="seg-btn active" id="seg-nomina" onclick="app.switchMobileView('nomina')">
+                <i class="fa-solid fa-users mr-1.5 text-xs"></i>Nómina
+            </button>
+            <button class="seg-btn" id="seg-caja" onclick="app.switchMobileView('caja')">
+                <i class="fa-solid fa-wallet mr-1.5 text-xs"></i>Mi Caja
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         MAIN CONTENT
+    ═══════════════════════════════════════════ -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-5 lg:px-8 py-3 flex flex-col lg:flex-row gap-4">
+
+        <!-- ── LEFT PANEL: Inventory + Bank ────────────────── -->
+        <div class="mobile-panel w-full lg:w-80 xl:w-96 shrink-0 flex flex-col gap-3" id="panel-caja">
+
+            <!-- Panel tab switcher (desktop inline, mobile visible) -->
+            <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1">
+                <button onclick="app.switchTab('inventory')" id="tab-inventory" class="panel-tab active flex-1 text-center">
+                    <i class="fa-solid fa-wallet mr-1.5"></i>Mi Caja
                 </button>
-                <button onclick="app.switchTab('bank')" id="tab-bank" class="flex-1 py-2 text-sm text-center rounded-lg transition-all tab-inactive">
-                    <i class="fa-solid fa-building-columns mr-2"></i>Banco
+                <button onclick="app.switchTab('bank')" id="tab-bank" class="panel-tab inactive flex-1 text-center">
+                    <i class="fa-solid fa-building-columns mr-1.5"></i>Banco
                 </button>
             </div>
 
             <!-- Inventory Panel -->
-            <div id="view-inventory" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
-                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h2 class="font-semibold text-slate-700">Inventario Actual</h2>
-                    <span id="totalInventoryDisplay" class="font-mono font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">$0.00</span>
-                </div>
-                
-                <div class="p-4 overflow-y-auto flex-grow space-y-3" id="inventoryList">
-                    <!-- Inventory Items injected here -->
+            <div id="view-inventory" class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+                <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                    <span class="text-sm font-semibold text-slate-700">Inventario de Billetes</span>
+                    <span id="totalInventoryDisplay" class="font-mono font-bold text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-100">RD$ 0</span>
                 </div>
 
-                <!-- Advisor Section (Updated Logic) -->
-                <div id="inventoryAdvisor" class="bg-orange-50 p-3 border-t border-orange-100 text-xs hidden">
-                    <!-- Dynamic Suggestions -->
+                <div class="p-3 space-y-2" id="inventoryList">
+                    <!-- injected -->
                 </div>
 
-                <div class="p-4 border-t border-slate-200 bg-slate-50">
-                    <div class="text-xs text-slate-500 mb-2 flex justify-between">
-                        <span>Cobertura de Pendientes:</span>
-                        <span id="cashStatusText">Calculando...</span>
-                    </div>
-                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                        <div id="cashProgressBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                </div>
+                <div id="inventoryAdvisor" class="advisor-box hidden"></div>
             </div>
 
-            <!-- Bank Planner Panel -->
-            <div id="view-bank" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
-                <div class="p-4 bg-blue-50 border-b border-blue-100">
-                    <h2 class="font-semibold text-blue-900 mb-1">Planificador de Retiro</h2>
-                    <p class="text-xs text-blue-600">Solo calcula para empleados <span class="font-bold">NO pagados</span>.</p>
+            <!-- Bank Panel -->
+            <div id="view-bank" class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+                <div class="px-4 py-3 bg-blue-50 border-b border-blue-100">
+                    <div class="text-sm font-semibold text-blue-900">Plan de Retiro Bancario</div>
+                    <div class="text-xs text-blue-500 mt-0.5">Solo para empleados <strong>pendientes de pago</strong></div>
                 </div>
-                
-                <div class="overflow-y-auto flex-grow">
+
+                <div class="overflow-y-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0">
                             <tr>
-                                <th class="px-4 py-3">Billete</th>
-                                <th class="px-2 py-3 text-center">Ideal</th>
-                                <th class="px-2 py-3 text-center">Límite</th>
-                                <th class="px-4 py-3 text-right">Pedir</th>
+                                <th class="px-4 py-2.5">Billete</th>
+                                <th class="px-2 py-2.5 text-center">Ideal</th>
+                                <th class="px-2 py-2.5 text-center">Límite</th>
+                                <th class="px-4 py-2.5 text-right">Pedir</th>
                             </tr>
                         </thead>
-                        <tbody id="bankTableBody" class="divide-y divide-slate-100">
-                            <!-- Bank Rows -->
-                        </tbody>
+                        <tbody id="bankTableBody" class="divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
 
-                <div class="p-4 border-t border-slate-200 bg-slate-50">
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-sm font-medium text-slate-600">Faltante por Retirar:</span>
-                        <span id="bankTotalDisplay" class="font-bold text-xl text-slate-800">$0.00</span>
+                <div class="p-4 border-t border-slate-100 bg-slate-50">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-sm font-medium text-slate-600">Total a Retirar:</span>
+                        <span id="bankTotalDisplay" class="font-bold text-lg text-slate-800 font-mono">RD$ 0</span>
                     </div>
-                    <button onclick="app.applyBankToInventory()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm flex justify-center items-center gap-2">
+                    <button onclick="app.applyBankToInventory()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm">
                         <i class="fa-solid fa-check-circle"></i> Aplicar a Mi Caja
                     </button>
                 </div>
             </div>
-        </aside>
 
-        <!-- Right Panel: Employees & Distribution -->
-        <section class="w-full lg:w-2/3 flex flex-col gap-6">
-            
-            <!-- Add Employee Input -->
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <input type="text" id="empName" placeholder="Nombre (ej. Juan Pérez)" class="flex-grow px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-                    <input type="number" id="empAmount" placeholder="Monto (ej. 450.50)" step="0.01" class="w-full sm:w-40 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono">
-                    <button onclick="app.addEmployee()" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-sm">
+        </div>
+
+        <!-- ── RIGHT PANEL: Employees ───────────────────────── -->
+        <div class="mobile-panel active flex-grow flex flex-col gap-3 min-w-0" id="panel-nomina">
+
+            <!-- Desktop Add Employee Form -->
+            <div class="desktop-add-form bg-white rounded-xl border border-slate-200 p-4">
+                <div class="flex flex-col sm:flex-row gap-2.5">
+                    <input type="text" id="empName" placeholder="Nombre del empleado"
+                        class="ring-input flex-grow">
+                    <input type="number" id="empAmount" placeholder="Monto" step="0.01"
+                        class="ring-input w-full sm:w-36 font-mono">
+                    <button onclick="app.addEmployee()"
+                        class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-lg font-medium transition-all shrink-0 text-sm">
                         <i class="fa-solid fa-plus mr-1"></i> Agregar
                     </button>
                 </div>
-                <div class="mt-2 text-xs text-slate-400 flex items-center gap-2">
-                    <i class="fa-solid fa-lightbulb text-yellow-500"></i>
-                    <span>Tip: Puedes escribir "Juan 400" o pegar una lista como "1. Juan 100"</span>
-                </div>
+                <p class="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                    Tip: Escribe "Juan 400" en el campo nombre para agregar rápido. También puedes importar desde Excel.
+                </p>
             </div>
 
             <!-- Employee List -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-grow flex flex-col min-h-[500px]">
-                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+            <div class="bg-white rounded-xl border border-slate-200 flex-grow flex flex-col" style="min-height: 400px">
+                <!-- Toolbar -->
+                <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/80">
                     <div class="flex items-center gap-2">
-                        <h2 class="font-semibold text-slate-700">Lista de Distribución</h2>
+                        <span class="text-sm font-semibold text-slate-700">Distribución</span>
                         <span id="employeeCountBadge" class="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <span id="totalPayrollDisplay" class="font-mono font-bold text-slate-700">$0.00</span>
-                        <div class="h-4 w-px bg-slate-300"></div>
-                        <button onclick="app.roundAllAmounts()" class="text-slate-500 hover:text-amber-600 text-sm flex items-center gap-1" title="Quitar centavos de todos los montos">
-                            <i class="fa-solid fa-scissors"></i> <span class="hidden sm:inline">Centavos</span>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <button onclick="app.roundAllAmounts()" class="toolbar-btn amber" title="Quitar centavos">
+                            <i class="fa-solid fa-scissors text-xs"></i>
+                            <span class="hidden sm:inline">Centavos</span>
                         </button>
-                        <div class="h-4 w-px bg-slate-300"></div>
-                        <button onclick="app.openImportModal()" class="text-slate-500 hover:text-blue-600 text-sm flex items-center gap-1" title="Importar">
-                            <i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">Importar</span>
+                        <button onclick="app.cycleSortMode()" id="sortBtn" class="toolbar-btn" title="Ordenar lista">
+                            <i class="fa-solid fa-arrow-down-short-wide text-xs"></i>
+                            <span class="hidden sm:inline" id="sortBtnLabel">Orden</span>
                         </button>
-                        <button onclick="app.exportToCSV()" class="text-slate-500 hover:text-blue-600 text-sm flex items-center gap-1" title="Exportar CSV">
-                            <i class="fa-solid fa-file-csv"></i> <span class="hidden sm:inline">CSV</span>
+                        <button onclick="app.openImportModal()" class="toolbar-btn blue sm:hidden" title="Importar">
+                            <i class="fa-solid fa-file-import text-xs"></i>
+                        </button>
+                        <div class="w-px h-4 bg-slate-200"></div>
+                        <button onclick="app.exportToExcel()" class="toolbar-btn green" title="Excel">
+                            <i class="fa-solid fa-file-excel text-xs"></i>
+                            <span class="hidden lg:inline">Excel</span>
+                        </button>
+                        <button onclick="app.exportToPDF()" class="toolbar-btn red" title="PDF">
+                            <i class="fa-solid fa-file-pdf text-xs"></i>
+                            <span class="hidden lg:inline">PDF</span>
                         </button>
                     </div>
                 </div>
 
-                <div id="employeeList" class="p-4 space-y-3 overflow-y-auto flex-grow bg-slate-50/50">
-                    <!-- Employee cards injected here -->
-                    <div class="text-center py-10 text-slate-400">
-                        <i class="fa-solid fa-users-viewfinder text-4xl mb-3 opacity-30"></i>
-                        <p>No hay empleados en la lista.</p>
+                <!-- Employee list container -->
+                <div id="employeeList" class="p-3 space-y-2.5 overflow-y-auto flex-grow">
+                    <div class="flex flex-col items-center justify-center py-14 text-slate-300">
+                        <i class="fa-solid fa-users text-5xl mb-3"></i>
+                        <p class="text-sm font-medium">Sin empleados en la lista</p>
+                        <p class="text-xs mt-1">Agrégalos manualmente o importa desde Excel</p>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
     </main>
 
-    <!-- Config Modal -->
-    <div id="configModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-[popIn_0.2s_ease-out]">
-            <div class="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="font-bold text-slate-700">Configurar Denominaciones</h3>
-                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
-                    <i class="fa-solid fa-xmark text-xl"></i>
+    <!-- ═══════════════════════════════════════════
+         MOBILE FAB
+    ═══════════════════════════════════════════ -->
+    <button class="fab" onclick="app.openAddDrawer()" title="Agregar empleado">
+        <i class="fa-solid fa-plus"></i>
+    </button>
+
+    <!-- ═══════════════════════════════════════════
+         MOBILE ADD EMPLOYEE DRAWER
+    ═══════════════════════════════════════════ -->
+    <div class="add-drawer-backdrop" id="addDrawerBackdrop" onclick="app.closeAddDrawer()"></div>
+    <div class="add-drawer" id="addDrawer">
+        <div class="drawer-handle"></div>
+        <h3 class="text-base font-bold text-slate-800 mb-4">Agregar Empleado</h3>
+        <div class="flex flex-col gap-3">
+            <input type="text" id="empNameMobile" placeholder="Nombre del empleado" class="ring-input">
+            <input type="number" id="empAmountMobile" placeholder="Monto (ej. 4500)" step="0.01" class="ring-input font-mono">
+            <button onclick="app.addEmployeeMobile()"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm">
+                <i class="fa-solid fa-plus mr-2"></i> Agregar a la Nómina
+            </button>
+            <button onclick="app.openImportModal(); app.closeAddDrawer()"
+                class="w-full border border-slate-200 text-slate-600 font-medium py-2.5 rounded-xl transition-colors text-sm hover:bg-slate-50">
+                <i class="fa-solid fa-file-import mr-2 text-xs"></i> Importar desde Excel / JSON
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         MOBILE BOTTOM NAV
+    ═══════════════════════════════════════════ -->
+    <nav class="bottom-nav">
+        <div class="bnav-item active" id="bnav-nomina" onclick="app.switchMobileView('nomina')">
+            <div class="bnav-icon"><i class="fa-solid fa-users"></i></div>
+            <span>Nómina</span>
+        </div>
+        <div class="bnav-item" id="bnav-caja" onclick="app.switchMobileView('caja')">
+            <div class="bnav-icon"><i class="fa-solid fa-wallet"></i></div>
+            <span>Mi Caja</span>
+        </div>
+        <div class="bnav-item" id="bnav-banco" onclick="app.switchMobileView('caja'); app.switchTab('bank')">
+            <div class="bnav-icon"><i class="fa-solid fa-building-columns"></i></div>
+            <span>Banco</span>
+        </div>
+        <div class="bnav-item" id="bnav-ajustes" onclick="document.getElementById('configModal').classList.remove('hidden')">
+            <div class="bnav-icon"><i class="fa-solid fa-gear"></i></div>
+            <span>Ajustes</span>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════════════════════════════
+         CONFIG MODAL
+    ═══════════════════════════════════════════ -->
+    <div id="configModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] anim-pop">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-slate-800">Ajustes</h3>
+                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+                    <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            <div class="p-4">
-                <p class="text-sm text-slate-500 mb-4">Agrega o elimina los tipos de billetes/monedas que maneja tu sistema.</p>
+            <div class="flex gap-1 p-2 bg-slate-50 border-b border-slate-100 shrink-0">
+                <button id="cfgTab-denoms" onclick="app.switchConfigTab('denoms')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white text-blue-700 shadow-sm">
+                    <i class="fa-solid fa-coins mr-1"></i> Denominaciones
+                </button>
+                <button id="cfgTab-appearance" onclick="app.switchConfigTab('appearance')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 hover:text-slate-700">
+                    <i class="fa-solid fa-palette mr-1"></i> Apariencia
+                </button>
+            </div>
+            <div id="cfgView-denoms" class="p-4 overflow-y-auto flex-grow">
+                <p class="text-sm text-slate-500 mb-4">Agrega o elimina los tipos de billetes/monedas.</p>
                 <div class="flex gap-2 mb-4">
-                    <input type="number" id="newDenomInput" placeholder="Valor (ej. 2000)" class="flex-grow px-3 py-2 border rounded-lg">
-                    <button onclick="app.addDenomination()" class="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700">Agregar</button>
+                    <input type="number" id="newDenomInput" placeholder="Valor (ej. 2000)" class="ring-input flex-grow">
+                    <button onclick="app.addDenomination()" class="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700 text-sm font-medium">Agregar</button>
                 </div>
-                <div id="denomListConfig" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-100">
-                    <!-- Chips -->
+                <div id="denomListConfig" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-100"></div>
+            </div>
+            <div id="cfgView-appearance" class="hidden p-4 overflow-y-auto flex-grow">
+                <p class="text-xs text-slate-500 mb-1">Personaliza el color o imagen de cada billete.</p>
+                <p class="text-[10px] text-blue-600 bg-blue-50 rounded px-2 py-1 mb-3">
+                    <i class="fa-solid fa-circle-info mr-1"></i>
+                    Las imágenes se cargan desde tu PC y se guardan localmente. Formatos: JPG, PNG, WEBP.
+                </p>
+                <div id="appearanceList" class="space-y-2"></div>
+                <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2 justify-between items-center">
+                    <button onclick="app.resetAllAppearance()" class="text-xs text-red-500 hover:underline">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Restaurar colores
+                    </button>
+                    <button onclick="app.clearAllImages()" class="text-xs text-orange-500 hover:underline">
+                        <i class="fa-solid fa-image mr-1"></i> Quitar imágenes
+                    </button>
                 </div>
             </div>
-            <div class="p-4 bg-slate-50 text-right">
-                <button onclick="app.resetDenominations()" class="text-xs text-red-500 hover:underline mr-4">Restaurar valores por defecto</button>
-                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm">Listo</button>
+            <div class="p-3 bg-slate-50 flex justify-between items-center shrink-0 border-t border-slate-100">
+                <button onclick="app.resetDenominations()" id="cfgResetBtn" class="text-xs text-red-500 hover:underline hidden">Restaurar denominaciones</button>
+                <span></span>
+                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium">Listo</button>
             </div>
         </div>
     </div>
 
-    <!-- Import Modal -->
-    <div id="importModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-[popIn_0.2s_ease-out]">
+    <!-- ═══════════════════════════════════════════
+         IMPORT MODAL
+    ═══════════════════════════════════════════ -->
+    <div id="importModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden anim-pop">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="font-bold text-slate-700">Importar Empleados</h3>
-                <button onclick="app.closeImportModal()" class="text-slate-400 hover:text-slate-600">
-                    <i class="fa-solid fa-xmark text-xl"></i>
+                <h3 class="font-bold text-slate-800">Importar Empleados</h3>
+                <button onclick="app.closeImportModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+                    <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             <div class="p-4">
-                <!-- Format Tabs -->
                 <div class="flex gap-1 mb-3 bg-slate-100 p-1 rounded-lg">
                     <button id="importTab-excel" onclick="app.switchImportTab('excel')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white text-blue-700 shadow-sm">
                         <i class="fa-solid fa-table mr-1"></i> Excel / TSV
@@ -254,38 +624,31 @@
                         <i class="fa-solid fa-code mr-1"></i> JSON
                     </button>
                 </div>
-
-                <!-- Excel Format Info -->
                 <div id="importInfo-excel" class="bg-blue-50 p-2 rounded border border-blue-100 mb-3">
                     <p class="text-[10px] font-mono text-blue-500 uppercase tracking-wide mb-1 font-bold">Formato Excel (copiar y pegar)</p>
-                    <p class="text-xs text-blue-700 mb-1">Copia las filas directamente desde Excel. Se esperan columnas separadas por tabulaciones:</p>
+                    <p class="text-xs text-blue-700 mb-1">Copia las filas directamente desde Excel. Columnas separadas por tabulaciones:</p>
                     <code class="text-[10px] font-mono text-blue-600 block whitespace-pre bg-blue-100 rounded p-1"># │ Nombre │ ... │ Monto Neto</code>
-                    <p class="text-[10px] text-blue-500 mt-1">✓ El número de columnas entre nombre y monto no importa. <br>✓ Se usa la <strong>última columna</strong> como monto neto.</p>
+                    <p class="text-[10px] text-blue-500 mt-1">✓ Se usa la <strong>última columna</strong> como monto neto.</p>
                 </div>
-
-                <!-- JSON Format Info -->
                 <div id="importInfo-json" class="bg-slate-50 p-2 rounded border border-slate-200 mb-3 hidden">
-                    <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wide mb-1">Ejemplo de formato JSON:</p>
-                    <code class="text-xs font-mono text-blue-600 block whitespace-pre">
-[
+                    <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wide mb-1">Ejemplo:</p>
+                    <code class="text-xs font-mono text-blue-600 block whitespace-pre">[
   { "nombre": "Juan Perez", "monto": 2500 },
   { "nombre": "Maria", "monto": 1450.50 }
 ]</code>
                 </div>
-
-                <textarea id="jsonImportInput" class="w-full h-40 p-3 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" placeholder="Pega aquí las filas copiadas desde Excel..."></textarea>
-                
-                <!-- Preview -->
+                <textarea id="jsonImportInput" rows="6"
+                    class="w-full p-3 text-xs font-mono border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-slate-50 focus:bg-white transition-all"
+                    placeholder="Pega aquí las filas copiadas desde Excel..."></textarea>
                 <div id="importPreview" class="hidden mt-2 bg-green-50 border border-green-200 rounded-lg p-2 max-h-28 overflow-y-auto">
-                    <p class="text-[10px] text-green-700 font-bold uppercase mb-1">Vista previa (<span id="importPreviewCount">0</span> empleados detectados)</p>
+                    <p class="text-[10px] text-green-700 font-bold uppercase mb-1">Vista previa (<span id="importPreviewCount">0</span> detectados)</p>
                     <div id="importPreviewList" class="text-xs text-green-800 font-mono space-y-0.5"></div>
                 </div>
-
                 <p id="importErrorMsg" class="text-xs text-red-500 mt-2 hidden"></p>
             </div>
-            <div class="p-4 bg-slate-50 text-right flex justify-end gap-2">
+            <div class="p-4 bg-slate-50 flex justify-end gap-2 border-t border-slate-100">
                 <button onclick="app.closeImportModal()" class="px-4 py-2 text-slate-600 text-sm hover:bg-slate-200 rounded-lg transition-colors">Cancelar</button>
-                <button onclick="app.processImport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm">
+                <button onclick="app.processImport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm font-medium">
                     <i class="fa-solid fa-file-import mr-1"></i> Cargar Datos
                 </button>
             </div>
@@ -300,9 +663,14 @@
                 denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
                 inventory: {}, 
                 employees: [], 
-                bankLimits: {}, 
+                bankLimits: {},
+                billColors: {},   // { 1000: '#c0392b' } — overrides default
+                billImages: {},   // { 1000: 'data:image/...' } — base64 images
                 mode: 'inventory'
             };
+
+            // Sort mode: 'default' | 'ref' | 'status'
+            let sortMode = 'status';
 
             // --- INIT ---
             const init = () => {
@@ -311,8 +679,31 @@
                 setupEventListeners();
             };
 
+            // Storage helper — falls back to in-memory if localStorage is blocked (e.g. file:// from OneDrive)
+            let _memStore = null;
+            let _storageWarned = false;
+            const storageGet = (key) => {
+                try { return localStorage.getItem(key); } catch(e) { return _memStore; }
+            };
+            const storageSet = (key, val) => {
+                try {
+                    localStorage.setItem(key, val);
+                } catch(e) {
+                    _memStore = val;
+                    if (!_storageWarned) {
+                        _storageWarned = true;
+                        console.warn('SplitX: localStorage bloqueado (archivo abierto desde OneDrive o red). Los datos solo se guardan mientras la pestaña esté abierta. Para guardar permanentemente, copia el archivo a una carpeta local.');
+                        const banner = document.getElementById('storageBanner');
+                        if (banner) banner.classList.remove('hidden');
+                    }
+                }
+            };
+            const storageRemove = (key) => {
+                try { localStorage.removeItem(key); } catch(e) { _memStore = null; }
+            };
+
             const loadData = () => {
-                const saved = localStorage.getItem('Split_data');
+                const saved = storageGet('Split_data');
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     state = { ...state, ...parsed };
@@ -322,7 +713,7 @@
             };
 
             const saveData = () => {
-                localStorage.setItem('Split_data', JSON.stringify(state));
+                storageSet('Split_data', JSON.stringify(state));
                 renderAll();
             };
 
@@ -562,7 +953,7 @@
 
             const resetAll = () => {
                 if(confirm('¿Borrar todos los datos?')) {
-                    localStorage.removeItem('Split_data');
+                    storageRemove('Split_data');
                     location.reload();
                 }
             };
@@ -594,6 +985,266 @@
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+            };
+
+
+            // ── Helper: build the two data tables from current state ──────────
+            const buildExportData = () => {
+                const { results } = calculateDistribution();
+                const denoms = state.denominations; // sorted high→low
+
+                // 1. Summary: total bills per denomination (pending employees only)
+                const summary = {};
+                denoms.forEach(d => summary[d] = 0);
+                results.forEach(emp => {
+                    if (!emp.paid) {
+                        denoms.forEach(d => {
+                            if (emp.distribution[d]) summary[d] += emp.distribution[d];
+                        });
+                    }
+                });
+
+                // 2. Per-employee rows
+                const empRows = results.map((emp, idx) => {
+                    const row = { idx: idx + 1, name: emp.name, amount: emp.amount, paid: emp.paid, status: emp.status };
+                    denoms.forEach(d => row[d] = emp.distribution[d] || 0);
+                    return row;
+                });
+
+                return { denoms, summary, empRows };
+            };
+
+            // ── Export Excel (.xlsx) ──────────────────────────────────────────
+            const exportToExcel = () => {
+                if (typeof XLSX === 'undefined') { alert('Librería Excel no cargada.'); return; }
+                const { denoms, summary, empRows } = buildExportData();
+                const wb = XLSX.utils.book_new();
+                const today = new Date().toLocaleDateString('es-DO');
+
+                // ── Sheet 1: Resumen de Billetes ──
+                const s1Data = [
+                    ['DISTRIBUCIÓN DE NÓMINA - SPLIT X'],
+                    [`Fecha: ${today}`],
+                    [],
+                    ['RESUMEN DE BILLETES / MONEDAS NECESARIOS'],
+                    [],
+                    ['Denominación (RD$)', 'Cantidad de Billetes', 'Valor Total (RD$)'],
+                ];
+                let grandTotal = 0;
+                denoms.forEach(d => {
+                    const qty = summary[d];
+                    const val = qty * d;
+                    grandTotal += val;
+                    s1Data.push([d, qty, val]);
+                });
+                s1Data.push([]);
+                s1Data.push(['TOTAL GENERAL', '', grandTotal]);
+
+                const ws1 = XLSX.utils.aoa_to_sheet(s1Data);
+
+                // Column widths
+                ws1['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 22 }];
+
+                // Merge title cell
+                ws1['!merges'] = [
+                    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+                    { s: { r: 3, c: 0 }, e: { r: 3, c: 2 } },
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws1, 'Resumen Billetes');
+
+                // ── Sheet 2: Distribución por Empleado ──
+                const headerRow = ['#', 'Nombre', 'Monto (RD$)', ...denoms.map(d => `RD$${d}`), 'Estado', 'Pagado'];
+                const s2Data = [
+                    ['DISTRIBUCIÓN DETALLADA POR EMPLEADO'],
+                    [`Fecha: ${today}`],
+                    [],
+                    headerRow,
+                ];
+
+                empRows.forEach(emp => {
+                    const row = [
+                        emp.idx,
+                        emp.name,
+                        emp.amount,
+                        ...denoms.map(d => emp[d] || 0),
+                        emp.status === 'ok' ? 'OK' : 'Incompleto',
+                        emp.paid ? 'Sí' : 'No',
+                    ];
+                    s2Data.push(row);
+                });
+
+                // Totals row
+                const totalRow = ['', 'TOTAL', empRows.reduce((s,e) => s + e.amount, 0)];
+                denoms.forEach(d => totalRow.push(empRows.reduce((s,e) => s + (e[d]||0), 0)));
+                totalRow.push('', '');
+                s2Data.push([]);
+                s2Data.push(totalRow);
+
+                const ws2 = XLSX.utils.aoa_to_sheet(s2Data);
+                const col2widths = [{ wch: 5 }, { wch: 28 }, { wch: 14 }];
+                denoms.forEach(() => col2widths.push({ wch: 9 }));
+                col2widths.push({ wch: 12 }, { wch: 8 });
+                ws2['!cols'] = col2widths;
+                ws2['!merges'] = [
+                    { s: { r: 0, c: 0 }, e: { r: 0, c: denoms.length + 4 } },
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws2, 'Distribución Empleados');
+
+                XLSX.writeFile(wb, `nomina_SplitX_${today.replace(/\//g,'-')}.xlsx`);
+            };
+
+            // ── Export PDF ────────────────────────────────────────────────────
+            const exportToPDF = () => {
+                if (typeof window.jspdf === 'undefined') { alert('Librería PDF no cargada.'); return; }
+                const { jsPDF } = window.jspdf;
+                const { denoms, summary, empRows } = buildExportData();
+                const today = new Date().toLocaleDateString('es-DO');
+
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pageW = doc.internal.pageSize.getWidth();
+
+                // ─── PAGE 1: Resumen de Billetes ───────────────────────────
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(30, 41, 59);
+                doc.text('DISTRIBUCIÓN DE NÓMINA — Split X', pageW / 2, 18, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Fecha de emisión: ${today}`, pageW / 2, 25, { align: 'center' });
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(30, 41, 59);
+                doc.text('RESUMEN DE BILLETES / MONEDAS NECESARIOS', 14, 34);
+
+                const summaryBody = [];
+                let grandTotal = 0;
+                denoms.forEach(d => {
+                    const qty = summary[d];
+                    const val = qty * d;
+                    grandTotal += val;
+                    if (qty > 0) {
+                        summaryBody.push([
+                            `RD$ ${d.toLocaleString('es-DO')}`,
+                            qty.toLocaleString('es-DO'),
+                            `RD$ ${val.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`,
+                        ]);
+                    }
+                });
+                summaryBody.push([
+                    { content: 'TOTAL GENERAL', styles: { fontStyle: 'bold' } },
+                    { content: '', styles: { fontStyle: 'bold' } },
+                    { content: `RD$ ${grandTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`, styles: { fontStyle: 'bold' } },
+                ]);
+
+                doc.autoTable({
+                    head: [['Denominación', 'Cantidad de Billetes', 'Valor Total']],
+                    body: summaryBody,
+                    startY: 38,
+                    tableWidth: 140,
+                    margin: { left: 14 },
+                    styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 },
+                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    columnStyles: {
+                        0: { halign: 'left', cellWidth: 50 },
+                        1: { halign: 'center', cellWidth: 55 },
+                        2: { halign: 'right', cellWidth: 55 },
+                    },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    footStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
+                });
+
+                // ─── PAGE 2: Distribución por Empleado ────────────────────
+                doc.addPage('a4', 'landscape');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(30, 41, 59);
+                doc.text('DISTRIBUCIÓN DETALLADA POR EMPLEADO', pageW / 2, 18, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Fecha de emisión: ${today}`, pageW / 2, 25, { align: 'center' });
+
+                // Build columns dynamically
+                const empHead = [['#', 'Nombre', 'Monto', ...denoms.map(d => `$${d}`), 'Estado', 'Pag.']];
+                const empBody = empRows.map(emp => [
+                    emp.idx,
+                    emp.name,
+                    `RD$ ${emp.amount.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`,
+                    ...denoms.map(d => emp[d] > 0 ? emp[d] : '—'),
+                    emp.status === 'ok' ? '✓' : '⚠',
+                    emp.paid ? 'Sí' : 'No',
+                ]);
+
+                // Totals row
+                const totalsRow = [
+                    { content: '', styles: { fontStyle: 'bold' } },
+                    { content: 'TOTALES', styles: { fontStyle: 'bold' } },
+                    { content: `RD$ ${empRows.reduce((s,e) => s + e.amount, 0).toLocaleString('es-DO', { minimumFractionDigits: 2 })}`, styles: { fontStyle: 'bold' } },
+                    ...denoms.map(d => ({
+                        content: empRows.reduce((s,e) => s + (e[d]||0), 0) || '—',
+                        styles: { fontStyle: 'bold' },
+                    })),
+                    { content: '', styles: {} },
+                    { content: '', styles: {} },
+                ];
+                empBody.push(totalsRow);
+
+                // Dynamic column widths: fixed for first 3, narrow for bills, fixed for last 2
+                const totalCols = 3 + denoms.length + 2;
+                const fixedW = { 0: 8, 1: 52, 2: 28, [totalCols-2]: 14, [totalCols-1]: 10 };
+                const denomColW = Math.max(10, Math.floor((pageW - 28 - 8 - 52 - 28 - 14 - 10) / denoms.length));
+                const colStyles = {};
+                colStyles[0] = { halign: 'center', cellWidth: fixedW[0] };
+                colStyles[1] = { halign: 'left', cellWidth: fixedW[1] };
+                colStyles[2] = { halign: 'right', cellWidth: fixedW[2] };
+                denoms.forEach((d, i) => {
+                    colStyles[3 + i] = { halign: 'center', cellWidth: denomColW };
+                });
+                colStyles[totalCols - 2] = { halign: 'center', cellWidth: fixedW[totalCols - 2] };
+                colStyles[totalCols - 1] = { halign: 'center', cellWidth: fixedW[totalCols - 1] };
+
+                doc.autoTable({
+                    head: empHead,
+                    body: empBody,
+                    startY: 30,
+                    margin: { left: 14, right: 14 },
+                    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize' },
+                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 8 },
+                    columnStyles: colStyles,
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    didParseCell: (data) => {
+                        // Highlight paid rows in gray
+                        if (data.section === 'body') {
+                            const emp = empRows[data.row.index];
+                            if (emp && emp.paid) {
+                                data.cell.styles.textColor = [148, 163, 184];
+                            }
+                        }
+                        // Last row = totals
+                        if (data.section === 'body' && data.row.index === empBody.length - 1) {
+                            data.cell.styles.fillColor = [30, 41, 59];
+                            data.cell.styles.textColor = [255, 255, 255];
+                        }
+                    },
+                });
+
+                // Page numbers
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(148, 163, 184);
+                    doc.text(`Página ${i} de ${pageCount}  •  Split X`, pageW / 2, doc.internal.pageSize.getHeight() - 6, { align: 'center' });
+                }
+
+                doc.save(`nomina_SplitX_${today.replace(/\//g,'-')}.pdf`);
             };
 
             let importMode = 'excel'; // 'excel' | 'json'
@@ -817,20 +1468,23 @@
                 
                 state.denominations.forEach(denom => {
                     const div = document.createElement('div');
-                    div.className = "flex items-center justify-between bg-white p-2 rounded-lg border border-slate-100 hover:border-blue-300 transition-colors";
+                    div.className = "inv-row";
+                    const billStyle = getBillStyle(denom);
+                    const qty = state.inventory[denom] || 0;
                     div.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-8 rounded flex items-center justify-center font-bold text-xs shadow-sm bg-slate-100 text-slate-700 border border-slate-300">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <div style="${billStyle};width:48px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:1px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.12)">
                                 ${denom}
                             </div>
+                            <span style="font-size:12px;color:#64748b;font-weight:500">× ${qty > 0 ? '<span style="color:#1e293b;font-weight:700">'+qty+'</span>' : '0'}</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="app.adjustInv(${denom}, -1)" class="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors">-</button>
-                            <input type="number" 
-                                value="${state.inventory[denom] || 0}" 
+                        <div style="display:flex;align-items:center;gap:6px">
+                            <button onclick="app.adjustInv(${denom}, -1)" class="stepper-btn minus">−</button>
+                            <input type="number"
+                                value="${qty}"
                                 onchange="app.updateInventory(${denom}, this.value)"
-                                class="w-16 text-center border-none bg-transparent font-mono font-bold text-slate-700 focus:ring-0">
-                            <button onclick="app.adjustInv(${denom}, 1)" class="w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 flex items-center justify-center transition-colors">+</button>
+                                style="width:52px;text-align:center;border:1px solid #e2e8f0;border-radius:7px;padding:4px;font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#1e293b;background:#fff;outline:none">
+                            <button onclick="app.adjustInv(${denom}, 1)" class="stepper-btn plus">+</button>
                         </div>
                     `;
                     container.appendChild(div);
@@ -892,6 +1546,42 @@
                 updateInventory(denom, newVal);
             };
 
+            // Sort modes cycle: status → ref → status
+            const SORT_MODES = [
+                { key: 'status', label: 'Estado', icon: 'fa-check-double',
+                  fn: (a, b) => {
+                      if (a.paid !== b.paid) return a.paid ? 1 : -1;   // paid → bottom
+                      return 0;
+                  }
+                },
+                { key: 'ref',    label: '# Ref',  icon: 'fa-arrow-down-1-9',
+                  fn: (a, b) => {
+                      // find original index
+                      const ai = state.employees.findIndex(e => e.id === a.id);
+                      const bi = state.employees.findIndex(e => e.id === b.id);
+                      return ai - bi;
+                  }
+                },
+            ];
+
+            const cycleSortMode = () => {
+                const idx   = SORT_MODES.findIndex(m => m.key === sortMode);
+                const next  = SORT_MODES[(idx + 1) % SORT_MODES.length];
+                sortMode = next.key;
+                // Update button appearance
+                const btn   = document.getElementById('sortBtn');
+                const label = document.getElementById('sortBtnLabel');
+                if (btn) {
+                    btn.style.borderColor = '#93c5fd';
+                    btn.style.color       = '#2563eb';
+                    btn.style.background  = '#eff6ff';
+                    const icon = btn.querySelector('i');
+                    if (icon) { icon.className = `fa-solid ${next.icon} text-xs`; }
+                }
+                if (label) label.textContent = next.label;
+                renderAll();
+            };
+
             // Round all employee amounts, removing cents
             const roundAllAmounts = () => {
                 const hasCents = state.employees.some(e => e.amount !== Math.floor(e.amount));
@@ -918,8 +1608,61 @@
                 saveData();
             };
 
+            // Colores oficiales de los billetes de la República Dominicana (6ª familia, emisión 2014)
+            // Preparados para futura integración con imágenes reales de billetes dominicanos
+            const BILL_COLORS = {
+                // === BILLETES ===
+                2000: { bg: '#4A90E2', text: '#ffffff', border: '#2e5e3e' },   
+                1000: { bg: '#E05A6D', text: '#ffffff', border: '#96281b' },   
+                500:  { bg: '#26A69A', text: '#ffffff', border: '#117080' },   
+                200:  { bg: '#D81B60', text: '#ffffff', border: '#a83f61' },   
+                100:  { bg: '#F57C00', text: '#ffffff', border: '#ae5214' },   
+                50:   { bg: '#8E44AD', text: '#ffffff', border: '#612d76' },   
+                20:   { bg: '#7a5c38', text: '#ffffff', border: '#5e4529' },  
+                // === MONEDAS ===
+                25:   { bg: '#b8952a', text: '#ffffff', border: '#8f7020' },  
+                10:   { bg: '#607d8b', text: '#ffffff', border: '#455a64' },   
+                5:    { bg: '#8d6e63', text: '#ffffff', border: '#6d4c41' },  
+                1:    { bg: '#a0784c', text: '#ffffff', border: '#7d5c38' },   
+            };
+            const getBillStyle = (denom) => {
+                // Image takes priority
+                const img = state.billImages && state.billImages[denom];
+                if (img) {
+                    const c = state.billColors[denom] || BILL_COLORS[denom];
+                    const border = c ? (typeof c === 'string' ? c : c.border) : '#555';
+                    return `background-image:url('${img}');background-size:cover;background-position:center;color:#fff;border-color:${border};text-shadow:0 1px 3px rgba(0,0,0,0.75);`;
+                }
+                // Custom color override
+                const customColor = state.billColors && state.billColors[denom];
+                if (customColor) {
+                    return `background-color:${customColor};color:#fff;border-color:${customColor};filter:brightness(0.85);`;
+                }
+                // Default palette
+                const c = BILL_COLORS[denom];
+                if (c) return `background-color:${c.bg};color:${c.text};border-color:${c.border};`;
+                return 'background-color:#e2e8f0;color:#475569;border-color:#cbd5e1;';
+            };
+
             const renderEmployees = (data) => {
                 const container = document.getElementById('employeeList');
+
+                // Apply current sort mode
+                if (data && data.length > 0) {
+                    const mode = SORT_MODES.find(m => m.key === sortMode);
+                    if (mode) data = [...data].sort(mode.fn);
+                    // Sync button label on initial render
+                    const label = document.getElementById('sortBtnLabel');
+                    const icon  = document.getElementById('sortBtn')?.querySelector('i');
+                    if (label) label.textContent = mode ? mode.label : 'Orden';
+                    if (icon && mode) icon.className = `fa-solid ${mode.icon} text-xs`;
+                    const btn = document.getElementById('sortBtn');
+                    if (btn && sortMode === 'status') {
+                        btn.style.borderColor = '#93c5fd';
+                        btn.style.color       = '#2563eb';
+                        btn.style.background  = '#eff6ff';
+                    }
+                }
                 
                 if (!data || data.length === 0) {
                     container.innerHTML = `<div class="text-center py-10 text-slate-400 flex flex-col items-center">
@@ -937,78 +1680,78 @@
                     let breakdownHTML = '';
                     state.denominations.forEach(d => {
                         if (emp.distribution[d]) {
-                            let colorClass = 'bg-slate-200 text-slate-700';
-                            if(d >= 2000) colorClass = 'bg-slate-200 border-slate-300';
-                            if(d === 1000) colorClass = 'bg-blue-200 text-blue-800 border-blue-300';
-                            if(d === 500) colorClass = 'bg-green-200 text-green-800 border-green-300';
-                            if(d === 200) colorClass = 'bg-red-200 text-red-800 border-red-300';
-                            if(d === 100) colorClass = 'bg-orange-200 text-orange-800 border-orange-300';
-                            if(d <= 50) colorClass = 'bg-yellow-200 text-yellow-800 border-yellow-300';
-
+                            const billStyle = getBillStyle(d);
+                            const hasImg = !!(state.billImages && state.billImages[d]);
                             breakdownHTML += `
-                                <div class="flex flex-col items-center mx-1">
-                                    <div class="relative group cursor-default">
-                                        <div class="${colorClass} w-10 h-6 rounded border shadow-sm flex items-center justify-center text-[10px] font-bold select-none relative z-10">
-                                            ${d}
-                                        </div>
-                                        <span class="absolute -top-2 -right-2 bg-slate-800 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full z-20 shadow">${emp.distribution[d]}</span>
+                                <div style="position:relative;display:inline-block;margin:2px 4px 4px 0">
+                                    <div class="bill-chip" style="${billStyle};width:38px;height:22px;font-size:9px">
+                                        ${hasImg ? '' : d}
                                     </div>
+                                    <span class="bill-badge">${emp.distribution[d]}</span>
                                 </div>
                             `;
                         }
                     });
 
-                    let statusColor = emp.status === 'ok' ? 'border-l-4 border-green-500' : 'border-l-4 border-red-500 bg-red-50';
-                    let statusIcon = emp.status === 'ok' ? '<i class="fa-solid fa-check text-green-500"></i>' : '<i class="fa-solid fa-triangle-exclamation text-red-500"></i>';
-                    let notesHTML = emp.notes.length ? `<div class="text-xs text-red-600 mt-1">${emp.notes.join(', ')}</div>` : '';
-                    
                     const isPaid = emp.paid || false;
-                    const cardOpacity = isPaid ? 'opacity-60 grayscale bg-slate-100' : 'bg-white';
-                    const checkIcon = isPaid ? 'fa-solid fa-square-check text-blue-600' : 'fa-regular fa-square text-slate-400';
+                    let cardClass = 'emp-card';
+                    if (isPaid) cardClass += ' paid';
+                    else if (emp.status !== 'ok') cardClass += ' error';
+
+                    let statusIcon = emp.status === 'ok'
+                        ? '<i class="fa-solid fa-check-circle text-green-400 text-xs"></i>'
+                        : '<i class="fa-solid fa-triangle-exclamation text-red-400 text-xs"></i>';
+                    let notesHTML = emp.notes.length
+                        ? `<div class="text-xs text-red-500 mt-1 font-medium">${emp.notes.join(', ')}</div>` : '';
+                    const checkIcon = isPaid ? 'fa-solid fa-square-check text-blue-500' : 'fa-regular fa-square text-slate-300';
 
                     const card = document.createElement('div');
-                    card.className = `${cardOpacity} p-3 rounded-lg shadow-sm border border-slate-200 ${statusColor} bill-anim relative transition-all duration-300`;
+                    card.className = cardClass;
                     card.innerHTML = `
-                        <div class="flex items-start mb-2">
-                            <button onclick="app.togglePaid(${emp.id})" class="text-2xl hover:scale-110 transition-transform mr-3 pt-0.5 focus:outline-none" title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
+                        <div style="display:flex;align-items:flex-start;gap:10px">
+                            <button onclick="app.togglePaid(${emp.id})"
+                                style="font-size:20px;flex-shrink:0;padding-top:1px;background:none;border:none;cursor:pointer;transition:transform .15s"
+                                onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform=''"
+                                title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
                                 <i class="${checkIcon}"></i>
                             </button>
-                            <div class="flex-grow">
-                                <div class="flex justify-between items-start">
-                                    <div class="flex items-start gap-2 flex-grow mr-2">
-                                        <span class="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-mono mt-1 shrink-0">#${index+1}</span>
-                                        <div class="flex-grow">
-                                            <input
-                                                type="text"
+                            <div style="flex:1;min-width:0">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                                    <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+                                        <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;flex-shrink:0">#${index+1}</span>
+                                        <div style="flex:1;min-width:0">
+                                            <input type="text"
                                                 value="${emp.name.replace(/"/g, '&quot;')}"
                                                 onblur="app.updateEmployee(${emp.id}, 'name', this.value)"
-                                                onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();event.preventDefault();this.closest('.flex-grow').querySelector('.amount-input').focus();}"
-                                                class="font-bold text-slate-800 leading-tight w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 focus:outline-none transition-colors text-sm ${isPaid ? 'line-through decoration-slate-400' : ''} cursor-text"
-                                                title="Clic para editar nombre"
-                                            />
-                                            <input
-                                                type="number"
+                                                onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();event.preventDefault();this.closest('div').querySelector('.amt-inp').focus();}"
+                                                style="font-weight:700;font-size:13px;color:#1e293b;width:100%;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;${isPaid ? 'text-decoration:line-through;color:#94a3b8' : ''}"
+                                                onfocus="this.style.borderBottomColor='#2563eb'"
+                                                onblur2="this.style.borderBottomColor='transparent'"
+                                                title="Clic para editar nombre">
+                                            <input type="number" step="0.01"
                                                 value="${emp.amount}"
-                                                step="0.01"
                                                 onblur="app.updateEmployee(${emp.id}, 'amount', this.value)"
                                                 onkeydown="if(event.key==='Enter'){this.blur();}"
-                                                class="amount-input font-mono text-sm text-slate-500 w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 focus:outline-none transition-colors cursor-text mt-0.5"
-                                                title="Clic para editar monto"
-                                            />
+                                                class="amt-inp"
+                                                style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#64748b;width:100%;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;margin-top:2px"
+                                                onfocus="this.style.borderBottomColor='#2563eb'"
+                                                title="Clic para editar monto">
                                         </div>
                                     </div>
-                                    <button onclick="app.removeEmployee(${emp.id})" class="text-slate-300 hover:text-red-500 transition-colors shrink-0">
-                                        <i class="fa-solid fa-times"></i>
-                                    </button>
+                                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                                        ${statusIcon}
+                                        <button onclick="app.removeEmployee(${emp.id})"
+                                            style="color:#cbd5e1;background:none;border:none;cursor:pointer;font-size:14px;padding:2px;border-radius:4px;transition:color .15s"
+                                            onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                            <i class="fa-solid fa-times"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="flex flex-wrap items-end gap-y-2 pt-2 border-t border-slate-100 border-dashed mt-2">
-                                    ${breakdownHTML || '<span class="text-xs text-slate-400 italic">Esperando efectivo...</span>'}
+                                <div style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;padding-top:8px;border-top:1px dashed #f1f5f9;min-height:28px">
+                                    ${breakdownHTML || '<span style="font-size:11px;color:#94a3b8;font-style:italic">Sin billetes asignados...</span>'}
                                 </div>
                                 ${notesHTML}
                             </div>
-                        </div>
-                        <div class="absolute bottom-2 right-2 opacity-50 pointer-events-none">
-                            ${statusIcon}
                         </div>
                     `;
                     container.appendChild(card);
@@ -1067,45 +1810,205 @@
                 });
             };
 
+            const switchConfigTab = (tab) => {
+                ['denoms','appearance'].forEach(t => {
+                    document.getElementById(`cfgTab-${t}`).className =
+                        t === tab
+                        ? 'flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white text-blue-700 shadow-sm'
+                        : 'flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 hover:text-slate-700';
+                    const view = document.getElementById(`cfgView-${t}`);
+                    t === tab ? view.classList.remove('hidden') : view.classList.add('hidden');
+                });
+                const resetBtn = document.getElementById('cfgResetBtn');
+                if (tab === 'denoms') resetBtn.classList.remove('hidden');
+                else resetBtn.classList.add('hidden');
+                if (tab === 'appearance') renderAppearanceConfig();
+            };
+
+            const renderAppearanceConfig = () => {
+                const container = document.getElementById('appearanceList');
+                container.innerHTML = '';
+                state.denominations.forEach(denom => {
+                    const hasImage = !!(state.billImages && state.billImages[denom]);
+                    const customColor = state.billColors && state.billColors[denom];
+                    const defaultColor = BILL_COLORS[denom] ? BILL_COLORS[denom].bg : '#e2e8f0';
+                    const currentColor = customColor || defaultColor;
+                    const billStyle = getBillStyle(denom);
+
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-100';
+                    row.innerHTML = `
+                        <!-- Preview chip -->
+                        <div style="${billStyle}" class="w-16 h-9 rounded border shadow-sm flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
+                            ${hasImage ? '' : denom}
+                        </div>
+                        <div class="font-medium text-slate-700 text-sm w-10 shrink-0">$${denom}</div>
+                        <!-- Color picker -->
+                        <div class="flex items-center gap-1.5 flex-grow">
+                            <label class="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">Color</label>
+                            <input type="color"
+                                value="${currentColor}"
+                                oninput="app.updateBillColor(${denom}, this.value)"
+                                class="w-8 h-7 rounded cursor-pointer border border-slate-200 p-0.5 bg-white"
+                                title="Cambiar color del billete $${denom}">
+                            ${customColor ? `<button onclick="app.resetBillColor(${denom})" class="text-[10px] text-slate-400 hover:text-red-500" title="Restaurar color original"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
+                        </div>
+                        <!-- Image controls -->
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <label class="text-[10px] text-slate-400 uppercase tracking-wide">Imagen</label>
+                            <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-1 rounded border border-blue-200 transition-colors" title="Cargar imagen desde tu PC">
+                                <i class="fa-solid fa-upload mr-1"></i>${hasImage ? 'Cambiar' : 'Cargar'}
+                                <input type="file" accept="image/*" class="hidden" onchange="app.uploadBillImage(${denom}, this)">
+                            </label>
+                            ${hasImage ? `<button onclick="app.clearBillImage(${denom})" class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-1 rounded border border-red-200 bg-red-50" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            };
+
+            const updateBillColor = (denom, color) => {
+                if (!state.billColors) state.billColors = {};
+                state.billColors[denom] = color;
+                saveData();
+                renderAppearanceConfig();
+            };
+
+            const resetBillColor = (denom) => {
+                if (state.billColors) delete state.billColors[denom];
+                saveData();
+                renderAppearanceConfig();
+            };
+
+            const uploadBillImage = (denom, input) => {
+                const file = input.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    if (!state.billImages) state.billImages = {};
+                    state.billImages[denom] = e.target.result; // base64
+                    saveData();
+                    renderAppearanceConfig();
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const clearBillImage = (denom) => {
+                if (state.billImages) delete state.billImages[denom];
+                saveData();
+                renderAppearanceConfig();
+            };
+
+            const resetAllAppearance = () => {
+                if (!confirm('¿Restaurar todos los colores a los valores por defecto?')) return;
+                state.billColors = {};
+                saveData();
+                renderAppearanceConfig();
+            };
+
+            const clearAllImages = () => {
+                if (!confirm('¿Quitar todas las imágenes de billetes?')) return;
+                state.billImages = {};
+                saveData();
+                renderAppearanceConfig();
+            };
+
             const updateTotals = () => {
                 // Cash in Box
                 let totalBox = 0;
                 state.denominations.forEach(d => totalBox += d * (state.inventory[d] || 0));
                 document.getElementById('totalInventoryDisplay').innerText = fmt(totalBox);
 
-                // Total Payroll (Only Pending)
-                let totalPending = state.employees
-                    .filter(e => !e.paid)
-                    .reduce((sum, e) => sum + e.amount, 0);
-                
-                let totalAll = state.employees.reduce((sum, e) => sum + e.amount, 0);
+                // Payroll totals
+                const paidEmps    = state.employees.filter(e => e.paid);
+                const pendingEmps = state.employees.filter(e => !e.paid);
+                let totalPending  = pendingEmps.reduce((s, e) => s + e.amount, 0);
+                let totalAll      = state.employees.reduce((s, e) => s + e.amount, 0);
 
-                if (state.employees.some(e => e.paid)) {
-                    document.getElementById('totalPayrollDisplay').innerHTML = `<span class="text-xs text-slate-400 line-through mr-1">${fmt(totalAll)}</span> ${fmt(totalPending)}`;
-                } else {
-                    document.getElementById('totalPayrollDisplay').innerText = fmt(totalPending);
+                // ── KPI Cards ──────────────────────────────
+                // KPI 1: En Caja
+                const kpiCaja = document.getElementById('kpiEnCaja');
+                const kpiCajaSub = document.getElementById('kpiEnCajaSub');
+                if (kpiCaja) {
+                    kpiCaja.innerText = fmt(totalBox);
+                    kpiCaja.style.color = totalBox >= totalPending ? '#16a34a' : '#2563eb';
+                }
+                if (kpiCajaSub) {
+                    if (totalBox >= totalPending && totalPending > 0) {
+                        kpiCajaSub.innerHTML = `<span style="color:#16a34a">Sobran ${fmt(totalBox - totalPending)}</span>`;
+                    } else if (totalPending > 0) {
+                        kpiCajaSub.innerHTML = `<span style="color:#dc2626">Faltan ${fmt(totalPending - totalBox)}</span>`;
+                    } else {
+                        kpiCajaSub.innerText = 'Sin nómina pendiente';
+                    }
                 }
 
-                // Progress Bar Logic (Based on PENDING needs)
-                let percent = totalPending > 0 ? Math.min(100, (totalBox / totalPending) * 100) : (totalBox > 0 ? 100 : 0);
-                document.getElementById('cashProgressBar').style.width = `${percent}%`;
-                
-                // Status Text
-                const statusEl = document.getElementById('cashStatusText');
-                if (totalPending === 0 && state.employees.length > 0) {
-                     statusEl.innerHTML = `<span class="text-green-600 font-bold">¡Todo Pagado!</span>`;
-                     document.getElementById('cashProgressBar').classList.add('bg-green-500');
-                } else if (totalBox >= totalPending) {
-                    statusEl.innerHTML = `<span class="text-green-600 font-bold">Cubierto (Sobra ${fmt(totalBox - totalPending)})</span>`;
-                    document.getElementById('cashProgressBar').classList.remove('bg-red-500');
-                    document.getElementById('cashProgressBar').classList.add('bg-blue-600');
+                // KPI 2: Pendiente
+                const kpiPend = document.getElementById('kpiPendiente');
+                if (kpiPend) {
+                    kpiPend.innerText = fmt(totalPending);
+                    kpiPend.style.color = totalPending > 0 ? '#1e293b' : '#16a34a';
+                }
+                // totalPayrollDisplay used as subtitle of kpi2
+                const payrollSub = document.getElementById('totalPayrollDisplay');
+                if (payrollSub) {
+                    const label = state.employees.length === 0 ? '0 empleados'
+                        : paidEmps.length > 0 ? `${pendingEmps.length} pend. · ${paidEmps.length} pagados`
+                        : `${state.employees.length} empleados`;
+                    payrollSub.innerText = label;
+                }
+
+                // KPI 3: Cubiertos
+                const kpiCub = document.getElementById('kpiCubiertos');
+                const kpiCubSub = document.getElementById('kpiCubiertosSub');
+                if (state.employees.length === 0) {
+                    if (kpiCub) { kpiCub.innerText = '0 / 0'; kpiCub.style.color = '#94a3b8'; }
+                    if (kpiCubSub) kpiCubSub.innerText = 'Sin empleados';
                 } else {
-                    statusEl.innerHTML = `<span class="text-red-600 font-bold">Faltan ${fmt(totalPending - totalBox)}</span>`;
-                    document.getElementById('cashProgressBar').classList.remove('bg-blue-600');
-                    document.getElementById('cashProgressBar').classList.add('bg-red-500');
+                    // Covered = paid OR status ok
+                    const covered = paidEmps.length;
+                    const total   = state.employees.length;
+                    if (kpiCub) {
+                        kpiCub.innerText = `${covered} / ${total}`;
+                        kpiCub.style.color = covered === total ? '#16a34a' : covered > 0 ? '#d97706' : '#dc2626';
+                    }
+                    if (kpiCubSub) {
+                        const pct = total > 0 ? Math.round(covered / total * 100) : 0;
+                        kpiCubSub.innerText = `${pct}% completado`;
+                    }
+                }
+
+                // KPI 4: Retirar banco — driven by calculateBankNeeds
+                const bankData = calculateBankNeeds();
+                let toWithdraw = 0;
+                state.denominations.forEach(d => {
+                    if (bankData.breakdown[d]) toWithdraw += bankData.breakdown[d].final * d;
+                });
+                const kpiRet = document.getElementById('kpiRetirar');
+                if (kpiRet) {
+                    kpiRet.innerText = fmt(toWithdraw);
+                    kpiRet.style.color = toWithdraw > 0 ? '#d97706' : '#16a34a';
+                }
+
+                // Progress Bar
+                let percent = totalPending > 0 ? Math.min(100, (totalBox / totalPending) * 100) : (totalBox > 0 ? 100 : 0);
+                const bar = document.getElementById('cashProgressBar');
+                const statusEl = document.getElementById('cashStatusText');
+                if (bar) bar.style.width = `${percent}%`;
+
+                if (totalPending === 0 && state.employees.length > 0) {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-green-600 font-semibold">¡Todo Pagado!</span>`;
+                    if (bar) { bar.classList.remove('bg-blue-500','bg-red-500'); bar.classList.add('bg-green-500'); }
+                } else if (totalBox >= totalPending) {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-green-600 font-semibold">Caja cubierta ✓</span>`;
+                    if (bar) { bar.classList.remove('bg-red-500','bg-green-500'); bar.classList.add('bg-blue-500'); }
+                } else {
+                    if (statusEl) statusEl.innerHTML = `<span class="text-red-500 font-semibold">Faltan ${fmt(totalPending - totalBox)}</span>`;
+                    if (bar) { bar.classList.remove('bg-blue-500','bg-green-500'); bar.classList.add('bg-red-500'); }
                 }
             };
 
+            // Switch left panel tab (inventory / bank)
             const switchTab = (tabName) => {
                 const invView = document.getElementById('view-inventory');
                 const bankView = document.getElementById('view-bank');
@@ -1115,18 +2018,67 @@
                 if (tabName === 'inventory') {
                     invView.classList.remove('hidden');
                     bankView.classList.add('hidden');
-                    tabInv.classList.add('tab-active');
-                    tabInv.classList.remove('tab-inactive');
-                    tabBank.classList.remove('tab-active');
-                    tabBank.classList.add('tab-inactive');
+                    tabInv.classList.add('active');   tabInv.classList.remove('inactive');
+                    tabBank.classList.add('inactive'); tabBank.classList.remove('active');
                 } else {
                     invView.classList.add('hidden');
                     bankView.classList.remove('hidden');
-                    tabInv.classList.remove('tab-active');
-                    tabInv.classList.add('tab-inactive');
-                    tabBank.classList.add('tab-active');
-                    tabBank.classList.remove('tab-inactive');
-                    renderBank(); // Refresh calculation
+                    tabInv.classList.add('inactive');   tabInv.classList.remove('active');
+                    tabBank.classList.add('active');    tabBank.classList.remove('inactive');
+                    renderBank();
+                }
+            };
+
+            // Mobile view switcher (bottom nav + segmented control)
+            const switchMobileView = (view) => {
+                const nomPanel  = document.getElementById('panel-nomina');
+                const cajaPanel = document.getElementById('panel-caja');
+                const segNom    = document.getElementById('seg-nomina');
+                const segCaja   = document.getElementById('seg-caja');
+                const bnavNom   = document.getElementById('bnav-nomina');
+                const bnavCaja  = document.getElementById('bnav-caja');
+                const bnavBanco = document.getElementById('bnav-banco');
+
+                if (view === 'nomina') {
+                    nomPanel.classList.add('active');    cajaPanel.classList.remove('active');
+                    if (segNom)  { segNom.classList.add('active');    segCaja.classList.remove('active'); }
+                    if (bnavNom) { bnavNom.classList.add('active'); bnavCaja.classList.remove('active'); bnavBanco.classList.remove('active'); }
+                } else {
+                    cajaPanel.classList.add('active');   nomPanel.classList.remove('active');
+                    if (segCaja) { segCaja.classList.add('active');   segNom.classList.remove('active'); }
+                    if (bnavCaja) { bnavCaja.classList.add('active'); bnavNom.classList.remove('active'); bnavBanco.classList.remove('active'); }
+                }
+            };
+
+            // Mobile Add Employee Drawer
+            const openAddDrawer = () => {
+                document.getElementById('addDrawerBackdrop').classList.add('open');
+                document.getElementById('addDrawer').classList.add('open');
+                setTimeout(() => document.getElementById('empNameMobile').focus(), 320);
+            };
+            const closeAddDrawer = () => {
+                document.getElementById('addDrawerBackdrop').classList.remove('open');
+                document.getElementById('addDrawer').classList.remove('open');
+            };
+            const addEmployeeMobile = () => {
+                const nameInput = document.getElementById('empNameMobile');
+                const amtInput  = document.getElementById('empAmountMobile');
+                let name   = nameInput.value.trim();
+                let valStr = amtInput.value.trim();
+                if (!name && !valStr) return;
+                if (name && !valStr) {
+                    const match = name.match(/^[\d\.\-\)\s]*([a-zA-Z\u00C0-\u00FF\s]+)[,\s]+(\d+(\.\d+)?)/);
+                    if (match) { name = match[1].trim(); valStr = match[2]; }
+                }
+                if (name && valStr) {
+                    const amount = parseFloat(valStr);
+                    if (!isNaN(amount)) {
+                        state.employees.push({ id: Date.now(), name, amount, paid: false });
+                        nameInput.value = ''; amtInput.value = '';
+                        saveData();
+                        closeAddDrawer();
+                        switchMobileView('nomina');
+                    }
                 }
             };
 
@@ -1137,17 +2089,29 @@
                 document.getElementById('empName').addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') document.getElementById('empAmount').focus();
                 });
+                const mobileAmt = document.getElementById('empAmountMobile');
+                if (mobileAmt) mobileAmt.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addEmployeeMobile();
+                });
+                const mobileNm = document.getElementById('empNameMobile');
+                if (mobileNm) mobileNm.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') document.getElementById('empAmountMobile').focus();
+                });
             };
 
             return {
                 init,
                 addEmployee,
+                addEmployeeMobile,
                 removeEmployee,
                 togglePaid,
                 updateInventory,
                 adjustInv,
                 resetAll,
                 switchTab,
+                switchMobileView,
+                openAddDrawer,
+                closeAddDrawer,
                 updateBankLimit,
                 applyBankToInventory,
                 addDenomination,
@@ -1155,12 +2119,23 @@
                 resetDenominations,
                 renderConfigModal,
                 exportToCSV,
+                exportToExcel,
+                exportToPDF,
                 openImportModal,
                 closeImportModal,
                 processImport,
                 switchImportTab,
                 roundAllAmounts,
-                updateEmployee
+                cycleSortMode,
+                updateEmployee,
+                switchConfigTab,
+                renderAppearanceConfig,
+                updateBillColor,
+                resetBillColor,
+                uploadBillImage,
+                clearBillImage,
+                resetAllAppearance,
+                clearAllImages
             };
         })();
 
