@@ -158,37 +158,6 @@
         .emp-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); transform: translateY(-1px); }
         .emp-card.error { border-left-color: #ef4444; background: #fff5f5; }
         .emp-card.paid { opacity: .55; filter: grayscale(.6); background: #f8fafc; border-left-color: #94a3b8; }
-        .payroll-summary-panel {
-            margin: 12px 12px 0;
-            padding: 12px 14px;
-            border: 1px solid #99f6e4;
-            border-radius: 10px;
-            background: #f0fdfa;
-        }
-        .loan-fund-panel { margin-top: 10px; padding-top: 10px; border-top: 1px solid #99f6e4; }
-        .loan-fund-panel.error { margin: 10px -4px -4px; padding: 10px; border: 1px solid #fecaca; border-radius: 8px; background: #fff1f2; }
-        .loan-fund-panel.error .loan-fund-title { color: #991b1b; }
-        .loan-fund-input { width: 132px; height: 34px; padding: 0 10px; border: 1px solid #5eead4; border-radius: 7px; background: #fff; color: #134e4a; font: 700 12px 'JetBrains Mono', monospace; outline: none; }
-        .loan-fund-input:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,.12); }
-        .loan-fund-bills { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-height: 28px; margin-top: 8px; }
-        .mode-switch { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f1f5f9; }
-        .mode-switch button { height: 28px; padding: 0 9px; border-radius: 6px; color: #64748b; font-size: 11px; font-weight: 700; transition: background .15s, color .15s, box-shadow .15s; }
-        .mode-switch button.active { background: #fff; color: #0f766e; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
-        .payroll-breakdown {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 6px;
-            margin-top: 8px;
-            padding: 8px;
-            border-radius: 8px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-        }
-        .payroll-breakdown span { display: block; font-size: 10px; color: #94a3b8; }
-        .payroll-breakdown strong { display: block; margin-top: 2px; font-size: 11px; color: #334155; font-family: 'JetBrains Mono', monospace; }
-        @media (max-width: 520px) {
-            .payroll-breakdown { grid-template-columns: 1fr; }
-        }
 
         /* Bill chip */
         .bill-chip {
@@ -260,7 +229,6 @@
             cursor: pointer; transition: all .15s; white-space: nowrap;
         }
         .toolbar-btn:hover { border-color: #94a3b8; color: #1e293b; }
-        .toolbar-btn:disabled { opacity: .45; cursor: not-allowed; background: #f8fafc; color: #94a3b8; }
         .toolbar-btn.green:hover  { border-color: #86efac; color: #16a34a; background: #f0fdf4; }
         .toolbar-btn.red:hover    { border-color: #fca5a5; color: #dc2626; background: #fef2f2; }
         .toolbar-btn.amber:hover  { border-color: #fcd34d; color: #d97706; background: #fffbeb; }
@@ -462,11 +430,8 @@
                         <span class="text-sm font-medium text-slate-600">Total a Retirar:</span>
                         <span id="bankTotalDisplay" class="font-bold text-lg text-slate-800 font-mono">RD$ 0</span>
                     </div>
-                    <button id="applyBankBtn" onclick="app.applyBankToInventory()" class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm">
+                    <button onclick="app.applyBankToInventory()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm">
                         <i class="fa-solid fa-check-circle"></i> Aplicar a Mi Caja
-                    </button>
-                    <button onclick="app.clearBankLimits()" class="w-full mt-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 font-medium py-2 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-xs">
-                        <i class="fa-solid fa-eraser"></i> Limpiar límites del banco
                     </button>
                 </div>
             </div>
@@ -507,22 +472,10 @@
                             <i class="fa-solid fa-scissors text-xs"></i>
                             <span class="hidden sm:inline">Centavos</span>
                         </button>
-                        <button onclick="app.resetOperation()" id="resetOperationBtn" class="toolbar-btn" title="Conservar empleados y reiniciar caja, banco y reparto">
-                            <i class="fa-solid fa-arrow-rotate-left text-xs"></i>
-                            <span class="hidden lg:inline">Reiniciar operación</span>
-                        </button>
-                        <button onclick="app.restoreImportSnapshot()" id="restoreImportBtn" class="toolbar-btn blue" title="Restaurar empleados y montos de la última importación">
-                            <i class="fa-solid fa-clock-rotate-left text-xs"></i>
-                            <span class="hidden lg:inline">Restaurar importación</span>
-                        </button>
                         <button onclick="app.cycleSortMode()" id="sortBtn" class="toolbar-btn" title="Ordenar lista">
                             <i class="fa-solid fa-arrow-down-short-wide text-xs"></i>
                             <span class="hidden sm:inline" id="sortBtnLabel">Orden</span>
                         </button>
-                        <div id="payrollModeSwitch" class="mode-switch" role="group" aria-label="Modo de visualización">
-                            <button id="payrollModeNormal" onclick="app.setPayrollMode('normal')" class="active" title="Vista normal">Normal</button>
-                            <button id="payrollModeDeductions" onclick="app.setPayrollMode('deductions')" title="Ver bruto, descuentos y préstamos">Nómina</button>
-                        </div>
                         <button onclick="app.openImportModal()" class="toolbar-btn blue sm:hidden" title="Importar">
                             <i class="fa-solid fa-file-import text-xs"></i>
                         </button>
@@ -538,7 +491,6 @@
                     </div>
                 </div>
 
-                <div id="payrollSummaryContainer" class="hidden"></div>
                 <!-- Employee list container -->
                 <div id="employeeList" class="p-3 space-y-2.5 overflow-y-auto flex-grow">
                     <div class="flex flex-col items-center justify-center py-14 text-slate-300">
@@ -692,7 +644,6 @@
                     <p class="text-[10px] text-green-700 font-bold uppercase mb-1">Vista previa (<span id="importPreviewCount">0</span> detectados)</p>
                     <div id="importPreviewList" class="text-xs text-green-800 font-mono space-y-0.5"></div>
                 </div>
-                <div id="importValidation" class="hidden mt-2 rounded-lg border p-2.5"></div>
                 <p id="importErrorMsg" class="text-xs text-red-500 mt-2 hidden"></p>
             </div>
             <div class="p-4 bg-slate-50 flex justify-end gap-2 border-t border-slate-100">
@@ -715,9 +666,6 @@
                 bankLimits: {},
                 billColors: {},   // { 1000: '#c0392b' } — overrides default
                 billImages: {},   // { 1000: 'data:image/...' } — base64 images
-                payrollMode: 'normal',
-                payrollLoanFund: 0,
-                importSnapshot: null,
                 mode: 'inventory'
             };
 
@@ -771,131 +719,6 @@
 
             // --- CORE LOGIC: DISTRIBUTION ---
             const fmt = (num) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(num);
-            const showToast = (message, type = 'success') => {
-                const previous = document.getElementById('appToast');
-                if (previous) previous.remove();
-                const toast = document.createElement('div');
-                toast.id = 'appToast';
-                toast.className = `fixed right-4 bottom-20 sm:bottom-4 z-[100] max-w-sm px-4 py-3 rounded-lg shadow-lg border text-sm font-medium ${type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`;
-                toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-info'} mr-2"></i>${escapeHTML(message)}`;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 3500);
-            };
-            const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[ch]));
-
-            const parseImportNumber = (value, fallback = 0) => {
-                if (value === undefined || value === null || value === '') return fallback;
-                const parsed = typeof value === 'number' ? value : parseExcelNumber(String(value));
-                return isNaN(parsed) ? fallback : parsed;
-            };
-
-            const hasPayrollFields = (item) => ['bruto', 'gross', 'bonificaciones', 'bonuses', 'descuentos', 'discounts', 'prestamos', 'loans'].some(key => item[key] !== undefined && item[key] !== null && item[key] !== '');
-
-            const normalizeImportedEmployee = (item, idx) => {
-                const name = item.nombre || item.name;
-                if (!name) throw new Error(`Elemento #${idx + 1}: Falta nombre.`);
-
-                const importedAmount = item.monto ?? item.amount;
-                const hasDetails = hasPayrollFields(item);
-                const gross = parseImportNumber(item.bruto ?? item.gross, null);
-                const bonuses = parseImportNumber(item.bonificaciones ?? item.bonuses, 0);
-                const discounts = parseImportNumber(item.descuentos ?? item.discounts, 0);
-                const loans = parseImportNumber(item.prestamos ?? item.loans, 0);
-                const afterDiscounts = gross !== null ? gross + bonuses - discounts : null;
-                const calculatedNet = afterDiscounts !== null ? afterDiscounts - loans : null;
-                const amount = parseImportNumber(importedAmount, calculatedNet);
-
-                if (amount === null || amount === undefined || isNaN(amount) || amount < 0) throw new Error(`Elemento #${idx + 1}: Monto inválido.`);
-
-                const employee = {
-                    id: Date.now() + idx,
-                    name,
-                    amount,
-                    paid: item.paid || false
-                };
-
-                if (hasDetails) {
-                    const difference = calculatedNet === null ? null : amount - calculatedNet;
-                    employee.payroll = {
-                        gross: gross ?? amount,
-                        bonuses,
-                        discounts,
-                        afterDiscounts: afterDiscounts ?? amount + loans,
-                        loans,
-                        net: amount,
-                        calculatedNet,
-                        difference,
-                        reconciled: difference === null ? null : Math.abs(difference) <= 0.01
-                    };
-                }
-
-                return employee;
-            };
-
-            const getPayrollSummary = () => state.employees.reduce((summary, emp) => {
-                if (!emp.payroll) return summary;
-                summary.count += 1;
-                summary.gross += emp.payroll.gross || 0;
-                summary.bonuses += emp.payroll.bonuses || 0;
-                summary.discounts += emp.payroll.discounts || 0;
-                summary.afterDiscounts += emp.payroll.afterDiscounts || 0;
-                summary.loans += emp.payroll.loans || 0;
-                summary.net += emp.amount || 0;
-                return summary;
-            }, { count: 0, gross: 0, bonuses: 0, discounts: 0, afterDiscounts: 0, loans: 0, net: 0 });
-
-            const getIdealBreakdown = (amount) => {
-                const distribution = {};
-                let remaining = Math.max(0, Number(amount) || 0);
-                state.denominations.forEach(denom => {
-                    const count = Math.floor(remaining / denom);
-                    if (count > 0) {
-                        distribution[denom] = count;
-                        remaining = parseFloat((remaining - count * denom).toFixed(2));
-                    }
-                });
-                return { distribution, remainder: remaining };
-            };
-
-            const getImportValidation = (employees) => employees.reduce((summary, emp) => {
-                if (!emp.payroll || emp.payroll.reconciled === null) return summary;
-                summary.checked += 1;
-                if (emp.payroll.reconciled) summary.valid += 1;
-                else {
-                    summary.invalid += 1;
-                    summary.difference += emp.payroll.difference;
-                    summary.items.push({ name: emp.name, difference: emp.payroll.difference });
-                }
-                return summary;
-            }, { checked: 0, valid: 0, invalid: 0, difference: 0, items: [] });
-
-            const renderImportValidation = (employees) => {
-                const el = document.getElementById('importValidation');
-                const validation = getImportValidation(employees);
-                if (!validation.checked) { el.classList.add('hidden'); return; }
-                const isValid = validation.invalid === 0;
-                el.className = `mt-2 rounded-lg border p-2.5 ${isValid ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'}`;
-                const details = validation.items.slice(0, 3).map(item =>
-                    `<div class="flex justify-between gap-3 mt-1 font-mono"><span class="truncate">${escapeHTML(item.name)}</span><strong>${item.difference > 0 ? '+' : ''}${fmt(item.difference)}</strong></div>`
-                ).join('');
-                el.innerHTML = `
-                    <div class="flex items-start gap-2 text-xs">
-                        <i class="fa-solid ${isValid ? 'fa-circle-check' : 'fa-triangle-exclamation'} mt-0.5"></i>
-                        <div class="min-w-0 flex-1">
-                            <strong>${isValid ? 'Nómina conciliada' : `${validation.invalid} registro(s) no cuadran`}</strong>
-                            <div class="mt-0.5 opacity-80">${validation.valid} de ${validation.checked} cumplen: bruto + bonificaciones − descuentos − préstamos = neto.</div>
-                            ${details}
-                            ${validation.invalid > 3 ? `<div class="mt-1">Y ${validation.invalid - 3} diferencia(s) más.</div>` : ''}
-                        </div>
-                    </div>`;
-                el.classList.remove('hidden');
-            };
 
             // 1. Calculate Distribution and Return LEFTOVER Inventory (Practical Approach)
             const calculateDistribution = () => {
@@ -948,29 +771,8 @@
                     return { ...emp, distribution, status, notes };
                 });
 
-                // Treat the new-loan reserve as one more pending cash assignment.
-                const payrollSummary = getPayrollSummary();
-                const loanFundAmount = Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-                const loanFundResult = { amount: loanFundAmount, distribution: {}, status: 'ok', missingAmount: 0 };
-                let fundRemaining = loanFundAmount;
-                state.denominations.forEach(denom => {
-                    if (fundRemaining <= 0) return;
-                    const needed = Math.floor(fundRemaining / denom);
-                    const available = currentInventory[denom] || 0;
-                    const take = Math.min(needed, available);
-                    if (take > 0) {
-                        loanFundResult.distribution[denom] = take;
-                        currentInventory[denom] -= take;
-                        fundRemaining = parseFloat((fundRemaining - take * denom).toFixed(2));
-                    }
-                });
-                if (fundRemaining > 0) {
-                    loanFundResult.status = 'error';
-                    loanFundResult.missingAmount = fundRemaining;
-                }
-
                 // Return both the mapped employees AND what's left in the inventory
-                return { results, leftoverInventory: currentInventory, loanFundResult };
+                return { results, leftoverInventory: currentInventory };
             };
 
             // 2. Bank Planner (Calculates needs ONLY for Unpaid employees)
@@ -978,12 +780,11 @@
                 let tempTotalBreakdown = {};
                 state.denominations.forEach(d => tempTotalBreakdown[d] = 0);
 
-                // Plan only the portions that could not be covered with cash in the box.
-                const coverage = calculateDistribution();
-                const pendingEmployees = coverage.results.filter(e => !e.paid && e._missingAmount > 0);
+                // Filter only UNPAID employees
+                const pendingEmployees = state.employees.filter(e => !e.paid);
 
                 pendingEmployees.forEach(emp => {
-                    let rem = emp._missingAmount;
+                    let rem = emp.amount;
                     state.denominations.forEach(denom => {
                         let count = Math.floor(rem / denom);
                         if (count > 0) {
@@ -991,13 +792,6 @@
                             rem = parseFloat((rem - (count * denom)).toFixed(2));
                         }
                     });
-                });
-
-                // Cash reserve withdrawn to make new employee loans.
-                const { loanFundResult } = coverage;
-                const loanFundBreakdown = getIdealBreakdown(loanFundResult.missingAmount).distribution;
-                state.denominations.forEach(denom => {
-                    tempTotalBreakdown[denom] += loanFundBreakdown[denom] || 0;
                 });
 
                 // Apply Limits & Cascade
@@ -1125,30 +919,17 @@
 
             const applyBankToInventory = () => {
                 const bankData = calculateBankNeeds();
-                let totalAdded = 0;
                 state.denominations.forEach(d => {
-                    const quantity = bankData.breakdown[d]?.final || 0;
-                    state.inventory[d] = (state.inventory[d] || 0) + quantity;
-                    totalAdded += quantity * d;
+                    if (bankData.breakdown[d]) {
+                        state.inventory[d] = bankData.breakdown[d].final;
+                    } else {
+                        state.inventory[d] = 0;
+                    }
                 });
-                if (totalAdded <= 0) {
-                    showToast('No hay dinero pendiente para retirar del banco.', 'info');
-                    return;
-                }
                 state.mode = 'inventory';
                 switchTab('inventory');
                 saveData();
-                showToast(`${fmt(totalAdded)} agregados a Mi Caja. El inventario anterior se conservó.`);
-            };
-
-            const clearBankLimits = () => {
-                const hasLimits = Object.values(state.bankLimits || {}).some(value => value !== null && value !== undefined && value !== '');
-                if (!hasLimits) {
-                    showToast('No hay límites bancarios configurados.', 'info');
-                    return;
-                }
-                state.bankLimits = {};
-                saveData();
+                alert('Inventario actualizado para los empleados pendientes.');
             };
 
             const addDenomination = () => {
@@ -1185,22 +966,14 @@
 
             const exportToCSV = () => {
                 const { results } = calculateDistribution();
-                const hasPayroll = results.some(row => row.payroll);
-                let csv = hasPayroll
-                    ? "No.,Nombre,Bruto,Bonificaciones,Descuentos,Despues descuentos,Prestamos,Neto,Pagado,Detalle,Estado\n"
-                    : "No.,Nombre,Monto,Pagado,Detalle,Estado\n";
+                let csv = "No.,Nombre,Monto,Pagado,Detalle,Estado\n";
                 results.forEach((row, index) => {
                     let details = [];
                     for(const [d, count] of Object.entries(row.distribution)) {
                         details.push(`${count}x${d}`);
                     }
                     const paidStatus = row.paid ? "SI" : "NO";
-                    if (hasPayroll) {
-                        const p = row.payroll || {};
-                        csv += `${index+1},"${row.name}",${p.gross ?? ''},${p.bonuses ?? ''},${p.discounts ?? ''},${p.afterDiscounts ?? ''},${p.loans ?? ''},${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
-                    } else {
-                        csv += `${index+1},"${row.name}",${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
-                    }
+                    csv += `${index+1},"${row.name}",${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
                 });
                 
                 const blob = new Blob([csv], { type: 'text/csv' });
@@ -1233,19 +1006,18 @@
 
                 // 2. Per-employee rows
                 const empRows = results.map((emp, idx) => {
-                    const row = { idx: idx + 1, name: emp.name, amount: emp.amount, paid: emp.paid, status: emp.status, payroll: emp.payroll };
+                    const row = { idx: idx + 1, name: emp.name, amount: emp.amount, paid: emp.paid, status: emp.status };
                     denoms.forEach(d => row[d] = emp.distribution[d] || 0);
                     return row;
                 });
 
-                return { denoms, summary, empRows, payrollSummary: getPayrollSummary() };
+                return { denoms, summary, empRows };
             };
 
             // ── Export Excel (.xlsx) ──────────────────────────────────────────
             const exportToExcel = () => {
                 if (typeof XLSX === 'undefined') { alert('Librería Excel no cargada.'); return; }
-                const { denoms, summary, empRows, payrollSummary } = buildExportData();
-                const hasPayroll = payrollSummary.count > 0;
+                const { denoms, summary, empRows } = buildExportData();
                 const wb = XLSX.utils.book_new();
                 const today = new Date().toLocaleDateString('es-DO');
 
@@ -1267,14 +1039,6 @@
                 });
                 s1Data.push([]);
                 s1Data.push(['TOTAL GENERAL', '', grandTotal]);
-                if (hasPayroll) {
-                    s1Data.push([]);
-                    s1Data.push(['RESUMEN DE PRESTAMOS / DESCUENTOS']);
-                    s1Data.push(['Bruto total', '', payrollSummary.gross]);
-                    s1Data.push(['Luego de descuentos', '', payrollSummary.afterDiscounts]);
-                    s1Data.push(['Prestamos recolectados', '', payrollSummary.loans]);
-                    s1Data.push(['Neto a pagar', '', payrollSummary.net]);
-                }
 
                 const ws1 = XLSX.utils.aoa_to_sheet(s1Data);
 
@@ -1290,8 +1054,7 @@
                 XLSX.utils.book_append_sheet(wb, ws1, 'Resumen Billetes');
 
                 // ── Sheet 2: Distribución por Empleado ──
-                const payrollHeaders = hasPayroll ? ['Bruto', 'Bonif.', 'Desc.', 'Despues desc.', 'Prestamos', 'Neto'] : ['Monto (RD$)'];
-                const headerRow = ['#', 'Nombre', ...payrollHeaders, ...denoms.map(d => `RD$${d}`), 'Estado', 'Pagado'];
+                const headerRow = ['#', 'Nombre', 'Monto (RD$)', ...denoms.map(d => `RD$${d}`), 'Estado', 'Pagado'];
                 const s2Data = [
                     ['DISTRIBUCIÓN DETALLADA POR EMPLEADO'],
                     [`Fecha: ${today}`],
@@ -1300,20 +1063,10 @@
                 ];
 
                 empRows.forEach(emp => {
-                    const payrollValues = hasPayroll
-                        ? [
-                            emp.payroll?.gross ?? '',
-                            emp.payroll?.bonuses ?? '',
-                            emp.payroll?.discounts ?? '',
-                            emp.payroll?.afterDiscounts ?? '',
-                            emp.payroll?.loans ?? '',
-                            emp.amount,
-                        ]
-                        : [emp.amount];
                     const row = [
                         emp.idx,
                         emp.name,
-                        ...payrollValues,
+                        emp.amount,
                         ...denoms.map(d => emp[d] || 0),
                         emp.status === 'ok' ? 'OK' : 'Incompleto',
                         emp.paid ? 'Sí' : 'No',
@@ -1322,22 +1075,19 @@
                 });
 
                 // Totals row
-                const totalRow = hasPayroll
-                    ? ['', 'TOTAL', payrollSummary.gross, payrollSummary.bonuses, payrollSummary.discounts, payrollSummary.afterDiscounts, payrollSummary.loans, payrollSummary.net]
-                    : ['', 'TOTAL', empRows.reduce((s,e) => s + e.amount, 0)];
+                const totalRow = ['', 'TOTAL', empRows.reduce((s,e) => s + e.amount, 0)];
                 denoms.forEach(d => totalRow.push(empRows.reduce((s,e) => s + (e[d]||0), 0)));
                 totalRow.push('', '');
                 s2Data.push([]);
                 s2Data.push(totalRow);
 
                 const ws2 = XLSX.utils.aoa_to_sheet(s2Data);
-                const col2widths = [{ wch: 5 }, { wch: 28 }];
-                payrollHeaders.forEach(() => col2widths.push({ wch: 14 }));
+                const col2widths = [{ wch: 5 }, { wch: 28 }, { wch: 14 }];
                 denoms.forEach(() => col2widths.push({ wch: 9 }));
                 col2widths.push({ wch: 12 }, { wch: 8 });
                 ws2['!cols'] = col2widths;
                 ws2['!merges'] = [
-                    { s: { r: 0, c: 0 }, e: { r: 0, c: denoms.length + payrollHeaders.length + 3 } },
+                    { s: { r: 0, c: 0 }, e: { r: 0, c: denoms.length + 4 } },
                 ];
 
                 XLSX.utils.book_append_sheet(wb, ws2, 'Distribución Empleados');
@@ -1608,23 +1358,26 @@
                     } else {
                         const parsed = JSON.parse(rawText);
                         if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
-                        employees = parsed.map((item, idx) => normalizeImportedEmployee(item, idx));
+                        employees = parsed.map((item, idx) => {
+                            const name = item.nombre || item.name;
+                            const amount = parseFloat(item.monto || item.amount);
+                            if (!name || isNaN(amount)) throw new Error(`Elemento #${idx+1}: Faltan nombre o monto.`);
+                            return { name, amount, paid: item.paid || false };
+                        });
                     }
 
                     if (employees.length > 0) {
                         previewCount.innerText = employees.length;
                         previewList.innerHTML = employees.slice(0, 8).map(e =>
-                            `<div class="flex justify-between"><span>${escapeHTML(e.name)}</span><span class="font-bold">${fmt(e.amount)}</span></div>`
+                            `<div class="flex justify-between"><span>${e.name}</span><span class="font-bold">${fmt(e.amount)}</span></div>`
                         ).join('') + (employees.length > 8 ? `<div class="text-green-600 italic">... y ${employees.length - 8} más</div>` : '');
                         previewEl.classList.remove('hidden');
-                        renderImportValidation(employees);
                         errEl.classList.add('hidden');
                     } else {
                         previewEl.classList.add('hidden');
                     }
                 } catch(e) {
                     previewEl.classList.add('hidden');
-                    document.getElementById('importValidation').classList.add('hidden');
                     if (rawText.length > 10) {
                         errEl.innerText = "Error: " + e.message;
                         errEl.classList.remove('hidden');
@@ -1637,7 +1390,6 @@
                 document.getElementById('jsonImportInput').value = '';
                 document.getElementById('importErrorMsg').classList.add('hidden');
                 document.getElementById('importPreview').classList.add('hidden');
-                document.getElementById('importValidation').classList.add('hidden');
                 importMode = 'excel';
                 switchImportTab('excel');
                 // Attach live preview listener
@@ -1670,7 +1422,12 @@
                     } else {
                         const parsed = JSON.parse(rawText);
                         if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
-                        newEmps = parsed.map((item, idx) => normalizeImportedEmployee(item, idx));
+                        parsed.forEach((item, idx) => {
+                            const name = item.nombre || item.name;
+                            const amount = parseFloat(item.monto || item.amount);
+                            if (!name || isNaN(amount)) throw new Error(`Error en elemento #${idx + 1}: Faltan datos (nombre o monto)`);
+                            newEmps.push({ id: Date.now() + idx, name, amount, paid: item.paid || false });
+                        });
                     }
 
                     if (newEmps.length > 0) {
@@ -1679,8 +1436,6 @@
                         } else {
                             state.employees = [...state.employees, ...newEmps];
                         }
-                        if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
-                        state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
                         saveData();
                         closeImportModal();
                     } else {
@@ -1697,11 +1452,11 @@
 
             const renderAll = () => {
                 // Must calculate distribution FIRST to get current inventory state vs leftovers
-                const { results, leftoverInventory, loanFundResult } = calculateDistribution();
+                const { results, leftoverInventory } = calculateDistribution();
                 
                 // Now render UI parts passing data where needed
                 renderInventory(leftoverInventory, results);
-                renderEmployees(results, loanFundResult);
+                renderEmployees(results);
                 renderBank();
                 renderConfigModal();
                 updateTotals();
@@ -1827,65 +1582,6 @@
                 renderAll();
             };
 
-            const setPayrollMode = (mode) => {
-                state.payrollMode = mode === 'deductions' ? 'deductions' : 'normal';
-                saveData();
-            };
-
-            const togglePayrollMode = () => setPayrollMode(state.payrollMode === 'deductions' ? 'normal' : 'deductions');
-
-            const resetOperation = () => {
-                if (!state.employees.length) {
-                    showToast('No hay empleados ni una operación para reiniciar.', 'info');
-                    return;
-                }
-                if (!confirm('¿Reiniciar la operación? Se conservarán los empleados y sus montos, pero se vaciarán Mi Caja, los retiros, límites, pagos y el fondo para préstamos.')) return;
-
-                state.denominations.forEach(denom => state.inventory[denom] = 0);
-                state.bankLimits = {};
-                state.payrollLoanFund = 0;
-                state.distributionCleared = false;
-                state.employees = state.employees.map(employee => {
-                    const cleanEmployee = { ...employee, paid: false };
-                    delete cleanEmployee._missingAmount;
-                    return cleanEmployee;
-                });
-                state.mode = 'inventory';
-                switchTab('inventory');
-                saveData();
-                showToast('Operación reiniciada. Se conservaron los empleados y sus montos.');
-            };
-
-            const restoreImportSnapshot = () => {
-                if (!Array.isArray(state.importSnapshot) || !state.importSnapshot.length) {
-                    showToast('Todavía no hay una importación guardada para restaurar.', 'info');
-                    return;
-                }
-                if (!confirm('¿Restaurar la última importación? Se recuperarán nombres, montos y desglose originales. También se limpiarán Mi Caja, retiros, pagos y el fondo para préstamos.')) return;
-
-                state.employees = JSON.parse(JSON.stringify(state.importSnapshot)).map((employee, index) => ({
-                    ...employee,
-                    id: employee.id ?? Date.now() + index,
-                    paid: false
-                }));
-                state.denominations.forEach(denom => state.inventory[denom] = 0);
-                state.bankLimits = {};
-                state.payrollLoanFund = 0;
-                state.distributionCleared = false;
-                state.payrollMode = state.employees.some(employee => employee.payroll) ? 'deductions' : 'normal';
-                state.mode = 'inventory';
-                switchTab('inventory');
-                saveData();
-                showToast('Última importación restaurada correctamente.');
-            };
-
-            const updatePayrollLoanFund = (value) => {
-                const collected = getPayrollSummary().loans;
-                const parsed = parseImportNumber(value, 0);
-                state.payrollLoanFund = Math.min(Math.max(0, parsed || 0), collected);
-                saveData();
-            };
-
             // Round all employee amounts, removing cents
             const roundAllAmounts = () => {
                 const hasCents = state.employees.some(e => e.amount !== Math.floor(e.amount));
@@ -1898,18 +1594,11 @@
 
             // Update employee field inline
             const updateEmployee = (id, field, value) => {
-                const targetEmployee = state.employees.find(employee => employee.id === id);
-                if (field === 'amount' && targetEmployee?.payroll) {
-                    showToast('El monto neto importado está protegido. Usa Restaurar importación para recuperar los valores originales.', 'info');
-                    return;
-                }
                 state.employees = state.employees.map(e => {
                     if (e.id !== id) return e;
                     if (field === 'amount') {
                         const parsed = parseFloat(value);
-                        if (isNaN(parsed) || parsed < 0) return e;
-                        const payroll = e.payroll ? { ...e.payroll, net: parsed } : e.payroll;
-                        return { ...e, amount: parsed, payroll };
+                        return isNaN(parsed) || parsed < 0 ? e : { ...e, amount: parsed };
                     }
                     if (field === 'name') {
                         return value.trim() ? { ...e, name: value.trim() } : e;
@@ -1955,65 +1644,8 @@
                 return 'background-color:#e2e8f0;color:#475569;border-color:#cbd5e1;';
             };
 
-            const renderEmployees = (data, loanFundResult = { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }) => {
+            const renderEmployees = (data) => {
                 const container = document.getElementById('employeeList');
-                const summaryContainer = document.getElementById('payrollSummaryContainer');
-                const payrollSummary = getPayrollSummary();
-                const showPayrollMode = state.payrollMode === 'deductions' && payrollSummary.count > 0;
-                const restoreImportButton = document.getElementById('restoreImportBtn');
-                if (restoreImportButton) restoreImportButton.disabled = !Array.isArray(state.importSnapshot) || state.importSnapshot.length === 0;
-                document.getElementById('payrollModeNormal')?.classList.toggle('active', state.payrollMode === 'normal');
-                document.getElementById('payrollModeDeductions')?.classList.toggle('active', state.payrollMode === 'deductions');
-                document.getElementById('payrollModeSwitch')?.classList.toggle('hidden', payrollSummary.count === 0);
-
-                if (showPayrollMode) {
-                    const loanFund = Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-                    if (loanFund !== state.payrollLoanFund) state.payrollLoanFund = loanFund;
-                    const remainingCollected = payrollSummary.loans - loanFund;
-                    const fundBreakdown = loanFundResult;
-                    let fundBillsHTML = '';
-                    state.denominations.forEach(denom => {
-                        const count = fundBreakdown.distribution[denom];
-                        if (!count) return;
-                        const billStyle = getBillStyle(denom);
-                        const hasImg = !!(state.billImages && state.billImages[denom]);
-                        fundBillsHTML += `<div style="position:relative;display:inline-block;margin:2px 4px 4px 0">
-                            <div class="bill-chip" style="${billStyle};width:38px;height:22px;font-size:9px">${hasImg ? '' : denom}</div>
-                            <span class="bill-badge">${count}</span>
-                        </div>`;
-                    });
-                    summaryContainer.className = 'payroll-summary-panel';
-                    summaryContainer.innerHTML = `
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <div class="text-[10px] font-bold uppercase tracking-wide text-teal-700">Resumen de recaudación</div>
-                                <div class="text-sm font-extrabold text-teal-950 mt-0.5">Préstamos descontados</div>
-                                <div class="text-[11px] text-slate-500 mt-0.5">${payrollSummary.count} empleados incluidos</div>
-                            </div>
-                            <div class="text-right"><div class="text-[10px] text-teal-700">Recaudación restante</div><strong class="font-mono text-base text-teal-800">${fmt(remainingCollected)}</strong><div class="text-[10px] text-slate-500">de ${fmt(payrollSummary.loans)}</div></div>
-                        </div>
-                        <div class="payroll-breakdown">
-                            <div><span>Bruto total</span><strong>${fmt(payrollSummary.gross)}</strong></div>
-                            <div><span>Después de descuentos</span><strong>${fmt(payrollSummary.afterDiscounts)}</strong></div>
-                            <div><span>Neto a pagar</span><strong>${fmt(payrollSummary.net)}</strong></div>
-                        </div>
-                        <div class="loan-fund-panel ${loanFundResult.status === 'error' ? 'error' : ''}">
-                            <div class="flex flex-wrap items-end justify-between gap-2">
-                                <div>
-                                    <div class="loan-fund-title text-xs font-bold text-teal-950">Fondo para nuevos préstamos</div>
-                                    <div class="text-[10px] text-slate-500 mt-0.5">Se cubre primero con los billetes disponibles en caja.</div>
-                                </div>
-                                <label class="text-[10px] text-teal-700">Monto a reservar
-                                    <input class="loan-fund-input block mt-1" type="number" min="0" max="${payrollSummary.loans}" step="1" value="${loanFund}" onblur="app.updatePayrollLoanFund(this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">
-                                </label>
-                            </div>
-                            <div class="loan-fund-bills">${fundBillsHTML || `<span class="text-[11px] ${loanFundResult.status === 'error' ? 'text-red-500' : 'text-slate-400'}">${loanFund > 0 ? 'Sin billetes asignados.' : 'Indica un monto para ver el desglose por billetes.'}</span>`}</div>
-                            ${loanFundResult.status === 'error' ? `<div class="text-xs font-bold text-red-600 mt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Faltan ${fmt(loanFundResult.missingAmount)} · retirar del banco</div>` : loanFund > 0 ? '<div class="text-[10px] font-semibold text-emerald-700 mt-1"><i class="fa-solid fa-circle-check mr-1"></i>Fondo cubierto en caja</div>' : ''}
-                        </div>`;
-                } else {
-                    summaryContainer.className = 'hidden';
-                    summaryContainer.innerHTML = '';
-                }
 
                 // Apply current sort mode
                 if (data && data.length > 0) {
@@ -2046,9 +1678,8 @@
 
                 data.forEach((emp, index) => {
                     let breakdownHTML = '';
-                    const visibleDistribution = emp.distribution;
                     state.denominations.forEach(d => {
-                        if (visibleDistribution[d]) {
+                        if (emp.distribution[d]) {
                             const billStyle = getBillStyle(d);
                             const hasImg = !!(state.billImages && state.billImages[d]);
                             breakdownHTML += `
@@ -2056,7 +1687,7 @@
                                     <div class="bill-chip" style="${billStyle};width:38px;height:22px;font-size:9px">
                                         ${hasImg ? '' : d}
                                     </div>
-                                    <span class="bill-badge">${visibleDistribution[d]}</span>
+                                    <span class="bill-badge">${emp.distribution[d]}</span>
                                 </div>
                             `;
                         }
@@ -2073,16 +1704,6 @@
                     let notesHTML = emp.notes.length
                         ? `<div class="text-xs text-red-500 mt-1 font-medium">${emp.notes.join(', ')}</div>` : '';
                     const checkIcon = isPaid ? 'fa-solid fa-square-check text-blue-500' : 'fa-regular fa-square text-slate-300';
-                    const payrollHTML = showPayrollMode && emp.payroll ? `
-                        <div class="payroll-breakdown">
-                            <div><span>Bruto</span><strong>${fmt(emp.payroll.gross)}</strong></div>
-                            <div><span>Desc. + bonif.</span><strong>${fmt(emp.payroll.afterDiscounts)}</strong></div>
-                            <div><span>Menos préstamo</span><strong>${fmt(emp.amount)}</strong></div>
-                        </div>
-                        <div style="font-size:10px;color:#64748b;margin-top:4px">
-                            Bonif. ${fmt(emp.payroll.bonuses || 0)} · Desc. ${fmt(emp.payroll.discounts || 0)} · Préstamo ${fmt(emp.payroll.loans || 0)}
-                        </div>
-                    ` : '';
 
                     const card = document.createElement('div');
                     card.className = cardClass;
@@ -2100,23 +1721,21 @@
                                         <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;flex-shrink:0">#${index+1}</span>
                                         <div style="flex:1;min-width:0">
                                             <input type="text"
-                                                value="${escapeHTML(emp.name)}"
+                                                value="${emp.name.replace(/"/g, '&quot;')}"
                                                 onblur="app.updateEmployee(${emp.id}, 'name', this.value)"
                                                 onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();event.preventDefault();this.closest('div').querySelector('.amt-inp').focus();}"
                                                 style="font-weight:700;font-size:13px;color:#1e293b;width:100%;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;${isPaid ? 'text-decoration:line-through;color:#94a3b8' : ''}"
                                                 onfocus="this.style.borderBottomColor='#2563eb'"
                                                 onblur2="this.style.borderBottomColor='transparent'"
                                                 title="Clic para editar nombre">
-                                            <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
                                             <input type="number" step="0.01"
                                                 value="${emp.amount}"
-                                                ${emp.payroll ? 'readonly aria-readonly="true"' : `onblur="app.updateEmployee(${emp.id}, 'amount', this.value)" onkeydown="if(event.key==='Enter'){this.blur();}"`}
+                                                onblur="app.updateEmployee(${emp.id}, 'amount', this.value)"
+                                                onkeydown="if(event.key==='Enter'){this.blur();}"
                                                 class="amt-inp"
-                                                style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${emp.payroll ? '#475569' : '#64748b'};width:100%;background:${emp.payroll ? '#f8fafc' : 'transparent'};border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:${emp.payroll ? '2px 4px' : '0'};border-radius:4px"
-                                                ${emp.payroll ? 'title="Monto neto protegido desde la importación"' : 'onfocus="this.style.borderBottomColor=\'#2563eb\'" title="Clic para editar monto"'}>
-                                            ${emp.payroll ? '<i class="fa-solid fa-lock text-[9px] text-slate-400" title="Monto protegido"></i>' : ''}
-                                            </div>
-                                            ${payrollHTML}
+                                                style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#64748b;width:100%;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;margin-top:2px"
+                                                onfocus="this.style.borderBottomColor='#2563eb'"
+                                                title="Clic para editar monto">
                                         </div>
                                     </div>
                                     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -2175,8 +1794,6 @@
                 });
 
                 document.getElementById('bankTotalDisplay').innerText = fmt(totalToWithdraw);
-                const applyButton = document.getElementById('applyBankBtn');
-                if (applyButton) applyButton.disabled = totalToWithdraw <= 0;
             };
 
             const renderConfigModal = () => {
@@ -2306,12 +1923,6 @@
                 const paidEmps    = state.employees.filter(e => e.paid);
                 const pendingEmps = state.employees.filter(e => !e.paid);
                 let totalPending  = pendingEmps.reduce((s, e) => s + e.amount, 0);
-                const payrollSummary = getPayrollSummary();
-                const loanFund = Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-                totalPending += loanFund;
-                const coverage = calculateDistribution();
-                const employeeMissing = coverage.results.reduce((sum, emp) => sum + (!emp.paid ? (emp._missingAmount || 0) : 0), 0);
-                const totalMissing = employeeMissing + (coverage.loanFundResult.missingAmount || 0);
                 let totalAll      = state.employees.reduce((s, e) => s + e.amount, 0);
 
                 // ── KPI Cards ──────────────────────────────
@@ -2320,13 +1931,13 @@
                 const kpiCajaSub = document.getElementById('kpiEnCajaSub');
                 if (kpiCaja) {
                     kpiCaja.innerText = fmt(totalBox);
-                    kpiCaja.style.color = totalMissing <= 0 ? '#16a34a' : '#2563eb';
+                    kpiCaja.style.color = totalBox >= totalPending ? '#16a34a' : '#2563eb';
                 }
                 if (kpiCajaSub) {
-                    if (totalMissing <= 0 && totalPending > 0) {
+                    if (totalBox >= totalPending && totalPending > 0) {
                         kpiCajaSub.innerHTML = `<span style="color:#16a34a">Sobran ${fmt(totalBox - totalPending)}</span>`;
-                    } else if (totalMissing > 0) {
-                        kpiCajaSub.innerHTML = `<span style="color:#dc2626">Faltan ${fmt(totalMissing)}</span>`;
+                    } else if (totalPending > 0) {
+                        kpiCajaSub.innerHTML = `<span style="color:#dc2626">Faltan ${fmt(totalPending - totalBox)}</span>`;
                     } else {
                         kpiCajaSub.innerText = 'Sin nómina pendiente';
                     }
@@ -2380,7 +1991,7 @@
                 }
 
                 // Progress Bar
-                let percent = totalPending > 0 ? Math.max(0, Math.min(100, ((totalPending - totalMissing) / totalPending) * 100)) : (totalBox > 0 ? 100 : 0);
+                let percent = totalPending > 0 ? Math.min(100, (totalBox / totalPending) * 100) : (totalBox > 0 ? 100 : 0);
                 const bar = document.getElementById('cashProgressBar');
                 const statusEl = document.getElementById('cashStatusText');
                 if (bar) bar.style.width = `${percent}%`;
@@ -2388,11 +1999,11 @@
                 if (totalPending === 0 && state.employees.length > 0) {
                     if (statusEl) statusEl.innerHTML = `<span class="text-green-600 font-semibold">¡Todo Pagado!</span>`;
                     if (bar) { bar.classList.remove('bg-blue-500','bg-red-500'); bar.classList.add('bg-green-500'); }
-                } else if (totalMissing <= 0) {
+                } else if (totalBox >= totalPending) {
                     if (statusEl) statusEl.innerHTML = `<span class="text-green-600 font-semibold">Caja cubierta ✓</span>`;
                     if (bar) { bar.classList.remove('bg-red-500','bg-green-500'); bar.classList.add('bg-blue-500'); }
                 } else {
-                    if (statusEl) statusEl.innerHTML = `<span class="text-red-500 font-semibold">Faltan ${fmt(totalMissing)}</span>`;
+                    if (statusEl) statusEl.innerHTML = `<span class="text-red-500 font-semibold">Faltan ${fmt(totalPending - totalBox)}</span>`;
                     if (bar) { bar.classList.remove('bg-blue-500','bg-green-500'); bar.classList.add('bg-red-500'); }
                 }
             };
@@ -2503,7 +2114,6 @@
                 closeAddDrawer,
                 updateBankLimit,
                 applyBankToInventory,
-                clearBankLimits,
                 addDenomination,
                 removeDenom,
                 resetDenominations,
@@ -2517,11 +2127,6 @@
                 switchImportTab,
                 roundAllAmounts,
                 cycleSortMode,
-                togglePayrollMode,
-                setPayrollMode,
-                resetOperation,
-                restoreImportSnapshot,
-                updatePayrollLoanFund,
                 updateEmployee,
                 switchConfigTab,
                 renderAppearanceConfig,
@@ -2534,7 +2139,6 @@
             };
         })();
 
-        window.app = app;
         window.onload = app.init;
     </script>
 </body>
