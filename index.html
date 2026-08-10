@@ -629,10 +629,35 @@
                 <div id="denomListConfig" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-100"></div>
             </div>
             <div id="cfgView-appearance" class="hidden p-4 overflow-y-auto flex-grow">
-                <p class="text-xs text-slate-500 mb-1">Personaliza el color o imagen de cada billete.</p>
+                <!-- Visual preference switches -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-3 space-y-2.5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800">Usar imágenes de billetes y monedas</div>
+                            <div class="text-[11px] text-slate-500">Muestra las fotos oficiales de la moneda dominicana.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" id="switchUseImages" onchange="app.toggleUseDefaultImages(this.checked)" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    <div class="h-px bg-slate-200/80"></div>
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800">Monedas en figuras redondas</div>
+                            <div class="text-[11px] text-slate-500">Muestra las monedas ($25, $10, $5, $1) circulares en vez de rectangulares.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" id="switchRoundCoins" onchange="app.toggleRoundCoins(this.checked)" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <p class="text-xs text-slate-500 mb-1">Personaliza el color o sube imágenes personalizadas.</p>
                 <p class="text-[10px] text-blue-600 bg-blue-50 rounded px-2 py-1 mb-3">
                     <i class="fa-solid fa-circle-info mr-1"></i>
-                    Las imágenes se cargan desde tu PC y se guardan localmente. Formatos: JPG, PNG, WEBP.
+                    Las imágenes personalizadas cargadas desde tu PC tienen prioridad sobre las fotos por defecto.
                 </p>
                 <div id="appearanceList" class="space-y-2"></div>
                 <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2 justify-between items-center">
@@ -640,7 +665,7 @@
                         <i class="fa-solid fa-rotate-left mr-1"></i> Restaurar colores
                     </button>
                     <button onclick="app.clearAllImages()" class="text-xs text-orange-500 hover:underline">
-                        <i class="fa-solid fa-image mr-1"></i> Quitar imágenes
+                        <i class="fa-solid fa-image mr-1"></i> Quitar imágenes personalizadas
                     </button>
                 </div>
             </div>
@@ -704,9 +729,189 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════
+         EDIT EMPLOYEE MODAL
+    ═══════════════════════════════════════════ -->
+    <div id="editEmployeeModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] anim-pop">
+            <!-- Header -->
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50/80">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                        <i class="fa-solid fa-user-pen text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-slate-800 text-sm sm:text-base truncate" id="editModalTitle">Editar Empleado</h3>
+                            <span id="editModalBadge" class="hidden"></span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 truncate font-mono" id="editModalSubtitle">ID: #0</p>
+                    </div>
+                </div>
+                <button onclick="app.closeEditModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all shrink-0">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-4 sm:p-5 overflow-y-auto flex-grow space-y-3.5">
+                <input type="hidden" id="editEmpId">
+
+                <!-- Name Field -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre del empleado</label>
+                    <input type="text" id="editEmpName" class="ring-input text-sm font-medium" placeholder="Ej. Juan Pérez">
+                </div>
+
+                <!-- Gross Salary -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Sueldo Bruto (RD$)</label>
+                    <div class="relative">
+                        <input type="number" step="0.01" id="editEmpGross" oninput="app.updateModalCalculations()" class="ring-input font-mono pl-8 font-semibold text-slate-800" placeholder="0.00">
+                        <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                    </div>
+                </div>
+
+                <!-- Bonuses & Discounts in 2 Columns -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Bonuses -->
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-xs font-semibold text-slate-700">Bonificaciones</label>
+                            <div class="inline-flex p-0.5 rounded-lg bg-slate-200 text-[10px] font-bold">
+                                <button type="button" id="bonusTypeFixed" onclick="app.setModalAdjustmentType('bonus', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs">RD$</button>
+                                <button type="button" id="bonusTypePercent" onclick="app.setModalAdjustmentType('bonus', 'percent')" class="px-2 py-0.5 rounded-md transition-all text-slate-500">%</button>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <input type="number" step="0.01" id="editEmpBonus" oninput="app.updateModalCalculations()" class="ring-input font-mono text-sm pl-7" placeholder="0">
+                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="bonusSymbol">$</span>
+                        </div>
+                        <div class="text-[10px] text-emerald-700 font-mono mt-1.5 font-semibold text-right" id="bonusCalcDisplay">+RD$ 0.00</div>
+                    </div>
+
+                    <!-- Discounts -->
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-xs font-semibold text-slate-700">Descuentos</label>
+                            <div class="inline-flex p-0.5 rounded-lg bg-slate-200 text-[10px] font-bold">
+                                <button type="button" id="discountTypeFixed" onclick="app.setModalAdjustmentType('discount', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs">RD$</button>
+                                <button type="button" id="discountTypePercent" onclick="app.setModalAdjustmentType('discount', 'percent')" class="px-2 py-0.5 rounded-md transition-all text-slate-500">%</button>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <input type="number" step="0.01" id="editEmpDiscount" oninput="app.updateModalCalculations()" class="ring-input font-mono text-sm pl-7" placeholder="0">
+                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="discountSymbol">$</span>
+                        </div>
+                        <div class="text-[10px] text-red-600 font-mono mt-1.5 font-semibold text-right" id="discountCalcDisplay">-RD$ 0.00</div>
+                    </div>
+                </div>
+
+                <!-- Loans Deduction & Details -->
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-semibold text-slate-700">Deducción por Préstamos (Cuota)</label>
+                        <button type="button" onclick="app.toggleLoanDetailsPanel()" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-sliders text-[9px]"></i> <span id="toggleLoanDetailsText">Detalles (Interés/Saldo)</span>
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input type="number" step="0.01" id="editEmpLoans" oninput="app.updateModalCalculations()" class="ring-input font-mono pl-8 bg-white font-semibold text-slate-800" placeholder="0.00">
+                        <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                    </div>
+
+                    <!-- Expanded Loan Details (Optional) -->
+                    <div id="loanDetailsExpanded" class="hidden pt-2 border-t border-slate-200/70 space-y-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Capital cuota (RD$)</label>
+                                <input type="number" step="0.01" id="editEmpLoanPrincipal" oninput="app.calcLoanFromDetails()" class="ring-input text-xs font-mono py-1 bg-white" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Tasa Interés (%)</label>
+                                <input type="number" step="0.01" id="editEmpLoanInterestRate" oninput="app.calcLoanFromDetails()" class="ring-input text-xs font-mono py-1 bg-white" placeholder="0.00%">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Monto Interés cuota (RD$)</label>
+                                <input type="number" step="0.01" id="editEmpLoanInterestAmount" oninput="app.calcLoanFromInterestAmount()" class="ring-input text-xs font-mono py-1 bg-white" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Saldo restante total (RD$)</label>
+                                <input type="number" step="0.01" id="editEmpLoanRemainingBalance" class="ring-input text-xs font-mono py-1 bg-white" placeholder="0.00">
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-slate-400">Si indicas capital y %, la cuota total de préstamo se calcula automáticamente.</p>
+                    </div>
+                </div>
+
+                <!-- Net Amount & Calculation Panel -->
+                <div class="p-3.5 rounded-xl border border-blue-100 bg-blue-50/50 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <i class="fa-solid fa-calculator text-blue-600"></i> Sueldo Neto a Pagar
+                        </label>
+                        <button type="button" onclick="app.syncNetFromCalculated()" class="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                            <i class="fa-solid fa-arrows-rotate mr-0.5"></i> Usar calculado (<span id="calcFormulaNet">0.00</span>)
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input type="number" step="0.01" id="editEmpNet" oninput="app.updateModalCalculations(true)" class="ring-input font-mono font-bold text-base text-slate-900 pl-8 bg-white" placeholder="0.00">
+                        <span class="absolute left-3 top-2.5 text-sm text-slate-400 font-bold">$</span>
+                    </div>
+                    <!-- Status message -->
+                    <div id="editModalReconciledStatus" class="text-xs flex items-center gap-1.5 text-emerald-700 font-medium">
+                        <i class="fa-solid fa-circle-check"></i> <span>Nómina cuadrada perfectamente</span>
+                    </div>
+                </div>
+
+                <!-- Cash Breakdown Preview -->
+                <div class="pt-2 border-t border-slate-100">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                        <span>Desglose estimado en efectivo</span>
+                        <span id="editModalBreakdownTotal" class="font-mono text-slate-700 font-bold">RD$ 0.00</span>
+                    </div>
+                    <div id="editModalBreakdownChips" class="flex flex-wrap items-center gap-1.5 min-h-[32px] p-2 bg-slate-50 rounded-lg border border-slate-200/70">
+                        <!-- chips injected live -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2 justify-between items-center shrink-0">
+                <button type="button" id="revertEmpBtn" onclick="app.revertEmployeeToOriginal()" class="text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-100 px-3 py-2 rounded-lg font-semibold transition-all flex items-center gap-1.5 border border-amber-200 bg-amber-50">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Restaurar original
+                </button>
+                <div class="flex gap-2 ml-auto">
+                    <button type="button" onclick="app.closeEditModal()" class="px-4 py-2 text-slate-600 text-sm hover:bg-slate-200 rounded-lg transition-colors font-medium">Cancelar</button>
+                    <button type="button" onclick="app.saveEmployeeModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm transition-colors shadow-sm font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Logic -->
     <script>
         const app = (() => {
+            // Default currency image paths from repository
+            const DEFAULT_BILL_IMAGES = {
+                2000: 'imagenes/billetes/2000pesos.jpg',
+                1000: 'imagenes/billetes/1000pesos.jpg',
+                500:  'imagenes/billetes/500pesos.jpg',
+                200:  'imagenes/billetes/200pesos.jpg',
+                100:  'imagenes/billetes/100pesos.jpg',
+                50:   'imagenes/billetes/50pesos.jpg',
+                25:   'imagenes/monedas/25pesos.jpg',
+                10:   'imagenes/monedas/10pesos.jpg',
+                5:    'imagenes/monedas/5pesos.jpg',
+                1:    'imagenes/monedas/1peso.jpg',
+            };
+
+            const isCoin = (denom) => [25, 10, 5, 1].includes(Number(denom));
+
             // --- STATE ---
             let state = {
                 denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
@@ -714,7 +919,9 @@
                 employees: [], 
                 bankLimits: {},
                 billColors: {},   // { 1000: '#c0392b' } — overrides default
-                billImages: {},   // { 1000: 'data:image/...' } — base64 images
+                billImages: {},   // { 1000: 'data:image/...' } — custom base64 images
+                useDefaultImages: true,
+                roundCoins: true,
                 payrollMode: 'normal',
                 payrollLoanFund: 0,
                 importSnapshot: null,
@@ -759,6 +966,16 @@
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     state = { ...state, ...parsed };
+                    if (state.useDefaultImages === undefined) state.useDefaultImages = true;
+                    if (state.roundCoins === undefined) state.roundCoins = true;
+                    if (Array.isArray(state.employees)) {
+                        state.employees = state.employees.map(emp => ({
+                            ...emp,
+                            isManual: emp.isManual !== undefined ? emp.isManual : !emp.payroll,
+                            isEdited: emp.isEdited || false,
+                            originalData: emp.originalData || (emp.payroll ? { name: emp.name, amount: emp.amount, payroll: { ...emp.payroll } } : null)
+                        }));
+                    }
                 } else {
                     state.denominations.sort((a,b) => b-a).forEach(d => state.inventory[d] = 0);
                 }
@@ -817,14 +1034,20 @@
                     id: Date.now() + idx,
                     name,
                     amount,
-                    paid: item.paid || false
+                    paid: item.paid || false,
+                    isManual: false,
+                    isEdited: false
                 };
 
                 if (hasDetails) {
                     const difference = calculatedNet === null ? null : amount - calculatedNet;
                     employee.payroll = {
                         gross: gross ?? amount,
+                        bonusType: item.bonusType || 'fixed',
+                        bonusValue: item.bonusValue !== undefined ? item.bonusValue : bonuses,
                         bonuses,
+                        discountType: item.discountType || 'fixed',
+                        discountValue: item.discountValue !== undefined ? item.discountValue : discounts,
                         discounts,
                         afterDiscounts: afterDiscounts ?? amount + loans,
                         loans,
@@ -834,6 +1057,12 @@
                         reconciled: difference === null ? null : Math.abs(difference) <= 0.01
                     };
                 }
+
+                employee.originalData = JSON.parse(JSON.stringify({
+                    name: employee.name,
+                    amount: employee.amount,
+                    payroll: employee.payroll ? { ...employee.payroll } : null
+                }));
 
                 return employee;
             };
@@ -847,8 +1076,34 @@
                 summary.afterDiscounts += emp.payroll.afterDiscounts || 0;
                 summary.loans += emp.payroll.loans || 0;
                 summary.net += emp.amount || 0;
+
+                // Scheduled loans from original imported data vs actual:
+                const origLoans = emp.originalData?.payroll?.loans !== undefined
+                    ? (emp.originalData.payroll.loans || 0)
+                    : (emp.payroll.loans || 0);
+                summary.loansScheduled += origLoans;
+                const diffLoans = Math.max(0, origLoans - (emp.payroll.loans || 0));
+                summary.loansUncollected += diffLoans;
+
+                // Loan details: interest & debt portfolio
+                const ld = emp.payroll.loanDetails || {};
+                summary.totalInterest += ld.interestAmount || 0;
+                summary.totalRemainingBalance += ld.remainingBalance || 0;
+
                 return summary;
-            }, { count: 0, gross: 0, bonuses: 0, discounts: 0, afterDiscounts: 0, loans: 0, net: 0 });
+            }, {
+                count: 0,
+                gross: 0,
+                bonuses: 0,
+                discounts: 0,
+                afterDiscounts: 0,
+                loans: 0,
+                net: 0,
+                loansScheduled: 0,
+                loansUncollected: 0,
+                totalInterest: 0,
+                totalRemainingBalance: 0
+            });
 
             const getIdealBreakdown = (amount) => {
                 const distribution = {};
@@ -1090,7 +1345,10 @@
                             id: Date.now(),
                             name,
                             amount,
-                            paid: false
+                            paid: false,
+                            isManual: true,
+                            isEdited: false,
+                            originalData: null
                         });
                         nameInput.value = '';
                         amtInput.value = '';
@@ -1184,43 +1442,74 @@
             };
 
             const exportToCSV = () => {
-                const { results } = calculateDistribution();
-                const hasPayroll = results.some(row => row.payroll);
+                const { denoms, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw } = buildExportData();
+                const hasPayroll = payrollSummary.count > 0;
                 let csv = hasPayroll
                     ? "No.,Nombre,Bruto,Bonificaciones,Descuentos,Despues descuentos,Prestamos,Neto,Pagado,Detalle,Estado\n"
                     : "No.,Nombre,Monto,Pagado,Detalle,Estado\n";
-                results.forEach((row, index) => {
+
+                empRows.forEach((row) => {
                     let details = [];
-                    for(const [d, count] of Object.entries(row.distribution)) {
-                        details.push(`${count}x${d}`);
-                    }
+                    denoms.forEach(d => {
+                        if (row[d] > 0) details.push(`${row[d]}x${d}`);
+                    });
                     const paidStatus = row.paid ? "SI" : "NO";
                     if (hasPayroll) {
                         const p = row.payroll || {};
-                        csv += `${index+1},"${row.name}",${p.gross ?? ''},${p.bonuses ?? ''},${p.discounts ?? ''},${p.afterDiscounts ?? ''},${p.loans ?? ''},${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
+                        csv += `${row.idx},"${row.name}",${p.gross ?? ''},${p.bonuses ?? ''},${p.discounts ?? ''},${p.afterDiscounts ?? ''},${p.loans ?? ''},${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
                     } else {
-                        csv += `${index+1},"${row.name}",${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
+                        csv += `${row.idx},"${row.name}",${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
                     }
                 });
+
+                if (loanFundAmount > 0) {
+                    let fundDetails = [];
+                    denoms.forEach(d => {
+                        if (loanFundResult.distribution[d] > 0) fundDetails.push(`${loanFundResult.distribution[d]}x${d}`);
+                    });
+                    if (hasPayroll) {
+                        csv += `★,"FONDO PARA NUEVOS PRESTAMOS (RESERVA)",,,,,,"${loanFundAmount}","NO","${fundDetails.join(' + ')}",${loanFundResult.status}\n`;
+                    } else {
+                        csv += `★,"FONDO PARA NUEVOS PRESTAMOS (RESERVA)",${loanFundAmount},"NO","${fundDetails.join(' + ')}",${loanFundResult.status}\n`;
+                    }
+                }
+
+                // Summary rows
+                csv += `\n"--- RESUMEN FINANCIERO Y SOLICITUD BANCARIA ---"\n`;
+                csv += `"Concepto","Monto (RD$)"\n`;
+                if (hasPayroll) {
+                    csv += `"Total Sueldo Bruto",${payrollSummary.gross}\n`;
+                    csv += `"Total Bonificaciones",${payrollSummary.bonuses}\n`;
+                    csv += `"Total Descuentos",${payrollSummary.discounts}\n`;
+                    csv += `"Total Préstamos Descontados en Nómina",${payrollSummary.loans}\n`;
+                    csv += `"Fondo Reservado para Nuevos Préstamos",${loanFundAmount}\n`;
+                    csv += `"Recaudación Restante en Empresa",${payrollSummary.loans - loanFundAmount}\n`;
+                    csv += `"Total Neto Nómina a Pagar",${payrollSummary.net}\n`;
+                } else {
+                    csv += `"Total Nómina",${empRows.reduce((s, e) => s + e.amount, 0)}\n`;
+                    if (loanFundAmount > 0) csv += `"Fondo Nuevos Préstamos",${loanFundAmount}\n`;
+                }
+                csv += `"TOTAL A RETIRAR DEL BANCO (NÓMINA + RESERVA)",${totalToWithdraw}\n`;
                 
-                const blob = new Blob([csv], { type: 'text/csv' });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.setAttribute('hidden', '');
                 a.setAttribute('href', url);
-                a.setAttribute('download', 'nomina_Split.csv');
+                a.setAttribute('download', `nomina_SplitX_${new Date().toISOString().slice(0,10)}.csv`);
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
             };
 
-
-            // ── Helper: build the two data tables from current state ──────────
+            // ── Helper: build complete export dataset from current state ──────────
             const buildExportData = () => {
-                const { results } = calculateDistribution();
+                const { results, loanFundResult } = calculateDistribution();
                 const denoms = state.denominations; // sorted high→low
+                const bankData = calculateBankNeeds();
+                const payrollSummary = getPayrollSummary();
 
-                // 1. Summary: total bills per denomination (pending employees only)
+                // 1. Summary: total bills per denomination (pending employees + loan fund reserve)
                 const summary = {};
                 denoms.forEach(d => summary[d] = 0);
                 results.forEach(emp => {
@@ -1231,63 +1520,102 @@
                     }
                 });
 
-                // 2. Per-employee rows
+                // Add loan fund reserve bills to consolidated cash breakdown
+                if (loanFundResult?.distribution) {
+                    denoms.forEach(d => {
+                        if (loanFundResult.distribution[d]) summary[d] += loanFundResult.distribution[d];
+                    });
+                }
+
+                // 2. Loan Fund Summary
+                const loanFundAmount = loanFundResult?.amount || 0;
+                const loanFundDistribution = loanFundResult?.distribution || {};
+                const loanFundMissing = loanFundResult?.missingAmount || 0;
+
+                // 3. Bank withdrawal needs (solicitud al banco)
+                let totalToWithdraw = 0;
+                const bankSummary = {};
+                denoms.forEach(d => {
+                    const qty = bankData.breakdown[d]?.final || 0;
+                    bankSummary[d] = qty;
+                    totalToWithdraw += (qty * d);
+                });
+
+                // 4. Per-employee rows
                 const empRows = results.map((emp, idx) => {
                     const row = { idx: idx + 1, name: emp.name, amount: emp.amount, paid: emp.paid, status: emp.status, payroll: emp.payroll };
                     denoms.forEach(d => row[d] = emp.distribution[d] || 0);
                     return row;
                 });
 
-                return { denoms, summary, empRows, payrollSummary: getPayrollSummary() };
+                return {
+                    denoms,
+                    summary,
+                    empRows,
+                    payrollSummary,
+                    loanFundResult,
+                    loanFundAmount,
+                    loanFundMissing,
+                    loanFundDistribution,
+                    bankData,
+                    bankSummary,
+                    totalToWithdraw
+                };
             };
 
             // ── Export Excel (.xlsx) ──────────────────────────────────────────
             const exportToExcel = () => {
                 if (typeof XLSX === 'undefined') { alert('Librería Excel no cargada.'); return; }
-                const { denoms, summary, empRows, payrollSummary } = buildExportData();
+                const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw, bankSummary } = buildExportData();
                 const hasPayroll = payrollSummary.count > 0;
                 const wb = XLSX.utils.book_new();
                 const today = new Date().toLocaleDateString('es-DO');
 
-                // ── Sheet 1: Resumen de Billetes ──
+                // ── Sheet 1: Resumen y Banco ──
                 const s1Data = [
-                    ['DISTRIBUCIÓN DE NÓMINA - SPLIT X'],
+                    ['DISTRIBUCIÓN DE NÓMINA Y PEDIDO AL BANCO - SPLIT X'],
                     [`Fecha: ${today}`],
                     [],
-                    ['RESUMEN DE BILLETES / MONEDAS NECESARIOS'],
-                    [],
+                    ['1. RESUMEN DE BILLETES Y MONEDAS PARA PAGO EN CAJA'],
                     ['Denominación (RD$)', 'Cantidad de Billetes', 'Valor Total (RD$)'],
                 ];
                 let grandTotal = 0;
                 denoms.forEach(d => {
-                    const qty = summary[d];
+                    const qty = summary[d] || 0;
                     const val = qty * d;
                     grandTotal += val;
                     s1Data.push([d, qty, val]);
                 });
+                s1Data.push(['TOTAL NÓMINA EN CAJA', '', grandTotal]);
                 s1Data.push([]);
-                s1Data.push(['TOTAL GENERAL', '', grandTotal]);
-                if (hasPayroll) {
-                    s1Data.push([]);
-                    s1Data.push(['RESUMEN DE PRESTAMOS / DESCUENTOS']);
-                    s1Data.push(['Bruto total', '', payrollSummary.gross]);
-                    s1Data.push(['Luego de descuentos', '', payrollSummary.afterDiscounts]);
-                    s1Data.push(['Prestamos recolectados', '', payrollSummary.loans]);
-                    s1Data.push(['Neto a pagar', '', payrollSummary.net]);
+
+                // Solicitud al banco
+                s1Data.push(['2. SOLICITUD DE RETIRO AL BANCO (VENTANILLA)']);
+                s1Data.push(['Denominación (RD$)', 'Cantidad a Retirar', 'Valor Total (RD$)']);
+                denoms.forEach(d => {
+                    const qty = bankSummary[d] || 0;
+                    const val = qty * d;
+                    s1Data.push([d, qty, val]);
+                });
+                s1Data.push(['TOTAL A SOLICITAR AL BANCO', '', totalToWithdraw]);
+                s1Data.push([]);
+
+                if (hasPayroll || loanFundAmount > 0) {
+                    s1Data.push(['3. RESUMEN DE PRÉSTAMOS Y RESERVAS']);
+                    s1Data.push(['Concepto', '', 'Monto (RD$)']);
+                    s1Data.push(['Sueldo Bruto Total', '', payrollSummary.gross]);
+                    s1Data.push(['Bonificaciones Totales', '', payrollSummary.bonuses]);
+                    s1Data.push(['Descuentos Totales', '', payrollSummary.discounts]);
+                    s1Data.push(['Préstamos Descontados en Nómina', '', payrollSummary.loans]);
+                    s1Data.push(['Fondo Reservado para Nuevos Préstamos', '', loanFundAmount]);
+                    s1Data.push(['Recaudación Restante en Empresa', '', payrollSummary.loans - loanFundAmount]);
+                    s1Data.push(['Total Neto a Pagar a Empleados', '', payrollSummary.net]);
+                    s1Data.push(['Total Efectivo a Retirar del Banco', '', totalToWithdraw]);
                 }
 
                 const ws1 = XLSX.utils.aoa_to_sheet(s1Data);
-
-                // Column widths
-                ws1['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 22 }];
-
-                // Merge title cell
-                ws1['!merges'] = [
-                    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
-                    { s: { r: 3, c: 0 }, e: { r: 3, c: 2 } },
-                ];
-
-                XLSX.utils.book_append_sheet(wb, ws1, 'Resumen Billetes');
+                ws1['!cols'] = [{ wch: 36 }, { wch: 22 }, { wch: 22 }];
+                XLSX.utils.book_append_sheet(wb, ws1, 'Resumen y Banco');
 
                 // ── Sheet 2: Distribución por Empleado ──
                 const payrollHeaders = hasPayroll ? ['Bruto', 'Bonif.', 'Desc.', 'Despues desc.', 'Prestamos', 'Neto'] : ['Monto (RD$)'];
@@ -1321,26 +1649,56 @@
                     s2Data.push(row);
                 });
 
+                if (loanFundAmount > 0) {
+                    const fundValues = hasPayroll ? ['', '', '', '', '', loanFundAmount] : [loanFundAmount];
+                    s2Data.push([
+                        '★',
+                        'FONDO NUEVOS PRÉSTAMOS (RESERVA)',
+                        ...fundValues,
+                        ...denoms.map(d => loanFundResult.distribution[d] || 0),
+                        loanFundResult.status === 'ok' ? 'OK' : 'Incompleto',
+                        'No'
+                    ]);
+                }
+
                 // Totals row
                 const totalRow = hasPayroll
-                    ? ['', 'TOTAL', payrollSummary.gross, payrollSummary.bonuses, payrollSummary.discounts, payrollSummary.afterDiscounts, payrollSummary.loans, payrollSummary.net]
+                    ? ['', 'TOTAL NÓMINA', payrollSummary.gross, payrollSummary.bonuses, payrollSummary.discounts, payrollSummary.afterDiscounts, payrollSummary.loans, payrollSummary.net]
                     : ['', 'TOTAL', empRows.reduce((s,e) => s + e.amount, 0)];
-                denoms.forEach(d => totalRow.push(empRows.reduce((s,e) => s + (e[d]||0), 0)));
+                denoms.forEach(d => totalRow.push(empRows.reduce((s,e) => s + (e[d]||0), 0) + (loanFundResult.distribution[d] || 0)));
                 totalRow.push('', '');
                 s2Data.push([]);
                 s2Data.push(totalRow);
 
                 const ws2 = XLSX.utils.aoa_to_sheet(s2Data);
-                const col2widths = [{ wch: 5 }, { wch: 28 }];
+                const col2widths = [{ wch: 5 }, { wch: 32 }];
                 payrollHeaders.forEach(() => col2widths.push({ wch: 14 }));
                 denoms.forEach(() => col2widths.push({ wch: 9 }));
                 col2widths.push({ wch: 12 }, { wch: 8 });
                 ws2['!cols'] = col2widths;
-                ws2['!merges'] = [
-                    { s: { r: 0, c: 0 }, e: { r: 0, c: denoms.length + payrollHeaders.length + 3 } },
-                ];
 
                 XLSX.utils.book_append_sheet(wb, ws2, 'Distribución Empleados');
+
+                // ── Sheet 3: Boleta de Solicitud Bancaria ──
+                const s3Data = [
+                    ['SOLICITUD DE RETIRO DE EFECTIVO AL BANCO'],
+                    [`Fecha: ${today}`],
+                    ['Entidad / Empresa: Nómina Split X'],
+                    [],
+                    ['Denominación (RD$)', 'Cantidad Solicitada', 'Valor Total (RD$)'],
+                ];
+                denoms.forEach(d => {
+                    const qty = bankSummary[d] || 0;
+                    s3Data.push([d, qty, qty * d]);
+                });
+                s3Data.push([]);
+                s3Data.push(['TOTAL GENERAL A RETIRAR', '', totalToWithdraw]);
+                s3Data.push([]);
+                s3Data.push(['Firma Autorizada:', '___________________________', '']);
+
+                const ws3 = XLSX.utils.aoa_to_sheet(s3Data);
+                ws3['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 25 }];
+                XLSX.utils.book_append_sheet(wb, ws3, 'Pedido al Banco');
 
                 XLSX.writeFile(wb, `nomina_SplitX_${today.replace(/\//g,'-')}.xlsx`);
             };
@@ -1349,107 +1707,227 @@
             const exportToPDF = () => {
                 if (typeof window.jspdf === 'undefined') { alert('Librería PDF no cargada.'); return; }
                 const { jsPDF } = window.jspdf;
-                const { denoms, summary, empRows } = buildExportData();
-                const today = new Date().toLocaleDateString('es-DO');
+                const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount } = buildExportData();
+                const today = new Date().toLocaleDateString();
 
                 const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
                 const pageW = doc.internal.pageSize.getWidth();
+                const pageH = doc.internal.pageSize.getHeight();
 
-                // ─── PAGE 1: Resumen de Billetes ───────────────────────────
+                const fmtNum = (n, dec = 2) => (Number(n) || 0).toLocaleString(undefined, {
+                    minimumFractionDigits: dec,
+                    maximumFractionDigits: dec
+                });
+
+                // ════════════════════════════════════════════════════════════════════
+                // ─── PÁGINA 1: Resumen de Billetes y Monedas en Caja ────────────────
+                // ════════════════════════════════════════════════════════════════════
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(16);
                 doc.setTextColor(30, 41, 59);
-                doc.text('DISTRIBUCIÓN DE NÓMINA — Split X', pageW / 2, 18, { align: 'center' });
+                doc.text('DISTRIBUCIÓN DE EFECTIVO — Split X', pageW / 2, 20, { align: 'center' });
 
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(9);
                 doc.setTextColor(100, 116, 139);
-                doc.text(`Fecha de emisión: ${today}`, pageW / 2, 25, { align: 'center' });
+                doc.text(`Fecha: ${today}`, pageW / 2, 26, { align: 'center' });
 
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(11);
                 doc.setTextColor(30, 41, 59);
-                doc.text('RESUMEN DE BILLETES / MONEDAS NECESARIOS', 14, 34);
+                doc.text('BILLETES Y MONEDAS EN CAJA (PAGOS + RESERVA DE PRÉSTAMOS)', pageW / 2, 36, { align: 'center' });
 
                 const summaryBody = [];
-                let grandTotal = 0;
+                let grandTotalCash = 0;
                 denoms.forEach(d => {
-                    const qty = summary[d];
+                    const qty = summary[d] || 0;
                     const val = qty * d;
-                    grandTotal += val;
+                    grandTotalCash += val;
                     if (qty > 0) {
                         summaryBody.push([
-                            `RD$ ${d.toLocaleString('es-DO')}`,
-                            qty.toLocaleString('es-DO'),
-                            `RD$ ${val.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`,
+                            `$ ${fmtNum(d, 0)}`,
+                            qty.toLocaleString(),
+                            `$ ${fmtNum(val)}`,
                         ]);
                     }
                 });
                 summaryBody.push([
                     { content: 'TOTAL GENERAL', styles: { fontStyle: 'bold' } },
                     { content: '', styles: { fontStyle: 'bold' } },
-                    { content: `RD$ ${grandTotal.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`, styles: { fontStyle: 'bold' } },
+                    { content: `$ ${fmtNum(grandTotalCash)}`, styles: { fontStyle: 'bold' } },
                 ]);
 
+                const table1Width = 190;
                 doc.autoTable({
-                    head: [['Denominación', 'Cantidad de Billetes', 'Valor Total']],
+                    head: [['Denominación', 'Cantidad', 'Total']],
                     body: summaryBody,
-                    startY: 38,
-                    tableWidth: 140,
-                    margin: { left: 14 },
-                    styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 },
-                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    startY: 42,
+                    tableWidth: table1Width,
+                    margin: { left: (pageW - table1Width) / 2 },
+                    styles: { font: 'helvetica', fontSize: 9.5, cellPadding: 3.5 },
+                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center' },
                     columnStyles: {
-                        0: { halign: 'left', cellWidth: 50 },
-                        1: { halign: 'center', cellWidth: 55 },
-                        2: { halign: 'right', cellWidth: 55 },
+                        0: { halign: 'left', cellWidth: 60 },
+                        1: { halign: 'center', cellWidth: 65 },
+                        2: { halign: 'right', cellWidth: 65 },
                     },
                     alternateRowStyles: { fillColor: [248, 250, 252] },
-                    footStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
                 });
 
-                // ─── PAGE 2: Distribución por Empleado ────────────────────
+                // ════════════════════════════════════════════════════════════════════
+                // ─── PÁGINA 2: Resumen de Pagos y Préstamos ─────────────────────────
+                // ════════════════════════════════════════════════════════════════════
                 doc.addPage('a4', 'landscape');
 
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(16);
                 doc.setTextColor(30, 41, 59);
-                doc.text('DISTRIBUCIÓN DETALLADA POR EMPLEADO', pageW / 2, 18, { align: 'center' });
+                doc.text('RESUMEN DE PAGOS Y PRÉSTAMOS — Split X', pageW / 2, 18, { align: 'center' });
 
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(9);
                 doc.setTextColor(100, 116, 139);
-                doc.text(`Fecha de emisión: ${today}`, pageW / 2, 25, { align: 'center' });
+                doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
 
-                // Build columns dynamically
-                const empHead = [['#', 'Nombre', 'Monto', ...denoms.map(d => `$${d}`), 'Estado', 'Pag.']];
+                // Tabla 1: Resumen de Pagos en Cascada
+                const cascadeBody = [
+                    [
+                        '1. Sueldo Bruto Total',
+                        `$ ${fmtNum(payrollSummary.gross)}`,
+                        `$ ${fmtNum(payrollSummary.gross)}`
+                    ],
+                    [
+                        '2. (+) Bonificaciones',
+                        `+$ ${fmtNum(payrollSummary.bonuses)}`,
+                        `$ ${fmtNum((payrollSummary.gross || 0) + (payrollSummary.bonuses || 0))}`
+                    ],
+                    [
+                        '3. (-) Descuentos',
+                        `-$ ${fmtNum(payrollSummary.discounts)}`,
+                        `$ ${fmtNum(payrollSummary.afterDiscounts)}`
+                    ],
+                    [
+                        { content: '4. (-) Préstamos Cobrados', styles: { fontStyle: 'bold' } },
+                        { content: `-$ ${fmtNum(payrollSummary.loans)}`, styles: { fontStyle: 'bold' } },
+                        { content: `$ ${fmtNum(payrollSummary.net || empRows.reduce((s,e)=>s+e.amount,0))} (Neto a Pagar)`, styles: { fontStyle: 'bold', textColor: [37, 99, 235] } }
+                    ],
+                ];
+
+                doc.autoTable({
+                    head: [['Concepto', 'Monto', 'Total Acumulado']],
+                    body: cascadeBody,
+                    startY: 32,
+                    tableWidth: 268,
+                    margin: { left: 14, right: 14 },
+                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
+                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    columnStyles: {
+                        0: { halign: 'left', cellWidth: 100 },
+                        1: { halign: 'right', cellWidth: 84 },
+                        2: { halign: 'right', cellWidth: 84 },
+                    },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                });
+
+                // Tabla 2: Resumen de Préstamos
+                const table2StartY = Math.max(doc.lastAutoTable?.finalY || 80, 80) + 18;
+
+                const loanAuditBody = [
+                    [
+                        'Préstamos programados para este pago',
+                        `$ ${fmtNum(payrollSummary.loansScheduled || payrollSummary.loans)}`
+                    ],
+                    [
+                        '(-) Préstamos no cobrados (editados o cancelados)',
+                        `-$ ${fmtNum(payrollSummary.loansUncollected)}`
+                    ],
+                    [
+                        { content: '(=) Préstamos cobrados en este pago', styles: { fontStyle: 'bold' } },
+                        { content: `$ ${fmtNum(payrollSummary.loans)}`, styles: { fontStyle: 'bold' } }
+                    ],
+                    [
+                        'Interés ganado en los préstamos',
+                        `$ ${fmtNum(payrollSummary.totalInterest)}`
+                    ],
+                    [
+                        'Fondo reservado para nuevos préstamos',
+                        `$ ${fmtNum(loanFundAmount)}`
+                    ],
+                    [
+                        { content: 'Deuda restante por cobrar (Total pendiente)', styles: { fontStyle: 'bold' } },
+                        { content: `$ ${fmtNum(payrollSummary.totalRemainingBalance)}`, styles: { fontStyle: 'bold' } }
+                    ],
+                ];
+
+                doc.autoTable({
+                    head: [['Resumen de Préstamos', 'Monto Total']],
+                    body: loanAuditBody,
+                    startY: table2StartY,
+                    tableWidth: 268,
+                    margin: { left: 14, right: 14 },
+                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
+                    headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    columnStyles: {
+                        0: { halign: 'left', cellWidth: 170 },
+                        1: { halign: 'right', cellWidth: 98 },
+                    },
+                    alternateRowStyles: { fillColor: [240, 253, 250] },
+                });
+
+                // ════════════════════════════════════════════════════════════════════
+                // ─── PÁGINA 3: Distribución de Efectivo por Empleado ────────────────
+                // ════════════════════════════════════════════════════════════════════
+                doc.addPage('a4', 'landscape');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(30, 41, 59);
+                doc.text('DISTRIBUCIÓN DE EFECTIVO POR EMPLEADO — Split X', pageW / 2, 18, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
+
+                // Build pure cash distribution columns
+                const empHead = [['#', 'Nombre del Empleado', 'Sueldo Neto', ...denoms.map(d => `$${d}`)]];
                 const empBody = empRows.map(emp => [
                     emp.idx,
                     emp.name,
-                    `RD$ ${emp.amount.toLocaleString('es-DO', { minimumFractionDigits: 2 })}`,
+                    `$ ${fmtNum(emp.amount)}`,
                     ...denoms.map(d => emp[d] > 0 ? emp[d] : '—'),
-                    emp.status === 'ok' ? '✓' : '⚠',
-                    emp.paid ? 'Sí' : 'No',
                 ]);
+
+                if (loanFundAmount > 0) {
+                    empBody.push([
+                        '★',
+                        'FONDO PARA NUEVOS PRÉSTAMOS',
+                        `$ ${fmtNum(loanFundAmount)}`,
+                        ...denoms.map(d => loanFundResult.distribution[d] > 0 ? loanFundResult.distribution[d] : '—'),
+                    ]);
+                }
 
                 // Totals row
                 const totalsRow = [
                     { content: '', styles: { fontStyle: 'bold' } },
                     { content: 'TOTALES', styles: { fontStyle: 'bold' } },
-                    { content: `RD$ ${empRows.reduce((s,e) => s + e.amount, 0).toLocaleString('es-DO', { minimumFractionDigits: 2 })}`, styles: { fontStyle: 'bold' } },
+                    { content: `$ ${fmtNum(empRows.reduce((s,e) => s + e.amount, 0) + loanFundAmount)}`, styles: { fontStyle: 'bold' } },
                     ...denoms.map(d => ({
-                        content: empRows.reduce((s,e) => s + (e[d]||0), 0) || '—',
+                        content: (empRows.reduce((s,e) => s + (e[d]||0), 0) + (loanFundResult.distribution[d] || 0)) || '—',
                         styles: { fontStyle: 'bold' },
                     })),
-                    { content: '', styles: {} },
-                    { content: '', styles: {} },
                 ];
                 empBody.push(totalsRow);
 
-                // Dynamic column widths: fixed for first 3, narrow for bills, fixed for last 2
-                const totalCols = 3 + denoms.length + 2;
-                const fixedW = { 0: 8, 1: 52, 2: 28, [totalCols-2]: 14, [totalCols-1]: 10 };
-                const denomColW = Math.max(10, Math.floor((pageW - 28 - 8 - 52 - 28 - 14 - 10) / denoms.length));
+                // Wide and comfortable column widths for denominations
+                const totalCols = 3 + denoms.length;
+                const fixedW = {
+                    0: 10,  // #
+                    1: 66,  // Nombre
+                    2: 34,  // Sueldo Neto
+                };
+                const usedFixed = 10 + 66 + 34;
+                const denomColW = Math.max(12, Math.floor((268 - usedFixed) / denoms.length));
                 const colStyles = {};
                 colStyles[0] = { halign: 'center', cellWidth: fixedW[0] };
                 colStyles[1] = { halign: 'left', cellWidth: fixedW[1] };
@@ -1457,20 +1935,18 @@
                 denoms.forEach((d, i) => {
                     colStyles[3 + i] = { halign: 'center', cellWidth: denomColW };
                 });
-                colStyles[totalCols - 2] = { halign: 'center', cellWidth: fixedW[totalCols - 2] };
-                colStyles[totalCols - 1] = { halign: 'center', cellWidth: fixedW[totalCols - 1] };
 
                 doc.autoTable({
                     head: empHead,
                     body: empBody,
                     startY: 30,
                     margin: { left: 14, right: 14 },
-                    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2.5, overflow: 'ellipsize' },
-                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 8 },
+                    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'ellipsize' },
+                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 8.5 },
                     columnStyles: colStyles,
                     alternateRowStyles: { fillColor: [248, 250, 252] },
                     didParseCell: (data) => {
-                        // Highlight paid rows in gray
+                        // Highlight paid rows in soft gray
                         if (data.section === 'body') {
                             const emp = empRows[data.row.index];
                             if (emp && emp.paid) {
@@ -1485,16 +1961,101 @@
                     },
                 });
 
-                // Page numbers
+                // ════════════════════════════════════════════════════════════════════
+                // ─── PÁGINA 4: Detalle Individual de Préstamos por Empleado ─────────
+                // ════════════════════════════════════════════════════════════════════
+                // ════════════════════════════════════════════════════════════════════
+                // ─── PÁGINA 4: Detalle Individual de Préstamos por Empleado ─────────
+                // ════════════════════════════════════════════════════════════════════
+                doc.addPage('a4', 'landscape');
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(30, 41, 59);
+                doc.text('DETALLE INDIVIDUAL DE PRÉSTAMOS — Split X', pageW / 2, 18, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
+
+                // Detect employees with loans or list all employees if none specifically marked
+                let loanEmployees = empRows.filter(e => {
+                    const ld = e.payroll?.loanDetails || {};
+                    const loanAmount = (e.payroll?.loans || 0);
+                    return loanAmount > 0 || (ld.principal > 0) || (ld.remainingBalance > 0) || (ld.interestAmount > 0);
+                });
+
+                // If no specific loan filter matches, show all employees so table is never empty
+                const displayRows = loanEmployees.length > 0 ? loanEmployees : empRows;
+
+                const loanEmpHead = [['#', 'Nombre del Empleado', 'Cuota Cobrada', 'Capital Amortizado', 'Interés Cobrado', 'Deuda Restante (Saldo)']];
+                const loanEmpBody = displayRows.map((emp, i) => {
+                    const ld = emp.payroll?.loanDetails || {};
+                    const loanVal = emp.payroll?.loans || 0;
+                    return [
+                        i + 1,
+                        emp.name,
+                        loanVal > 0 ? `$ ${fmtNum(loanVal)}` : '$ 0.00',
+                        ld.principal ? `$ ${fmtNum(ld.principal)}` : '—',
+                        ld.interestAmount ? `$ ${fmtNum(ld.interestAmount)}` : '—',
+                        ld.remainingBalance ? `$ ${fmtNum(ld.remainingBalance)}` : '—',
+                    ];
+                });
+
+                // Totals row for loans
+                const totalPrincipal = displayRows.reduce((s, e) => s + (e.payroll?.loanDetails?.principal || 0), 0);
+                loanEmpBody.push([
+                    { content: '', styles: { fontStyle: 'bold' } },
+                    { content: 'TOTALES', styles: { fontStyle: 'bold' } },
+                    { content: `$ ${fmtNum(payrollSummary.loans)}`, styles: { fontStyle: 'bold' } },
+                    { content: totalPrincipal > 0 ? `$ ${fmtNum(totalPrincipal)}` : '—', styles: { fontStyle: 'bold' } },
+                    { content: `$ ${fmtNum(payrollSummary.totalInterest)}`, styles: { fontStyle: 'bold' } },
+                    { content: `$ ${fmtNum(payrollSummary.totalRemainingBalance)}`, styles: { fontStyle: 'bold' } },
+                ]);
+
+                const loanTableW = 250;
+                doc.autoTable({
+                    head: loanEmpHead,
+                    body: loanEmpBody,
+                    startY: 32,
+                    tableWidth: loanTableW,
+                    margin: { left: (pageW - loanTableW) / 2 },
+                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
+                    headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 14 },
+                        1: { halign: 'left', cellWidth: 78 },
+                        2: { halign: 'right', cellWidth: 38 },
+                        3: { halign: 'right', cellWidth: 38 },
+                        4: { halign: 'right', cellWidth: 38 },
+                        5: { halign: 'right', cellWidth: 44 },
+                    },
+                    alternateRowStyles: { fillColor: [240, 253, 250] },
+                    didParseCell: (data) => {
+                        if (data.section === 'body' && data.row.index === loanEmpBody.length - 1) {
+                            data.cell.styles.fillColor = [15, 118, 110];
+                            data.cell.styles.textColor = [255, 255, 255];
+                        }
+                    }
+                });
+
+                const finYLoans = (doc.lastAutoTable?.finalY || 80) + 12;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Colaboradores con descuento de préstamo: ${loanEmployees.length} de ${empRows.length}  •  Fondo para nuevos préstamos: $ ${fmtNum(loanFundAmount)}`, pageW / 2, finYLoans, { align: 'center' });
+
+                // Page numbers across all pages
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
                     doc.setFontSize(8);
                     doc.setTextColor(148, 163, 184);
-                    doc.text(`Página ${i} de ${pageCount}  •  Split X`, pageW / 2, doc.internal.pageSize.getHeight() - 6, { align: 'center' });
+                    doc.text(`Página ${i} de ${pageCount}  •  Split X`, pageW / 2, pageH - 6, { align: 'center' });
                 }
 
-                doc.save(`nomina_SplitX_${today.replace(/\//g,'-')}.pdf`);
+                doc.save(`distribucion_SplitX_${today.replace(/\//g,'-')}.pdf`);
             };
 
             let importMode = 'excel'; // 'excel' | 'json'
@@ -1716,10 +2277,15 @@
                     div.className = "inv-row";
                     const billStyle = getBillStyle(denom);
                     const qty = state.inventory[denom] || 0;
+                    const isCoinDenom = isCoin(denom);
+                    const isRound = state.roundCoins !== false && isCoinDenom;
+                    const shapeStyle = isRound ? 'width:32px;height:32px;border-radius:50%;' : 'width:48px;height:28px;border-radius:6px;';
+                    const hasImg = !!getBillImage(denom);
+
                     div.innerHTML = `
                         <div style="display:flex;align-items:center;gap:10px">
-                            <div style="${billStyle};width:48px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:1px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.12)">
-                                ${denom}
+                            <div style="${billStyle};${shapeStyle}display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:1px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden">
+                                ${hasImg ? '' : denom}
                             </div>
                             <span style="font-size:12px;color:#64748b;font-weight:500">× ${qty > 0 ? '<span style="color:#1e293b;font-weight:700">'+qty+'</span>' : '0'}</span>
                         </div>
@@ -1920,7 +2486,6 @@
             };
 
             // Colores oficiales de los billetes de la República Dominicana (6ª familia, emisión 2014)
-            // Preparados para futura integración con imágenes reales de billetes dominicanos
             const BILL_COLORS = {
                 // === BILLETES ===
                 2000: { bg: '#4A90E2', text: '#ffffff', border: '#2e5e3e' },   
@@ -1936,11 +2501,18 @@
                 5:    { bg: '#8d6e63', text: '#ffffff', border: '#6d4c41' },  
                 1:    { bg: '#a0784c', text: '#ffffff', border: '#7d5c38' },   
             };
+
+            const getBillImage = (denom) => {
+                if (state.billImages && state.billImages[denom]) return state.billImages[denom];
+                if (state.useDefaultImages !== false && DEFAULT_BILL_IMAGES[denom]) return DEFAULT_BILL_IMAGES[denom];
+                return null;
+            };
+
             const getBillStyle = (denom) => {
-                // Image takes priority
-                const img = state.billImages && state.billImages[denom];
+                // Image takes priority (custom or default)
+                const img = getBillImage(denom);
                 if (img) {
-                    const c = state.billColors[denom] || BILL_COLORS[denom];
+                    const c = state.billColors?.[denom] || BILL_COLORS[denom];
                     const border = c ? (typeof c === 'string' ? c : c.border) : '#555';
                     return `background-image:url('${img}');background-size:cover;background-position:center;color:#fff;border-color:${border};text-shadow:0 1px 3px rgba(0,0,0,0.75);`;
                 }
@@ -1976,9 +2548,12 @@
                         const count = fundBreakdown.distribution[denom];
                         if (!count) return;
                         const billStyle = getBillStyle(denom);
-                        const hasImg = !!(state.billImages && state.billImages[denom]);
+                        const hasImg = !!getBillImage(denom);
+                        const isCoinDenom = isCoin(denom);
+                        const isRound = state.roundCoins !== false && isCoinDenom;
+                        const shapeStyle = isRound ? 'width:24px;height:24px;border-radius:50%;' : 'width:38px;height:22px;border-radius:6px;';
                         fundBillsHTML += `<div style="position:relative;display:inline-block;margin:2px 4px 4px 0">
-                            <div class="bill-chip" style="${billStyle};width:38px;height:22px;font-size:9px">${hasImg ? '' : denom}</div>
+                            <div class="bill-chip" style="${billStyle};${shapeStyle};font-size:9px">${hasImg ? '' : denom}</div>
                             <span class="bill-badge">${count}</span>
                         </div>`;
                     });
@@ -2050,10 +2625,13 @@
                     state.denominations.forEach(d => {
                         if (visibleDistribution[d]) {
                             const billStyle = getBillStyle(d);
-                            const hasImg = !!(state.billImages && state.billImages[d]);
+                            const hasImg = !!getBillImage(d);
+                            const isCoinDenom = isCoin(d);
+                            const isRound = state.roundCoins !== false && isCoinDenom;
+                            const shapeStyle = isRound ? 'width:24px;height:24px;border-radius:50%;' : 'width:38px;height:22px;border-radius:6px;';
                             breakdownHTML += `
                                 <div style="position:relative;display:inline-block;margin:2px 4px 4px 0">
-                                    <div class="bill-chip" style="${billStyle};width:38px;height:22px;font-size:9px">
+                                    <div class="bill-chip" style="${billStyle};${shapeStyle};font-size:9px">
                                         ${hasImg ? '' : d}
                                     </div>
                                     <span class="bill-badge">${visibleDistribution[d]}</span>
@@ -2073,6 +2651,19 @@
                     let notesHTML = emp.notes.length
                         ? `<div class="text-xs text-red-500 mt-1 font-medium">${emp.notes.join(', ')}</div>` : '';
                     const checkIcon = isPaid ? 'fa-solid fa-square-check text-blue-500' : 'fa-regular fa-square text-slate-300';
+                    
+                    let badgeHTML = '';
+                    if (emp.isManual) {
+                        badgeHTML = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1 shrink-0" title="Agregado manualmente"><i class="fa-solid fa-user-plus text-[8px]"></i>Manual</span>`;
+                    } else if (emp.isEdited) {
+                        badgeHTML = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1 shrink-0" title="Modificado de importación original"><i class="fa-solid fa-pen text-[8px]"></i>Editado</span>`;
+                    }
+
+                    let origAmountHTML = '';
+                    if (emp.isEdited && emp.originalData && Math.abs(emp.originalData.amount - emp.amount) > 0.001) {
+                        origAmountHTML = `<span class="text-[10px] font-mono text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded inline-flex items-center gap-1 shrink-0" title="Monto original importado: ${fmt(emp.originalData.amount)}"><i class="fa-solid fa-clock-rotate-left text-[8px] text-amber-600"></i>Antes: <span class="line-through opacity-75">${fmt(emp.originalData.amount)}</span></span>`;
+                    }
+
                     const payrollHTML = showPayrollMode && emp.payroll ? `
                         <div class="payroll-breakdown">
                             <div><span>Bruto</span><strong>${fmt(emp.payroll.gross)}</strong></div>
@@ -2096,34 +2687,46 @@
                             </button>
                             <div style="flex:1;min-width:0">
                                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                                    <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
-                                        <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;flex-shrink:0">#${index+1}</span>
+                                    <div style="display:flex;align-items:flex-start;gap:6px;flex:1;min-width:0">
+                                        <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;flex-shrink:0;margin-top:2px">#${index+1}</span>
                                         <div style="flex:1;min-width:0">
-                                            <input type="text"
-                                                value="${escapeHTML(emp.name)}"
-                                                onblur="app.updateEmployee(${emp.id}, 'name', this.value)"
-                                                onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();event.preventDefault();this.closest('div').querySelector('.amt-inp').focus();}"
-                                                style="font-weight:700;font-size:13px;color:#1e293b;width:100%;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;${isPaid ? 'text-decoration:line-through;color:#94a3b8' : ''}"
-                                                onfocus="this.style.borderBottomColor='#2563eb'"
-                                                onblur2="this.style.borderBottomColor='transparent'"
-                                                title="Clic para editar nombre">
-                                            <div style="display:flex;align-items:center;gap:5px;margin-top:2px">
-                                            <input type="number" step="0.01"
-                                                value="${emp.amount}"
-                                                ${emp.payroll ? 'readonly aria-readonly="true"' : `onblur="app.updateEmployee(${emp.id}, 'amount', this.value)" onkeydown="if(event.key==='Enter'){this.blur();}"`}
-                                                class="amt-inp"
-                                                style="font-family:'JetBrains Mono',monospace;font-size:12px;color:${emp.payroll ? '#475569' : '#64748b'};width:100%;background:${emp.payroll ? '#f8fafc' : 'transparent'};border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:${emp.payroll ? '2px 4px' : '0'};border-radius:4px"
-                                                ${emp.payroll ? 'title="Monto neto protegido desde la importación"' : 'onfocus="this.style.borderBottomColor=\'#2563eb\'" title="Clic para editar monto"'}>
-                                            ${emp.payroll ? '<i class="fa-solid fa-lock text-[9px] text-slate-400" title="Monto protegido"></i>' : ''}
+                                            <div style="display:flex;align-items:center;gap:6px;width:100%">
+                                                <input type="text"
+                                                    value="${escapeHTML(emp.name)}"
+                                                    onblur="app.updateEmployee(${emp.id}, 'name', this.value); this.style.borderBottomColor='transparent';"
+                                                    onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();event.preventDefault();this.closest('div').parentElement.querySelector('.amt-inp')?.focus();}"
+                                                    style="font-weight:700;font-size:13px;color:#1e293b;width:100%;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;${isPaid ? 'text-decoration:line-through;color:#94a3b8' : ''}"
+                                                    onfocus="this.style.borderBottomColor='#2563eb'"
+                                                    title="Clic para editar nombre rápido">
+                                                ${badgeHTML}
+                                            </div>
+                                            <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap">
+                                                <input type="number" step="0.01"
+                                                    value="${emp.amount}"
+                                                    onblur="app.updateEmployee(${emp.id}, 'amount', this.value); this.style.borderBottomColor='transparent';"
+                                                    onkeydown="if(event.key==='Enter'){this.blur();}"
+                                                    onfocus="this.style.borderBottomColor='#2563eb'"
+                                                    class="amt-inp"
+                                                    style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#475569;max-width:115px;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;border-radius:4px"
+                                                    title="Clic para editar monto o usa el botón de editar nómina completa">
+                                                ${origAmountHTML}
                                             </div>
                                             ${payrollHTML}
                                         </div>
                                     </div>
-                                    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                                    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
                                         ${statusIcon}
+                                        <button onclick="app.openEditModal(${emp.id})"
+                                            style="color:#64748b;background:none;border:none;cursor:pointer;font-size:13px;padding:3px 5px;border-radius:5px;transition:all .15s"
+                                            onmouseover="this.style.color='#2563eb';this.style.backgroundColor='#eff6ff'"
+                                            onmouseout="this.style.color='#64748b';this.style.backgroundColor='transparent'"
+                                            title="Editar empleado y desglose de nómina">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
                                         <button onclick="app.removeEmployee(${emp.id})"
-                                            style="color:#cbd5e1;background:none;border:none;cursor:pointer;font-size:14px;padding:2px;border-radius:4px;transition:color .15s"
-                                            onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'">
+                                            style="color:#cbd5e1;background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;transition:color .15s"
+                                            onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
+                                            title="Eliminar empleado">
                                             <i class="fa-solid fa-times"></i>
                                         </button>
                                     </div>
@@ -2208,42 +2811,64 @@
                 if (tab === 'appearance') renderAppearanceConfig();
             };
 
+            const toggleUseDefaultImages = (enabled) => {
+                state.useDefaultImages = enabled;
+                saveData();
+                renderAppearanceConfig();
+            };
+
+            const toggleRoundCoins = (enabled) => {
+                state.roundCoins = enabled;
+                saveData();
+                renderAppearanceConfig();
+            };
+
             const renderAppearanceConfig = () => {
+                const switchImg = document.getElementById('switchUseImages');
+                if (switchImg) switchImg.checked = state.useDefaultImages !== false;
+                const switchRound = document.getElementById('switchRoundCoins');
+                if (switchRound) switchRound.checked = state.roundCoins !== false;
+
                 const container = document.getElementById('appearanceList');
                 container.innerHTML = '';
                 state.denominations.forEach(denom => {
-                    const hasImage = !!(state.billImages && state.billImages[denom]);
+                    const customImage = state.billImages && state.billImages[denom];
+                    const activeImage = getBillImage(denom);
+                    const isCoinDenom = isCoin(denom);
+                    const isRound = state.roundCoins !== false && isCoinDenom;
                     const customColor = state.billColors && state.billColors[denom];
                     const defaultColor = BILL_COLORS[denom] ? BILL_COLORS[denom].bg : '#e2e8f0';
                     const currentColor = customColor || defaultColor;
                     const billStyle = getBillStyle(denom);
+                    const shapeStyle = isRound ? 'width:34px;height:34px;border-radius:50%;' : 'width:52px;height:30px;border-radius:6px;';
 
                     const row = document.createElement('div');
                     row.className = 'flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-100';
                     row.innerHTML = `
                         <!-- Preview chip -->
-                        <div style="${billStyle}" class="w-16 h-9 rounded border shadow-sm flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
-                            ${hasImage ? '' : denom}
+                        <div class="shrink-0 flex items-center justify-center" style="width:54px">
+                            <div style="${billStyle};${shapeStyle}" class="border shadow-sm flex items-center justify-center text-[10px] font-bold overflow-hidden">
+                                ${activeImage ? '' : denom}
+                            </div>
                         </div>
-                        <div class="font-medium text-slate-700 text-sm w-10 shrink-0">$${denom}</div>
+                        <div class="font-medium text-slate-700 text-xs w-12 shrink-0">$${denom}${isCoinDenom ? ' <span class="text-[9px] text-slate-400 block font-normal">moneda</span>' : ''}</div>
                         <!-- Color picker -->
-                        <div class="flex items-center gap-1.5 flex-grow">
+                        <div class="flex items-center gap-1.5 flex-grow min-w-0">
                             <label class="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">Color</label>
                             <input type="color"
                                 value="${currentColor}"
                                 oninput="app.updateBillColor(${denom}, this.value)"
-                                class="w-8 h-7 rounded cursor-pointer border border-slate-200 p-0.5 bg-white"
+                                class="w-7 h-6 rounded cursor-pointer border border-slate-200 p-0.5 bg-white shrink-0"
                                 title="Cambiar color del billete $${denom}">
                             ${customColor ? `<button onclick="app.resetBillColor(${denom})" class="text-[10px] text-slate-400 hover:text-red-500" title="Restaurar color original"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
                         </div>
                         <!-- Image controls -->
                         <div class="flex items-center gap-1.5 shrink-0">
-                            <label class="text-[10px] text-slate-400 uppercase tracking-wide">Imagen</label>
-                            <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-1 rounded border border-blue-200 transition-colors" title="Cargar imagen desde tu PC">
-                                <i class="fa-solid fa-upload mr-1"></i>${hasImage ? 'Cambiar' : 'Cargar'}
+                            <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-1 rounded border border-blue-200 transition-colors" title="Cargar imagen personalizada">
+                                <i class="fa-solid fa-upload mr-1"></i>${customImage ? 'Cambiar' : 'Subir'}
                                 <input type="file" accept="image/*" class="hidden" onchange="app.uploadBillImage(${denom}, this)">
                             </label>
-                            ${hasImage ? `<button onclick="app.clearBillImage(${denom})" class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-1 rounded border border-red-200 bg-red-50" title="Quitar imagen"><i class="fa-solid fa-trash"></i></button>` : ''}
+                            ${customImage ? `<button onclick="app.clearBillImage(${denom})" class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-1 rounded border border-red-200 bg-red-50" title="Quitar imagen personalizada"><i class="fa-solid fa-trash"></i></button>` : ''}
                         </div>
                     `;
                     container.appendChild(row);
@@ -2462,13 +3087,337 @@
                 if (name && valStr) {
                     const amount = parseFloat(valStr);
                     if (!isNaN(amount)) {
-                        state.employees.push({ id: Date.now(), name, amount, paid: false });
+                        state.employees.push({
+                            id: Date.now(),
+                            name,
+                            amount,
+                            paid: false,
+                            isManual: true,
+                            isEdited: false,
+                            originalData: null
+                        });
                         nameInput.value = ''; amtInput.value = '';
                         saveData();
                         closeAddDrawer();
                         switchMobileView('nomina');
                     }
                 }
+            };
+
+            // --- EDIT EMPLOYEE MODAL LOGIC ---
+            let currentEditEmpId = null;
+            let currentAdjustmentTypes = { bonus: 'fixed', discount: 'fixed' };
+
+            const openEditModal = (empId) => {
+                const emp = state.employees.find(e => e.id === empId);
+                if (!emp) return;
+                currentEditEmpId = empId;
+
+                document.getElementById('editEmpId').value = emp.id;
+                document.getElementById('editEmpName').value = emp.name || '';
+                document.getElementById('editModalTitle').textContent = `Editar a ${emp.name}`;
+                document.getElementById('editModalSubtitle').textContent = `ID: #${emp.id}`;
+
+                // Badge in modal
+                const badgeEl = document.getElementById('editModalBadge');
+                if (emp.isManual) {
+                    badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 inline-flex items-center gap-1';
+                    badgeEl.innerHTML = '<i class="fa-solid fa-user-plus text-[8px]"></i> Manual';
+                    badgeEl.classList.remove('hidden');
+                } else if (emp.isEdited) {
+                    badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1';
+                    badgeEl.innerHTML = '<i class="fa-solid fa-pen text-[8px]"></i> Editado';
+                    badgeEl.classList.remove('hidden');
+                } else {
+                    badgeEl.className = 'hidden';
+                }
+
+                // Revert button
+                const revertBtn = document.getElementById('revertEmpBtn');
+                if (emp.originalData && emp.isEdited) {
+                    revertBtn.classList.remove('hidden');
+                } else {
+                    revertBtn.classList.add('hidden');
+                }
+
+                const p = emp.payroll || {};
+                currentAdjustmentTypes.bonus = p.bonusType || 'fixed';
+                currentAdjustmentTypes.discount = p.discountType || 'fixed';
+
+                document.getElementById('editEmpGross').value = p.gross !== undefined && p.gross !== null ? p.gross : emp.amount;
+                document.getElementById('editEmpBonus').value = p.bonusValue !== undefined ? p.bonusValue : (p.bonuses || 0);
+                document.getElementById('editEmpDiscount').value = p.discountValue !== undefined ? p.discountValue : (p.discounts || 0);
+                document.getElementById('editEmpLoans').value = p.loans || 0;
+                document.getElementById('editEmpNet').value = emp.amount;
+
+                const ld = p.loanDetails || {};
+                document.getElementById('editEmpLoanPrincipal').value = ld.principal !== undefined && ld.principal !== null ? ld.principal : '';
+                document.getElementById('editEmpLoanInterestRate').value = ld.interestRate !== undefined && ld.interestRate !== null ? ld.interestRate : '';
+                document.getElementById('editEmpLoanInterestAmount').value = ld.interestAmount !== undefined && ld.interestAmount !== null ? ld.interestAmount : '';
+                document.getElementById('editEmpLoanRemainingBalance').value = ld.remainingBalance !== undefined && ld.remainingBalance !== null ? ld.remainingBalance : '';
+
+                const hasLoanDetails = !!(ld.principal || ld.interestRate || ld.interestAmount || ld.remainingBalance);
+                const loanExp = document.getElementById('loanDetailsExpanded');
+                if (loanExp) {
+                    if (hasLoanDetails) {
+                        loanExp.classList.remove('hidden');
+                        document.getElementById('toggleLoanDetailsText').textContent = 'Ocultar detalles';
+                    } else {
+                        loanExp.classList.add('hidden');
+                        document.getElementById('toggleLoanDetailsText').textContent = 'Detalles (Interés/Saldo)';
+                    }
+                }
+
+                setModalAdjustmentType('bonus', currentAdjustmentTypes.bonus, false);
+                setModalAdjustmentType('discount', currentAdjustmentTypes.discount, false);
+
+                updateModalCalculations();
+                document.getElementById('editEmployeeModal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('editEmpName').focus(), 150);
+            };
+
+            const toggleLoanDetailsPanel = () => {
+                const el = document.getElementById('loanDetailsExpanded');
+                if (!el) return;
+                const isHidden = el.classList.toggle('hidden');
+                document.getElementById('toggleLoanDetailsText').textContent = isHidden ? 'Detalles (Interés/Saldo)' : 'Ocultar detalles';
+            };
+
+            const calcLoanFromDetails = () => {
+                const principal = parseFloat(document.getElementById('editEmpLoanPrincipal').value) || 0;
+                const rate = parseFloat(document.getElementById('editEmpLoanInterestRate').value) || 0;
+                const interest = rate > 0 ? parseFloat(((principal * rate) / 100).toFixed(2)) : 0;
+                if (interest > 0) {
+                    document.getElementById('editEmpLoanInterestAmount').value = interest;
+                }
+                const totalCuota = parseFloat((principal + interest).toFixed(2));
+                if (totalCuota > 0) {
+                    document.getElementById('editEmpLoans').value = totalCuota;
+                    updateModalCalculations();
+                }
+            };
+
+            const calcLoanFromInterestAmount = () => {
+                const principal = parseFloat(document.getElementById('editEmpLoanPrincipal').value) || 0;
+                const interest = parseFloat(document.getElementById('editEmpLoanInterestAmount').value) || 0;
+                const totalCuota = parseFloat((principal + interest).toFixed(2));
+                if (totalCuota > 0) {
+                    document.getElementById('editEmpLoans').value = totalCuota;
+                    updateModalCalculations();
+                }
+            };
+
+            const closeEditModal = () => {
+                document.getElementById('editEmployeeModal').classList.add('hidden');
+                currentEditEmpId = null;
+            };
+
+            const setModalAdjustmentType = (field, type, recalculate = true) => {
+                currentAdjustmentTypes[field] = type;
+                const isFixed = type === 'fixed';
+                if (field === 'bonus') {
+                    const btnFixed = document.getElementById('bonusTypeFixed');
+                    const btnPct = document.getElementById('bonusTypePercent');
+                    const sym = document.getElementById('bonusSymbol');
+                    if (isFixed) {
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
+                        sym.textContent = '$';
+                    } else {
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
+                        sym.textContent = '%';
+                    }
+                } else if (field === 'discount') {
+                    const btnFixed = document.getElementById('discountTypeFixed');
+                    const btnPct = document.getElementById('discountTypePercent');
+                    const sym = document.getElementById('discountSymbol');
+                    if (isFixed) {
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
+                        sym.textContent = '$';
+                    } else {
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
+                        sym.textContent = '%';
+                    }
+                }
+                if (recalculate) updateModalCalculations();
+            };
+
+            const updateModalCalculations = (manualNetEdit = false) => {
+                const gross = parseFloat(document.getElementById('editEmpGross').value) || 0;
+                const bonusVal = parseFloat(document.getElementById('editEmpBonus').value) || 0;
+                const discountVal = parseFloat(document.getElementById('editEmpDiscount').value) || 0;
+                const loans = parseFloat(document.getElementById('editEmpLoans').value) || 0;
+
+                const bonuses = currentAdjustmentTypes.bonus === 'percent' ? parseFloat(((gross * bonusVal) / 100).toFixed(2)) : bonusVal;
+                const discounts = currentAdjustmentTypes.discount === 'percent' ? parseFloat(((gross * discountVal) / 100).toFixed(2)) : discountVal;
+
+                document.getElementById('bonusCalcDisplay').textContent = `+${fmt(bonuses)}` + (currentAdjustmentTypes.bonus === 'percent' ? ` (${bonusVal}%)` : '');
+                document.getElementById('discountCalcDisplay').textContent = `-${fmt(discounts)}` + (currentAdjustmentTypes.discount === 'percent' ? ` (${discountVal}%)` : '');
+
+                const afterDiscounts = parseFloat((gross + bonuses - discounts).toFixed(2));
+                const calculatedNet = parseFloat((afterDiscounts - loans).toFixed(2));
+                document.getElementById('calcFormulaNet').textContent = fmt(calculatedNet);
+
+                const netInput = document.getElementById('editEmpNet');
+                if (!manualNetEdit) {
+                    netInput.value = calculatedNet;
+                }
+                const currentNet = parseFloat(netInput.value) || 0;
+                const diff = parseFloat((currentNet - calculatedNet).toFixed(2));
+                const isReconciled = Math.abs(diff) <= 0.01;
+
+                const statusEl = document.getElementById('editModalReconciledStatus');
+                if (isReconciled) {
+                    statusEl.className = 'text-xs flex items-center gap-1.5 text-emerald-700 font-medium';
+                    statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Nómina cuadrada perfectamente</span>';
+                } else {
+                    statusEl.className = 'text-xs flex items-center gap-1.5 text-amber-700 font-semibold';
+                    statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Monto manual difiere en ${diff > 0 ? '+' : ''}${fmt(diff)} del cálculo</span>`;
+                }
+
+                // Live preview breakdown
+                document.getElementById('editModalBreakdownTotal').textContent = fmt(currentNet);
+                const breakdown = getIdealBreakdown(currentNet).distribution;
+                const chipsContainer = document.getElementById('editModalBreakdownChips');
+                let chipsHTML = '';
+                state.denominations.forEach(d => {
+                    const count = breakdown[d];
+                    if (count > 0) {
+                        const billStyle = getBillStyle(d);
+                        const hasImg = !!getBillImage(d);
+                        const isCoinDenom = isCoin(d);
+                        const isRound = state.roundCoins !== false && isCoinDenom;
+                        const shapeStyle = isRound ? 'width:24px;height:24px;border-radius:50%;' : 'width:38px;height:22px;border-radius:6px;';
+                        chipsHTML += `
+                            <div style="position:relative;display:inline-block;margin:2px 4px 4px 0">
+                                <div class="bill-chip" style="${billStyle};${shapeStyle};font-size:9px">
+                                    ${hasImg ? '' : d}
+                                </div>
+                                <span class="bill-badge">${count}</span>
+                            </div>
+                        `;
+                    }
+                });
+                chipsContainer.innerHTML = chipsHTML || '<span class="text-xs text-slate-400 italic">RD$ 0.00 asignados</span>';
+            };
+
+            const syncNetFromCalculated = () => {
+                updateModalCalculations(false);
+            };
+
+            const saveEmployeeModal = () => {
+                const id = currentEditEmpId;
+                if (!id) return;
+                const emp = state.employees.find(e => e.id === id);
+                if (!emp) return;
+
+                const name = document.getElementById('editEmpName').value.trim();
+                if (!name) {
+                    showToast('Indica un nombre para el empleado.', 'info');
+                    return;
+                }
+
+                const gross = parseFloat(document.getElementById('editEmpGross').value) || 0;
+                const bonusVal = parseFloat(document.getElementById('editEmpBonus').value) || 0;
+                const discountVal = parseFloat(document.getElementById('editEmpDiscount').value) || 0;
+                const loans = parseFloat(document.getElementById('editEmpLoans').value) || 0;
+                const net = parseFloat(document.getElementById('editEmpNet').value) || 0;
+
+                const principal = parseFloat(document.getElementById('editEmpLoanPrincipal').value) || 0;
+                const interestRate = parseFloat(document.getElementById('editEmpLoanInterestRate').value) || 0;
+                const interestAmount = parseFloat(document.getElementById('editEmpLoanInterestAmount').value) || 0;
+                const remainingBalance = parseFloat(document.getElementById('editEmpLoanRemainingBalance').value) || 0;
+
+                const loanDetails = {
+                    principal,
+                    interestRate,
+                    interestAmount,
+                    remainingBalance
+                };
+
+                const bonuses = currentAdjustmentTypes.bonus === 'percent' ? parseFloat(((gross * bonusVal) / 100).toFixed(2)) : bonusVal;
+                const discounts = currentAdjustmentTypes.discount === 'percent' ? parseFloat(((gross * discountVal) / 100).toFixed(2)) : discountVal;
+                const afterDiscounts = parseFloat((gross + bonuses - discounts).toFixed(2));
+                const calculatedNet = parseFloat((afterDiscounts - loans).toFixed(2));
+                const difference = parseFloat((net - calculatedNet).toFixed(2));
+
+                const payroll = {
+                    gross,
+                    bonusType: currentAdjustmentTypes.bonus,
+                    bonusValue: bonusVal,
+                    bonuses,
+                    discountType: currentAdjustmentTypes.discount,
+                    discountValue: discountVal,
+                    discounts,
+                    afterDiscounts,
+                    loans,
+                    loanDetails,
+                    net,
+                    calculatedNet,
+                    difference,
+                    reconciled: Math.abs(difference) <= 0.01
+                };
+
+                let isEdited = emp.isEdited || false;
+                if (emp.originalData) {
+                    const orig = emp.originalData;
+                    const nameChanged = orig.name !== name;
+                    const amountChanged = Math.abs(orig.amount - net) > 0.001;
+                    const origPayroll = orig.payroll || {};
+                    const grossChanged = Math.abs((origPayroll.gross || 0) - gross) > 0.001;
+                    const loansChanged = Math.abs((origPayroll.loans || 0) - loans) > 0.001;
+                    const bonusChanged = Math.abs((origPayroll.bonuses || 0) - bonuses) > 0.001;
+                    const discChanged = Math.abs((origPayroll.discounts || 0) - discounts) > 0.001;
+                    isEdited = nameChanged || amountChanged || grossChanged || loansChanged || bonusChanged || discChanged;
+                }
+
+                state.employees = state.employees.map(e => {
+                    if (e.id !== id) return e;
+                    return {
+                        ...e,
+                        name,
+                        amount: net,
+                        payroll,
+                        isEdited: !e.isManual ? isEdited : false
+                    };
+                });
+
+                if (state.employees.some(e => e.payroll)) {
+                    state.payrollMode = 'deductions';
+                }
+
+                saveData();
+                closeEditModal();
+                showToast(`Empleado ${name} actualizado correctamente.`);
+            };
+
+            const revertEmployeeToOriginal = (empId) => {
+                const id = empId || currentEditEmpId;
+                const emp = state.employees.find(e => e.id === id);
+                if (!emp || !emp.originalData) return;
+
+                if (!confirm(`¿Restaurar los valores originales de importación para ${emp.name}?`)) return;
+
+                const orig = JSON.parse(JSON.stringify(emp.originalData));
+                state.employees = state.employees.map(e => {
+                    if (e.id !== id) return e;
+                    return {
+                        ...e,
+                        name: orig.name,
+                        amount: orig.amount,
+                        payroll: orig.payroll ? JSON.parse(JSON.stringify(orig.payroll)) : undefined,
+                        isEdited: false
+                    };
+                });
+
+                saveData();
+                if (document.getElementById('editEmployeeModal') && !document.getElementById('editEmployeeModal').classList.contains('hidden')) {
+                    openEditModal(id);
+                }
+                showToast(`Valores originales restaurados para ${orig.name}.`);
             };
 
             const setupEventListeners = () => {
@@ -2523,8 +3472,20 @@
                 restoreImportSnapshot,
                 updatePayrollLoanFund,
                 updateEmployee,
+                openEditModal,
+                closeEditModal,
+                setModalAdjustmentType,
+                updateModalCalculations,
+                syncNetFromCalculated,
+                saveEmployeeModal,
+                revertEmployeeToOriginal,
+                toggleLoanDetailsPanel,
+                calcLoanFromDetails,
+                calcLoanFromInterestAmount,
                 switchConfigTab,
                 renderAppearanceConfig,
+                toggleUseDefaultImages,
+                toggleRoundCoins,
                 updateBillColor,
                 resetBillColor,
                 uploadBillImage,
