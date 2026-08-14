@@ -146,18 +146,125 @@
             .fab { display: none !important; }
         }
 
-        /* Employee card */
+        /* Employee card: Horizontal strip with notification pill */
         .emp-card {
             background: white;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
-            border-left: 4px solid #22c55e;
-            padding: 12px;
-            transition: box-shadow .2s, transform .15s;
+            display: flex;
+            align-items: stretch;
+            position: relative;
+            overflow: hidden;
+            transition: box-shadow .2s, transform .15s, border-color .15s;
+            box-shadow: 0 1px 3px rgba(0,0,0,.04);
         }
-        .emp-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); transform: translateY(-1px); }
-        .emp-card.error { border-left-color: #ef4444; background: #fff5f5; }
-        .emp-card.paid { opacity: .55; filter: grayscale(.6); background: #f8fafc; border-left-color: #94a3b8; }
+        .emp-card:hover {
+            box-shadow: 0 4px 14px rgba(0,0,0,.08);
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+        }
+        .emp-card.paid {
+            opacity: .6;
+            filter: grayscale(.5);
+            background: #f8fafc;
+        }
+
+        /* Notification Pill (Left vertical bar) */
+        .emp-status-pill {
+            width: 44px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 6px 2px;
+            transition: all .2s;
+            user-select: none;
+            cursor: pointer;
+            text-align: center;
+        }
+        .emp-status-pill.status-green {
+            background: #10b981;
+            color: #ffffff;
+        }
+        .emp-status-pill.status-yellow {
+            background: #f59e0b;
+            color: #ffffff;
+        }
+        .emp-status-pill.status-red {
+            background: #ef4444;
+            color: #ffffff;
+        }
+        .emp-status-pill.status-paid {
+            background: #94a3b8;
+            color: #ffffff;
+        }
+
+        /* Card Content Area */
+        .emp-card-content {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        @media (min-width: 768px) {
+            .emp-card-content {
+                flex-wrap: nowrap;
+            }
+        }
+
+        /* Info Block */
+        .emp-info-block {
+            min-width: 170px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .emp-calc-stack {
+            width: 145px;
+            flex-shrink: 0;
+        }
+
+        /* Cash Box Container (Center/Right module) */
+        .emp-cash-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            min-height: 46px;
+        }
+        @media (max-width: 640px) {
+            .emp-cash-box {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        /* Action Column: Close button on top-right, edit & check below */
+        .emp-actions-bar {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+            padding-left: 8px;
+            border-left: 1px solid #f1f5f9;
+            align-self: stretch;
+            min-height: 52px;
+        }
         .payroll-summary-panel {
             margin: 12px 12px 0;
             padding: 12px 14px;
@@ -190,22 +297,76 @@
             .payroll-breakdown { grid-template-columns: 1fr; }
         }
 
-        /* Bill chip */
+        /* Bill & Coin chips with vector aesthetics */
         .bill-chip {
-            position: relative; display: inline-flex;
-            align-items: center; justify-content: center;
-            border-radius: 6px; border: 1px solid rgba(0,0,0,.12);
-            font-weight: 700; font-size: 9px;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', system-ui, -apple-system, sans-serif;
             box-shadow: 0 1px 3px rgba(0,0,0,.15);
             overflow: visible;
+            user-select: none;
+            letter-spacing: -0.03em;
+        }
+        .chip-vector-banknote {
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+        }
+        .chip-vector-banknote .banknote-inner {
+            position: absolute;
+            inset: 2.5px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 54 28' preserveAspectRatio='none'%3E%3Cpath d='M0,5 A5,5 0 0,1 5,0 L49,0 A5,5 0 0,1 54,5 L54,23 A5,5 0 0,1 49,28 L5,28 A5,5 0 0,1 0,23 Z' fill='white' fill-opacity='0.78'/%3E%3C/svg%3E");
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }
+        .chip-vector-banknote .banknote-text {
+            position: relative;
+            z-index: 1;
+            line-height: 1;
+            font-size: 11px;
+            font-weight: 800;
+        }
+        .chip-vector-coin {
+            border-radius: 50% !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.22);
+        }
+        .chip-vector-coin .coin-inner {
+            position: absolute;
+            inset: 2.5px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.14);
+            pointer-events: none;
+        }
+        .chip-vector-coin .coin-text {
+            position: relative;
+            z-index: 1;
+            line-height: 1;
+            font-size: 11px;
+            font-weight: 800;
         }
         .bill-badge {
-            position: absolute; top: -5px; right: -5px;
-            background: #1e293b; color: white;
-            border-radius: 50%; width: 14px; height: 14px;
-            font-size: 8px; font-weight: 700;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 1px 2px rgba(0,0,0,.3);
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #0f172a;
+            color: #ffffff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 11px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,.45);
+            border: 1.5px solid #ffffff;
+            line-height: 1;
+            z-index: 2;
         }
 
         /* Progress bar */
@@ -988,6 +1149,7 @@
 
             // --- CORE LOGIC: DISTRIBUTION ---
             const fmt = (num) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(num);
+            const fmtNum = (num) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(Number(num) || 0));
             const showToast = (message, type = 'success') => {
                 const previous = document.getElementById('appToast');
                 if (previous) previous.remove();
@@ -2279,13 +2441,15 @@
                     const qty = state.inventory[denom] || 0;
                     const isCoinDenom = isCoin(denom);
                     const isRound = state.roundCoins !== false && isCoinDenom;
-                    const shapeStyle = isRound ? 'width:32px;height:32px;border-radius:50%;' : 'width:48px;height:28px;border-radius:6px;';
+                    const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
+                    const shapeStyle = isRound ? 'width:32px;height:32px;' : 'width:54px;height:28px;';
                     const hasImg = !!getBillImage(denom);
+                    const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
 
                     div.innerHTML = `
                         <div style="display:flex;align-items:center;gap:10px">
-                            <div style="${billStyle};${shapeStyle}display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:1px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.12);overflow:hidden">
-                                ${hasImg ? '' : denom}
+                            <div class="bill-chip ${shapeClass}" style="${billStyle};${shapeStyle}">
+                                ${innerHTML}
                             </div>
                             <span style="font-size:12px;color:#64748b;font-weight:500">× ${qty > 0 ? '<span style="color:#1e293b;font-weight:700">'+qty+'</span>' : '0'}</span>
                         </div>
@@ -2485,21 +2649,21 @@
                 saveData();
             };
 
-            // Colores oficiales de los billetes de la República Dominicana (6ª familia, emisión 2014)
+            // Colores oficiales de los billetes y monedas de la República Dominicana
             const BILL_COLORS = {
                 // === BILLETES ===
-                2000: { bg: '#4A90E2', text: '#ffffff', border: '#2e5e3e' },   
-                1000: { bg: '#E05A6D', text: '#ffffff', border: '#96281b' },   
-                500:  { bg: '#26A69A', text: '#ffffff', border: '#117080' },   
-                200:  { bg: '#D81B60', text: '#ffffff', border: '#a83f61' },   
-                100:  { bg: '#F57C00', text: '#ffffff', border: '#ae5214' },   
-                50:   { bg: '#8E44AD', text: '#ffffff', border: '#612d76' },   
-                20:   { bg: '#7a5c38', text: '#ffffff', border: '#5e4529' },  
+                2000: { bg: '#4A90E2', text: '#0d3880', border: '#2563eb' },   // Azul
+                1000: { bg: '#E05A6D', text: '#7f1d1d', border: '#e11d48' },   // Rojo
+                500:  { bg: '#26A69A', text: '#064e3b', border: '#0d9488' },   // Turquesa
+                200:  { bg: '#D81B60', text: '#701a75', border: '#c026d3' },   // Rosa/Magenta
+                100:  { bg: '#F57C00', text: '#7c2d12', border: '#ea580c' },   // Naranja
+                50:   { bg: '#8E44AD', text: '#581c87', border: '#9333ea' },   // Morado
+                20:   { bg: '#7a5c38', text: '#451a03', border: '#78350f' },   // Café
                 // === MONEDAS ===
-                25:   { bg: '#b8952a', text: '#ffffff', border: '#8f7020' },  
-                10:   { bg: '#607d8b', text: '#ffffff', border: '#455a64' },   
-                5:    { bg: '#8d6e63', text: '#ffffff', border: '#6d4c41' },  
-                1:    { bg: '#a0784c', text: '#ffffff', border: '#7d5c38' },   
+                25:   { bg: '#b8952a', text: '#5c4709', border: '#8f7020' },   // Dorada
+                10:   { bg: '#607d8b', text: '#263238', border: '#455a64' },   // Plateada
+                5:    { bg: '#8d6e63', text: '#3e2723', border: '#6d4c41' },   // Bronce
+                1:    { bg: '#a0784c', text: '#4e342e', border: '#7d5c38' },   // Cobre
             };
 
             const getBillImage = (denom) => {
@@ -2519,12 +2683,11 @@
                 // Custom color override
                 const customColor = state.billColors && state.billColors[denom];
                 if (customColor) {
-                    return `background-color:${customColor};color:#fff;border-color:${customColor};filter:brightness(0.85);`;
+                    return `background-color:${customColor};color:#fff;border-color:${customColor};filter:brightness(0.95);`;
                 }
-                // Default palette
-                const c = BILL_COLORS[denom];
-                if (c) return `background-color:${c.bg};color:${c.text};border-color:${c.border};`;
-                return 'background-color:#e2e8f0;color:#475569;border-color:#cbd5e1;';
+                // Default vector palette with original colors
+                const c = BILL_COLORS[denom] || { bg: '#e2e8f0', text: '#475569', border: '#cbd5e1' };
+                return `background-color:${c.bg};color:${c.text};border-color:${c.border};border-width:1.5px;`;
             };
 
             const renderEmployees = (data, loanFundResult = { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }) => {
@@ -2551,9 +2714,13 @@
                         const hasImg = !!getBillImage(denom);
                         const isCoinDenom = isCoin(denom);
                         const isRound = state.roundCoins !== false && isCoinDenom;
-                        const shapeStyle = isRound ? 'width:24px;height:24px;border-radius:50%;' : 'width:38px;height:22px;border-radius:6px;';
-                        fundBillsHTML += `<div style="position:relative;display:inline-block;margin:2px 4px 4px 0">
-                            <div class="bill-chip" style="${billStyle};${shapeStyle};font-size:9px">${hasImg ? '' : denom}</div>
+                        const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
+                        const shapeStyle = isRound ? 'width:30px;height:30px;' : 'width:54px;height:28px;';
+                        const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
+                        fundBillsHTML += `<div style="position:relative;display:inline-block;margin:3px 6px 3px 0">
+                            <div class="bill-chip ${shapeClass}" style="${billStyle};${shapeStyle}">
+                                ${innerHTML}
+                            </div>
                             <span class="bill-badge">${count}</span>
                         </div>`;
                     });
@@ -2628,11 +2795,14 @@
                             const hasImg = !!getBillImage(d);
                             const isCoinDenom = isCoin(d);
                             const isRound = state.roundCoins !== false && isCoinDenom;
-                            const shapeStyle = isRound ? 'width:24px;height:24px;border-radius:50%;' : 'width:38px;height:22px;border-radius:6px;';
+                            const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
+                            const shapeStyle = isRound ? 'width:30px;height:30px;' : 'width:54px;height:28px;';
+                            const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${d}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${d}</span>`);
+
                             breakdownHTML += `
-                                <div style="position:relative;display:inline-block;margin:2px 4px 4px 0">
-                                    <div class="bill-chip" style="${billStyle};${shapeStyle};font-size:9px">
-                                        ${hasImg ? '' : d}
+                                <div style="position:relative;display:inline-block;margin:3px 6px 3px 0">
+                                    <div class="bill-chip ${shapeClass}" style="${billStyle};${shapeStyle}">
+                                        ${innerHTML}
                                     </div>
                                     <span class="bill-badge">${visibleDistribution[d]}</span>
                                 </div>
@@ -2641,100 +2811,176 @@
                     });
 
                     const isPaid = emp.paid || false;
-                    let cardClass = 'emp-card';
-                    if (isPaid) cardClass += ' paid';
-                    else if (emp.status !== 'ok') cardClass += ' error';
+                    const hasCents = (emp.amount % 1) !== 0;
+                    const isDeficit = emp.status !== 'ok' || (emp._missingAmount && emp._missingAmount > 0);
 
-                    let statusIcon = emp.status === 'ok'
-                        ? '<i class="fa-solid fa-check-circle text-green-400 text-xs"></i>'
-                        : '<i class="fa-solid fa-triangle-exclamation text-red-400 text-xs"></i>';
-                    let notesHTML = emp.notes.length
-                        ? `<div class="text-xs text-red-500 mt-1 font-medium">${emp.notes.join(', ')}</div>` : '';
-                    const checkIcon = isPaid ? 'fa-solid fa-square-check text-blue-500' : 'fa-regular fa-square text-slate-300';
+                    // Determine Notification Color & State
+                    let statusClass = 'status-green';
+                    let statusTooltip = '100% Cubierto en caja · Listo para pagar';
                     
+                    if (isPaid) {
+                        statusClass = 'status-paid';
+                        statusTooltip = 'Pagado';
+                    } else if (isDeficit) {
+                        statusClass = 'status-red';
+                        statusTooltip = `Faltan ${fmt(emp._missingAmount || 0)} en caja`;
+                    } else if (hasCents) {
+                        statusClass = 'status-yellow';
+                        statusTooltip = 'Monto con centavos · Requiere redondeo';
+                    }
+
+                    // Build Subtitle / Deduction Line: Vertical Math Operation (Right aligned numbers)
+                    let subTextHTML = '';
+                    const p = emp.payroll;
+                    const isNormalView = state.payrollMode !== 'deductions';
+
+                    if (p && (p.gross > 0 || p.bonuses > 0 || p.discounts > 0 || p.loans > 0 || p.afterDiscounts > 0)) {
+                        const grossVal = (p.gross !== undefined && p.gross !== null && p.gross > 0)
+                            ? p.gross
+                            : (emp.originalData?.payroll?.gross || emp.originalData?.amount || emp.amount);
+                        const bonuses = Number(p.bonuses) || 0;
+                        const discounts = Number(p.discounts) || 0;
+                        const loans = Number(p.loans) || 0;
+                        const netAdjustments = bonuses - discounts - loans;
+
+                        if (isNormalView) {
+                            // Vista Normal: Operación matemática vertical con números alineados a la derecha
+                            const adjClass = netAdjustments < 0 ? 'text-rose-600 font-bold' : (netAdjustments > 0 ? 'text-emerald-600 font-bold' : 'text-slate-600 font-medium');
+                            const adjSign = netAdjustments > 0 ? '+ ' : (netAdjustments < 0 ? '- ' : '  ');
+                            subTextHTML = `
+                                <div class="emp-calc-stack font-mono text-xs mt-1">
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500">
+                                        <span>Bruto:</span>
+                                        <span class="text-right text-slate-700 font-bold">${fmtNum(grossVal)}</span>
+                                        <span>Ajuste:</span>
+                                        <span class="text-right ${adjClass}">${adjSign}${fmtNum(netAdjustments)}</span>
+                                    </div>
+                                    <div class="text-base font-extrabold font-mono text-slate-900 tracking-tight mt-1 pt-0.5 border-t border-slate-100 text-right">
+                                        $${fmtNum(emp.amount)}
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            // Vista Nómina: Desglose explícito de amortización de préstamo
+                            if (loans > 0) {
+                                const netBeforeLoan = (p.afterDiscounts !== undefined && p.afterDiscounts !== null) ? p.afterDiscounts : (grossVal + bonuses - discounts);
+                                subTextHTML = `
+                                    <div class="emp-calc-stack font-mono text-xs mt-1">
+                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500">
+                                            <span>Neto:</span>
+                                            <span class="text-right text-slate-700 font-bold">${fmtNum(netBeforeLoan)}</span>
+                                            <span>Préstamo:</span>
+                                            <span class="text-right text-amber-600 font-semibold">- ${fmtNum(loans)}</span>
+                                        </div>
+                                        <div class="text-base font-extrabold font-mono text-slate-900 tracking-tight mt-1 pt-0.5 border-t border-slate-100 text-right">
+                                            $${fmtNum(emp.amount)}
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                subTextHTML = `
+                                    <div class="emp-calc-stack font-mono text-xs mt-1">
+                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500">
+                                            <span>Neto:</span>
+                                            <span class="text-right text-slate-700 font-bold">${fmtNum(p.afterDiscounts || emp.amount)}</span>
+                                        </div>
+                                        <div class="text-base font-extrabold font-mono text-slate-900 tracking-tight mt-1 pt-0.5 border-t border-slate-100 text-right">
+                                            $${fmtNum(emp.amount)}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                    } else if (emp.isEdited && emp.originalData && Math.abs(emp.originalData.amount - emp.amount) > 0.001) {
+                        subTextHTML = `
+                            <div class="emp-calc-stack font-mono text-xs mt-1">
+                                <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500">
+                                    <span>Antes:</span>
+                                    <span class="text-right line-through text-slate-400">${fmtNum(emp.originalData.amount)}</span>
+                                </div>
+                                <div class="text-base font-extrabold font-mono text-slate-900 tracking-tight mt-1 pt-0.5 border-t border-slate-100 text-right">
+                                    $${fmtNum(emp.amount)}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        subTextHTML = `
+                            <div class="emp-calc-stack font-mono text-xs mt-1">
+                                <div class="text-[11px] text-slate-400 leading-tight">Neto a entregar</div>
+                                <div class="text-base font-extrabold font-mono text-slate-900 tracking-tight mt-1 text-right">
+                                    $${fmtNum(emp.amount)}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Badges
                     let badgeHTML = '';
                     if (emp.isManual) {
-                        badgeHTML = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1 shrink-0" title="Agregado manualmente"><i class="fa-solid fa-user-plus text-[8px]"></i>Manual</span>`;
+                        badgeHTML = `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1 shrink-0" title="Agregado manualmente"><i class="fa-solid fa-user-plus text-[8px]"></i>Manual</span>`;
                     } else if (emp.isEdited) {
-                        badgeHTML = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1 shrink-0" title="Modificado de importación original"><i class="fa-solid fa-pen text-[8px]"></i>Editado</span>`;
+                        badgeHTML = `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1 shrink-0" title="Modificado de importación original"><i class="fa-solid fa-pen text-[8px]"></i>Editado</span>`;
                     }
 
-                    let origAmountHTML = '';
-                    if (emp.isEdited && emp.originalData && Math.abs(emp.originalData.amount - emp.amount) > 0.001) {
-                        origAmountHTML = `<span class="text-[10px] font-mono text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded inline-flex items-center gap-1 shrink-0" title="Monto original importado: ${fmt(emp.originalData.amount)}"><i class="fa-solid fa-clock-rotate-left text-[8px] text-amber-600"></i>Antes: <span class="line-through opacity-75">${fmt(emp.originalData.amount)}</span></span>`;
+                    // Deficit / Warning note if applicable
+                    let errorNoteHTML = '';
+                    if (!isPaid && isDeficit) {
+                        errorNoteHTML = `<div class="text-[11px] text-red-600 font-semibold mt-0.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Faltan ${fmt(emp._missingAmount || 0)} en caja</div>`;
+                    } else if (!isPaid && hasCents) {
+                        errorNoteHTML = `<div class="text-[10px] text-amber-600 font-medium mt-0.5"><i class="fa-solid fa-scissors mr-1"></i>Monto con centavos (${fmt(emp.amount)})</div>`;
                     }
 
-                    const payrollHTML = showPayrollMode && emp.payroll ? `
-                        <div class="payroll-breakdown">
-                            <div><span>Bruto</span><strong>${fmt(emp.payroll.gross)}</strong></div>
-                            <div><span>Desc. + bonif.</span><strong>${fmt(emp.payroll.afterDiscounts)}</strong></div>
-                            <div><span>Menos préstamo</span><strong>${fmt(emp.amount)}</strong></div>
-                        </div>
-                        <div style="font-size:10px;color:#64748b;margin-top:4px">
-                            Bonif. ${fmt(emp.payroll.bonuses || 0)} · Desc. ${fmt(emp.payroll.discounts || 0)} · Préstamo ${fmt(emp.payroll.loans || 0)}
-                        </div>
-                    ` : '';
+                    // Breakdown chips HTML inside container
+                    const cashBoxHTML = breakdownHTML || '<span class="text-[11px] text-slate-400 italic">Sin billetes asignados...</span>';
+
+                    let cardClass = 'emp-card';
+                    if (isPaid) cardClass += ' paid';
 
                     const card = document.createElement('div');
                     card.className = cardClass;
                     card.innerHTML = `
-                        <div style="display:flex;align-items:flex-start;gap:10px">
-                            <button onclick="app.togglePaid(${emp.id})"
-                                style="font-size:20px;flex-shrink:0;padding-top:1px;background:none;border:none;cursor:pointer;transition:transform .15s"
-                                onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform=''"
-                                title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
-                                <i class="${checkIcon}"></i>
-                            </button>
-                            <div style="flex:1;min-width:0">
-                                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-                                    <div style="display:flex;align-items:flex-start;gap:6px;flex:1;min-width:0">
-                                        <span style="font-size:10px;color:#94a3b8;font-family:'JetBrains Mono',monospace;flex-shrink:0;margin-top:2px">#${index+1}</span>
-                                        <div style="flex:1;min-width:0">
-                                            <div style="display:flex;align-items:center;gap:6px;width:100%">
-                                                <input type="text"
-                                                    value="${escapeHTML(emp.name)}"
-                                                    onblur="app.updateEmployee(${emp.id}, 'name', this.value); this.style.borderBottomColor='transparent';"
-                                                    onkeydown="if(event.key==='Enter'||event.key==='Tab'){this.blur();event.preventDefault();this.closest('div').parentElement.querySelector('.amt-inp')?.focus();}"
-                                                    style="font-weight:700;font-size:13px;color:#1e293b;width:100%;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;${isPaid ? 'text-decoration:line-through;color:#94a3b8' : ''}"
-                                                    onfocus="this.style.borderBottomColor='#2563eb'"
-                                                    title="Clic para editar nombre rápido">
-                                                ${badgeHTML}
-                                            </div>
-                                            <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap">
-                                                <input type="number" step="0.01"
-                                                    value="${emp.amount}"
-                                                    onblur="app.updateEmployee(${emp.id}, 'amount', this.value); this.style.borderBottomColor='transparent';"
-                                                    onkeydown="if(event.key==='Enter'){this.blur();}"
-                                                    onfocus="this.style.borderBottomColor='#2563eb'"
-                                                    class="amt-inp"
-                                                    style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#475569;max-width:115px;background:transparent;border:none;border-bottom:1.5px solid transparent;outline:none;transition:border-color .15s;padding:0;border-radius:4px"
-                                                    title="Clic para editar monto o usa el botón de editar nómina completa">
-                                                ${origAmountHTML}
-                                            </div>
-                                            ${payrollHTML}
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-                                        ${statusIcon}
-                                        <button onclick="app.openEditModal(${emp.id})"
-                                            style="color:#64748b;background:none;border:none;cursor:pointer;font-size:13px;padding:3px 5px;border-radius:5px;transition:all .15s"
-                                            onmouseover="this.style.color='#2563eb';this.style.backgroundColor='#eff6ff'"
-                                            onmouseout="this.style.color='#64748b';this.style.backgroundColor='transparent'"
-                                            title="Editar empleado y desglose de nómina">
-                                            <i class="fa-solid fa-pen-to-square"></i>
-                                        </button>
-                                        <button onclick="app.removeEmployee(${emp.id})"
-                                            style="color:#cbd5e1;background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;transition:color .15s"
-                                            onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#cbd5e1'"
-                                            title="Eliminar empleado">
-                                            <i class="fa-solid fa-times"></i>
-                                        </button>
-                                    </div>
+                        <!-- Left Status Notification Pill -->
+                        <div class="emp-status-pill ${statusClass}" title="${statusTooltip}" onclick="app.togglePaid(${emp.id})">
+                            <span class="text-base font-extrabold leading-none">${index + 1}</span>
+                            ${isPaid ? '<i class="fa-solid fa-check text-[11px] mt-1"></i>' : ''}
+                        </div>
+
+                        <!-- Main Content -->
+                        <div class="emp-card-content">
+                            <!-- Info & Net Amount Stack -->
+                            <div class="emp-info-block">
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                    <h3 class="font-bold text-sm text-slate-800 truncate" title="${escapeHTML(emp.name)}">${escapeHTML(emp.name)}</h3>
+                                    ${badgeHTML}
                                 </div>
-                                <div style="display:flex;flex-wrap:wrap;align-items:center;margin-top:8px;padding-top:8px;border-top:1px dashed #f1f5f9;min-height:28px">
-                                    ${breakdownHTML || '<span style="font-size:11px;color:#94a3b8;font-style:italic">Sin billetes asignados...</span>'}
+                                ${subTextHTML}
+                                ${errorNoteHTML}
+                            </div>
+
+                            <!-- Cash Breakdown Module -->
+                            <div class="emp-cash-box">
+                                ${cashBoxHTML}
+                            </div>
+
+                            <!-- Action Column (Close on top-right, Edit & Checkmark below) -->
+                            <div class="emp-actions-bar">
+                                <button onclick="app.removeEmployee(${emp.id})"
+                                    class="w-6 h-6 rounded-md flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all -mr-1 -mt-1"
+                                    title="Eliminar empleado">
+                                    <i class="fa-solid fa-xmark text-xs"></i>
+                                </button>
+                                <div class="flex items-center gap-1.5 mt-auto">
+                                    <button onclick="app.openEditModal(${emp.id})"
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all border border-slate-200 hover:border-blue-300 bg-white shadow-2xs"
+                                        title="Editar datos y nómina">
+                                        <i class="fa-solid fa-pen text-[11px]"></i>
+                                    </button>
+                                    <button onclick="app.togglePaid(${emp.id})"
+                                        class="w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-2xs ${isPaid ? 'text-green-600 bg-green-50 hover:bg-green-100 border border-green-300' : 'text-slate-300 hover:text-green-600 hover:bg-green-50 border border-slate-200 bg-white'}"
+                                        title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
+                                        <i class="fa-solid fa-check text-xs"></i>
+                                    </button>
                                 </div>
-                                ${notesHTML}
                             </div>
                         </div>
                     `;
@@ -2839,19 +3085,20 @@
                     const customColor = state.billColors && state.billColors[denom];
                     const defaultColor = BILL_COLORS[denom] ? BILL_COLORS[denom].bg : '#e2e8f0';
                     const currentColor = customColor || defaultColor;
-                    const billStyle = getBillStyle(denom);
-                    const shapeStyle = isRound ? 'width:34px;height:34px;border-radius:50%;' : 'width:52px;height:30px;border-radius:6px;';
+                    const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
+                    const shapeStyle = isRound ? 'width:32px;height:32px;' : 'width:52px;height:28px;';
+                    const innerHTML = activeImage ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
 
                     const row = document.createElement('div');
                     row.className = 'flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-100';
                     row.innerHTML = `
                         <!-- Preview chip -->
                         <div class="shrink-0 flex items-center justify-center" style="width:54px">
-                            <div style="${billStyle};${shapeStyle}" class="border shadow-sm flex items-center justify-center text-[10px] font-bold overflow-hidden">
-                                ${activeImage ? '' : denom}
+                            <div class="bill-chip ${shapeClass}" style="${billStyle};${shapeStyle}">
+                                ${innerHTML}
                             </div>
                         </div>
-                        <div class="font-medium text-slate-700 text-xs w-12 shrink-0">$${denom}${isCoinDenom ? ' <span class="text-[9px] text-slate-400 block font-normal">moneda</span>' : ''}</div>
+                        <div class="font-medium text-slate-700 text-xs w-12 shrink-0">${denom}${isCoinDenom ? ' <span class="text-[9px] text-slate-400 block font-normal">moneda</span>' : ''}</div>
                         <!-- Color picker -->
                         <div class="flex items-center gap-1.5 flex-grow min-w-0">
                             <label class="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">Color</label>
