@@ -1,0 +1,19 @@
+# Temporary & Mockup HTML previews
+card_redesign_preview.html
+mockup_preview.html
+mockups/
+*.tmp
+*.bak
+
+# Draft & Test asset files
+imagenes/preview_icon.html
+imagenes/*raw*.png
+imagenes/*test*.png
+imagenes/splitx_icon_master.png
+imagenes/splitx_icon_exact.png
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
