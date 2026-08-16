@@ -238,23 +238,20 @@
             flex-shrink: 0;
         }
 
-        /* Cash Box Container (Center/Right module: Máximo 5 elementos por fila) */
+        /* Cash Box Container (Center/Right module: Despiece de efectivo configurable) */
         .emp-cash-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 10px;
             padding: 8px 12px;
-            display: grid;
-            grid-template-columns: repeat(5, max-content);
-            gap: 6px 8px;
+            display: flex;
             align-items: center;
-            justify-content: start;
-            width: fit-content;
+            justify-content: flex-start;
             min-height: 46px;
+            width: fit-content;
         }
         @media (max-width: 640px) {
             .emp-cash-box {
-                grid-template-columns: repeat(auto-fill, minmax(50px, max-content));
                 width: 100%;
                 justify-content: flex-start;
             }
@@ -375,6 +372,14 @@
             font-size: 11px;
             font-weight: 800;
         }
+
+        /* Size scaling for banknote & coin text numbers */
+        .bill-chip.chip-size-compact .banknote-text { font-size: 8.5px !important; }
+        .bill-chip.chip-size-compact .coin-text { font-size: 8.5px !important; }
+        .bill-chip.chip-size-normal .banknote-text { font-size: 11px !important; }
+        .bill-chip.chip-size-normal .coin-text { font-size: 10.5px !important; }
+        .bill-chip.chip-size-large .banknote-text { font-size: 13.5px !important; }
+        .bill-chip.chip-size-large .coin-text { font-size: 12.5px !important; }
         .bill-badge {
             position: absolute;
             top: -6px;
@@ -924,7 +929,7 @@
                     <button id="themeToggleBtn" onclick="app.toggleTheme()" title="Cambiar tema claro/oscuro" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all">
                         <i class="fa-solid fa-moon text-sm"></i>
                     </button>
-                    <button onclick="document.getElementById('configModal').classList.remove('hidden')" title="Ajustes" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
+                    <button onclick="app.openConfigModal()" title="Ajustes de sistema y diseño" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
                         <i class="fa-solid fa-gear text-sm"></i>
                     </button>
                     <button onclick="app.openOperationsModal()" title="Operaciones de nómina (Reiniciar / Restaurar / Limpiar)" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all">
@@ -1181,7 +1186,7 @@
             <div class="bnav-icon"><i class="fa-solid fa-building-columns"></i></div>
             <span>Banco</span>
         </div>
-        <div class="bnav-item" id="bnav-ajustes" onclick="document.getElementById('configModal').classList.remove('hidden')">
+        <div class="bnav-item" id="bnav-ajustes" onclick="app.openConfigModal()">
             <div class="bnav-icon"><i class="fa-solid fa-gear"></i></div>
             <span>Ajustes</span>
         </div>
@@ -1191,32 +1196,137 @@
          CONFIG MODAL
     ═══════════════════════════════════════════ -->
     <div id="configModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] anim-pop border border-slate-100 dark:border-slate-800">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-slate-800 dark:text-slate-100">Ajustes</h3>
+                <h3 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-blue-600 dark:text-sky-400"></i> Ajustes de Sistema
+                </h3>
                 <button onclick="document.getElementById('configModal').classList.add('hidden')" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             <div class="flex gap-1 p-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <button id="cfgTab-denoms" onclick="app.switchConfigTab('denoms')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-sm">
-                    <i class="fa-solid fa-coins mr-1"></i> Denominaciones
+                <button id="cfgTab-appearance" onclick="app.switchConfigTab('appearance')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs">
+                    <i class="fa-solid fa-layer-group mr-1.5"></i> Despiece y Apariencia
                 </button>
-                <button id="cfgTab-appearance" onclick="app.switchConfigTab('appearance')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
-                    <i class="fa-solid fa-palette mr-1"></i> Apariencia
+                <button id="cfgTab-customBills" onclick="app.switchConfigTab('customBills')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-palette mr-1.5"></i> Colores e Imágenes
+                </button>
+                <button id="cfgTab-denoms" onclick="app.switchConfigTab('denoms')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-coins mr-1.5"></i> Denominaciones
                 </button>
             </div>
-            <div id="cfgView-denoms" class="p-4 overflow-y-auto flex-grow">
-                <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Agrega o elimina los tipos de billetes/monedas.</p>
-                <div class="flex gap-2 mb-4">
-                    <input type="number" id="newDenomInput" placeholder="Valor (ej. 2000)" class="ring-input flex-grow">
-                    <button onclick="app.addDenomination()" class="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700 text-sm font-medium">Agregar</button>
+
+            <!-- TAB 1: APARIENCIA Y DESPIECE -->
+            <div id="cfgView-appearance" class="p-4 overflow-y-auto flex-grow relative">
+                <!-- Sticky Live Interactive Card Preview -->
+                <div class="sticky -top-4 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pt-2 pb-3 mb-4 border-b border-slate-200/80 dark:border-slate-800 shadow-xs">
+                    <div class="flex items-center justify-between px-1 mb-1.5">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-eye text-blue-600 dark:text-sky-400"></i> Vista previa en vivo
+                        </span>
+                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Reacciona a los cambios en tiempo real</span>
+                    </div>
+                    <div id="appearanceLivePreviewCard" class="w-full"></div>
                 </div>
-                <div id="denomListConfig" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-100 dark:border-slate-800"></div>
-            </div>
-            <div id="cfgView-appearance" class="hidden p-4 overflow-y-auto flex-grow">
+
+                <!-- Cash Breakdown Layout Preferences -->
+                <div class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 mb-3.5 space-y-3">
+                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-layer-group text-blue-600 dark:text-sky-400"></i> Despiece de Efectivo en Tarjetas
+                    </div>
+
+                    <!-- Display Format -->
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Formato de cantidad</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Cómo se presenta la cantidad de cada denominación.</div>
+                        </div>
+                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" onclick="app.setBreakdownFormat('badge')" id="fmtBtn-badge" class="px-2.5 py-1 rounded-md transition-all flex items-center gap-1" title="Icono con círculo de unidades superpuesto">
+                                <i class="fa-solid fa-circle-dot text-[10px]"></i> Círculo
+                            </button>
+                            <button type="button" onclick="app.setBreakdownFormat('qty_x_denom')" id="fmtBtn-qty_x_denom" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: 2 × [2000]">
+                                2 × [Icono]
+                            </button>
+                            <button type="button" onclick="app.setBreakdownFormat('denom_x_qty')" id="fmtBtn-denom_x_qty" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: [2000] × 2">
+                                [Icono] × 2
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
+
+                    <!-- Item Size Scale -->
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Tamaño de billetes y monedas</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Escala de fichas, iconos y números.</div>
+                        </div>
+                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" onclick="app.setBreakdownSize('compact')" id="sizeBtn-compact" class="px-2.5 py-1 rounded-md transition-all">
+                                Compacto
+                            </button>
+                            <button type="button" onclick="app.setBreakdownSize('normal')" id="sizeBtn-normal" class="px-2.5 py-1 rounded-md transition-all">
+                                Normal
+                            </button>
+                            <button type="button" onclick="app.setBreakdownSize('large')" id="sizeBtn-large" class="px-2.5 py-1 rounded-md transition-all">
+                                Grande
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
+
+                    <!-- Elements per row -->
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Elementos por fila</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Cantidad máxima de billetes/monedas en cada línea.</div>
+                        </div>
+                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" onclick="app.setBreakdownColumns(3)" id="colBtn-3" class="px-2.5 py-1 rounded-md transition-all">3</button>
+                            <button type="button" onclick="app.setBreakdownColumns(4)" id="colBtn-4" class="px-2.5 py-1 rounded-md transition-all">4</button>
+                            <button type="button" onclick="app.setBreakdownColumns(5)" id="colBtn-5" class="px-2.5 py-1 rounded-md transition-all">5</button>
+                            <button type="button" onclick="app.setBreakdownColumns(6)" id="colBtn-6" class="px-2.5 py-1 rounded-md transition-all">6</button>
+                            <button type="button" onclick="app.setBreakdownColumns('auto')" id="colBtn-auto" class="px-2.5 py-1 rounded-md transition-all">Auto</button>
+                        </div>
+                    </div>
+
+                    <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
+
+                    <!-- Separate bills and coins -->
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Separar billetes y monedas</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Billetes en la fila superior y monedas en la fila inferior.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" id="switchGroupByType" onchange="app.toggleBreakdownGroupByType(this.checked)" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
+
+                    <!-- Show zero placeholders (Bandeja fija) -->
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Mostrar espacios en cero (Bandeja fija)</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las denominaciones no utilizadas atenuadas para mantener posiciones fijas.</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input type="checkbox" id="switchShowZeros" onchange="app.toggleBreakdownShowZeros(this.checked)" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Visual preference switches -->
-                <div class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3 mb-3 space-y-2.5">
+                <div class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                        <i class="fa-solid fa-brush text-blue-600 dark:text-sky-400"></i> Estilo General
+                    </div>
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Usar imágenes de billetes y monedas</div>
@@ -1250,26 +1360,74 @@
                         </label>
                     </div>
                 </div>
+            </div>
 
-                <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Personaliza el color o sube imágenes personalizadas.</p>
-                <p class="text-[10px] text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950/50 rounded px-2 py-1 mb-3 border border-blue-100 dark:border-blue-900">
-                    <i class="fa-solid fa-circle-info mr-1"></i>
-                    Las imágenes personalizadas cargadas desde tu PC tienen prioridad sobre las fotos por defecto.
-                </p>
+            <!-- TAB 2: COLORES E IMÁGENES -->
+            <div id="cfgView-customBills" class="hidden p-4 overflow-y-auto flex-grow">
+                <div class="mb-3 space-y-2">
+                    <p class="text-xs text-slate-600 dark:text-slate-300 font-medium">Personaliza el color de fondo o sube fotos propias para cada billete o moneda.</p>
+                    <div id="customBillsCurrencyBadge" class="text-[11px] text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950/50 rounded-xl p-2 border border-blue-100 dark:border-blue-900">
+                        <i class="fa-solid fa-circle-info mr-1"></i>
+                        Las imágenes personalizadas cargadas desde tu PC tienen prioridad sobre las fotos por defecto.
+                    </div>
+                </div>
                 <div id="appearanceList" class="space-y-2"></div>
-                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 justify-between items-center">
-                    <button onclick="app.resetAllAppearance()" class="text-xs text-rose-500 hover:underline">
-                        <i class="fa-solid fa-rotate-left mr-1"></i> Restaurar colores
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3 justify-between items-center">
+                    <button onclick="app.resetAllAppearance()" class="text-xs font-semibold text-rose-500 hover:text-rose-600 hover:underline flex items-center gap-1.5">
+                        <i class="fa-solid fa-rotate-left"></i> Restaurar todos los colores
                     </button>
-                    <button onclick="app.clearAllImages()" class="text-xs text-amber-500 hover:underline">
-                        <i class="fa-solid fa-image mr-1"></i> Quitar imágenes personalizadas
+                    <button onclick="app.clearAllImages()" class="text-xs font-semibold text-amber-500 hover:text-amber-600 hover:underline flex items-center gap-1.5">
+                        <i class="fa-solid fa-image"></i> Quitar imágenes personalizadas
                     </button>
                 </div>
             </div>
+
+            <!-- TAB 3: DENOMINACIONES Y MONEDA -->
+            <div id="cfgView-denoms" class="hidden p-4 overflow-y-auto flex-grow space-y-4">
+                <!-- Presets de Monedas y Países -->
+                <div>
+                    <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                        <div>
+                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Presets de País y Moneda</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Selecciona tu país para cargar sus denominaciones y símbolos oficiales.</div>
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Símbolo:</span>
+                            <input type="text" id="currencySymbolInput" onchange="app.setCurrencySymbol(this.value)" class="w-14 text-center text-xs font-bold font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-1 py-0.5 text-slate-800 dark:text-slate-100">
+                        </div>
+                    </div>
+                    <div id="currencyPresetGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800"></div>
+                </div>
+
+                <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
+
+                <!-- Denominaciones Activas -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Denominaciones Activas</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Puedes agregar denominaciones personalizadas o eliminar las no deseadas.</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mb-3">
+                        <div class="relative flex-grow">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono" id="addDenomSymbolPrefix">RD$</span>
+                            <input type="number" step="any" id="newDenomInput" placeholder="Valor (ej. 2000)" class="ring-input pl-14 w-full text-xs" onkeydown="if(event.key==='Enter') app.addDenomination()">
+                        </div>
+                        <button onclick="app.addDenomination()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 shrink-0 transition-colors">
+                            <i class="fa-solid fa-plus"></i> Agregar
+                        </button>
+                    </div>
+                    <div id="denomListConfig" class="flex flex-wrap gap-2 p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 min-h-[48px]"></div>
+                </div>
+            </div>
+
             <div class="p-3 bg-slate-50 dark:bg-slate-950 flex justify-between items-center shrink-0 border-t border-slate-100 dark:border-slate-800">
-                <button onclick="app.resetDenominations()" id="cfgResetBtn" class="text-xs text-rose-500 hover:underline hidden">Restaurar denominaciones</button>
+                <button onclick="app.resetDenominations()" id="cfgResetBtn" class="text-xs text-rose-500 hover:underline hidden flex items-center gap-1.5 font-semibold">
+                    <i class="fa-solid fa-rotate-left"></i> Restaurar al preset activo
+                </button>
                 <span></span>
-                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Listo</button>
+                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs">Listo</button>
             </div>
         </div>
     </div>
@@ -1468,7 +1626,7 @@
 
                 <!-- Gross Salary -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Sueldo Bruto (RD$)</label>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Sueldo Bruto</label>
                     <div class="relative">
                         <input type="number" step="0.01" id="editEmpGross" oninput="app.updateModalCalculations()" class="ring-input font-mono pl-8 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
                         <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
@@ -1482,7 +1640,7 @@
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Bonificaciones</label>
                             <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
-                                <button type="button" id="bonusTypeFixed" onclick="app.setModalAdjustmentType('bonus', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">RD$</button>
+                                <button type="button" id="bonusTypeFixed" onclick="app.setModalAdjustmentType('bonus', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
                                 <button type="button" id="bonusTypePercent" onclick="app.setModalAdjustmentType('bonus', 'percent')" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
                             </div>
                         </div>
@@ -1490,7 +1648,7 @@
                             <input type="number" step="0.01" id="editEmpBonus" oninput="app.updateModalCalculations()" class="ring-input font-mono text-sm pl-7" placeholder="0">
                             <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="bonusSymbol">$</span>
                         </div>
-                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-1.5 font-semibold text-right" id="bonusCalcDisplay">+RD$ 0.00</div>
+                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-1.5 font-semibold text-right" id="bonusCalcDisplay">+0.00</div>
                     </div>
 
                     <!-- Discounts -->
@@ -1498,7 +1656,7 @@
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Descuentos</label>
                             <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
-                                <button type="button" id="discountTypeFixed" onclick="app.setModalAdjustmentType('discount', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">RD$</button>
+                                <button type="button" id="discountTypeFixed" onclick="app.setModalAdjustmentType('discount', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
                                 <button type="button" id="discountTypePercent" onclick="app.setModalAdjustmentType('discount', 'percent')" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
                             </div>
                         </div>
@@ -1506,7 +1664,7 @@
                             <input type="number" step="0.01" id="editEmpDiscount" oninput="app.updateModalCalculations()" class="ring-input font-mono text-sm pl-7" placeholder="0">
                             <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="discountSymbol">$</span>
                         </div>
-                        <div class="text-[10px] text-rose-600 dark:text-rose-400 font-mono mt-1.5 font-semibold text-right" id="discountCalcDisplay">-RD$ 0.00</div>
+                        <div class="text-[10px] text-rose-600 dark:text-rose-400 font-mono mt-1.5 font-semibold text-right" id="discountCalcDisplay">-0.00</div>
                     </div>
                 </div>
 
@@ -1527,7 +1685,7 @@
                     <div id="loanDetailsExpanded" class="hidden pt-2 border-t border-slate-200/70 dark:border-slate-800 space-y-2">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Capital cuota (RD$)</label>
+                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Capital cuota</label>
                                 <input type="number" step="0.01" id="editEmpLoanPrincipal" oninput="app.calcLoanFromDetails()" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
                             </div>
                             <div>
@@ -1537,11 +1695,11 @@
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Monto Interés cuota (RD$)</label>
+                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Monto Interés cuota</label>
                                 <input type="number" step="0.01" id="editEmpLoanInterestAmount" oninput="app.calcLoanFromInterestAmount()" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Saldo restante total (RD$)</label>
+                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Saldo restante total</label>
                                 <input type="number" step="0.01" id="editEmpLoanRemainingBalance" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
                             </div>
                         </div>
@@ -1573,7 +1731,7 @@
                 <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1.5 flex items-center justify-between">
                         <span>Desglose estimado en efectivo</span>
-                        <span id="editModalBreakdownTotal" class="font-mono text-slate-700 dark:text-slate-200 font-bold">RD$ 0.00</span>
+                        <span id="editModalBreakdownTotal" class="font-mono text-slate-700 dark:text-slate-200 font-bold">0.00</span>
                     </div>
                     <div id="editModalBreakdownChips" class="flex flex-wrap items-center gap-1.5 min-h-[32px] p-2 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200/70 dark:border-slate-800">
                         <!-- chips injected live -->
@@ -1599,24 +1757,374 @@
     <!-- JavaScript Logic -->
     <script>
         const app = (() => {
-            // Default currency image paths from repository
+            // Default currency image paths per currency code
             const DEFAULT_BILL_IMAGES = {
-                2000: 'imagenes/billetes/2000pesos.jpg',
-                1000: 'imagenes/billetes/1000pesos.jpg',
-                500:  'imagenes/billetes/500pesos.jpg',
-                200:  'imagenes/billetes/200pesos.jpg',
-                100:  'imagenes/billetes/100pesos.jpg',
-                50:   'imagenes/billetes/50pesos.jpg',
-                25:   'imagenes/monedas/25pesos.jpg',
-                10:   'imagenes/monedas/10pesos.jpg',
-                5:    'imagenes/monedas/5pesos.jpg',
-                1:    'imagenes/monedas/1peso.jpg',
+                DOP: {
+                    2000: 'imagenes/DOP/billetes/2000pesos.jpg',
+                    1000: 'imagenes/DOP/billetes/1000pesos.jpg',
+                    500:  'imagenes/DOP/billetes/500pesos.jpg',
+                    200:  'imagenes/DOP/billetes/200pesos.jpg',
+                    100:  'imagenes/DOP/billetes/100pesos.jpg',
+                    50:   'imagenes/DOP/billetes/50pesos.jpg',
+                    25:   'imagenes/DOP/monedas/25pesos.jpg',
+                    10:   'imagenes/DOP/monedas/10pesos.jpg',
+                    5:    'imagenes/DOP/monedas/5pesos.jpg',
+                    1:    'imagenes/DOP/monedas/1peso.jpg',
+                }
             };
 
-            const isCoin = (denom) => [25, 10, 5, 1].includes(Number(denom));
+            // Global Currency Presets Catalog
+            const CURRENCY_PRESETS = {
+                DOP: {
+                    code: 'DOP',
+                    flag: '🇩🇴',
+                    name: 'Rep. Dominicana',
+                    currencyName: 'Peso Dominicano',
+                    symbol: 'RD$',
+                    denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
+                    coinDenoms: [25, 10, 5, 1],
+                    images: {
+                        2000: 'imagenes/DOP/billetes/2000pesos.jpg',
+                        1000: 'imagenes/DOP/billetes/1000pesos.jpg',
+                        500:  'imagenes/DOP/billetes/500pesos.jpg',
+                        200:  'imagenes/DOP/billetes/200pesos.jpg',
+                        100:  'imagenes/DOP/billetes/100pesos.jpg',
+                        50:   'imagenes/DOP/billetes/50pesos.jpg',
+                        25:   'imagenes/DOP/monedas/25pesos.jpg',
+                        10:   'imagenes/DOP/monedas/10pesos.jpg',
+                        5:    'imagenes/DOP/monedas/5pesos.jpg',
+                        1:    'imagenes/DOP/monedas/1peso.jpg',
+                    },
+                    colors: {
+                        2000: '#4A90E2',
+                        1000: '#E05A6D',
+                        500:  '#26A69A',
+                        200:  '#D81B60',
+                        100:  '#F57C00',
+                        50:   '#8E44AD',
+                        25:   '#b8952a',
+                        10:   '#607d8b',
+                        5:    '#8d6e63',
+                        1:    '#a0784c'
+                    }
+                },
+                USD: {
+                    code: 'USD',
+                    flag: '🇺🇸',
+                    name: 'EE.UU. / Dólar Global',
+                    currencyName: 'Dólar Estadounidense',
+                    symbol: '$',
+                    denominations: [100, 50, 20, 10, 5, 2, 1, 0.25, 0.10, 0.05, 0.01],
+                    coinDenoms: [1, 0.25, 0.10, 0.05, 0.01],
+                    colors: {
+                        100: '#14532d',
+                        50: '#166534',
+                        20: '#15803d',
+                        10: '#16a34a',
+                        5: '#22c55e',
+                        2: '#4ade80',
+                        1: '#86efac',
+                        0.25: '#94a3b8',
+                        0.10: '#cbd5e1',
+                        0.05: '#cbd5e1',
+                        0.01: '#b45309'
+                    }
+                },
+                EUR: {
+                    code: 'EUR',
+                    flag: '🇪🇺',
+                    name: 'Zona Euro',
+                    currencyName: 'Euro',
+                    symbol: '€',
+                    denominations: [200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10, 0.05],
+                    coinDenoms: [2, 1, 0.50, 0.20, 0.10, 0.05],
+                    colors: {
+                        200: '#ca8a04',
+                        100: '#15803d',
+                        50: '#ea580c',
+                        20: '#1d4ed8',
+                        10: '#dc2626',
+                        5: '#64748b',
+                        2: '#b45309',
+                        1: '#d97706',
+                        0.50: '#eab308',
+                        0.20: '#eab308',
+                        0.10: '#eab308',
+                        0.05: '#b45309'
+                    }
+                },
+                MXN: {
+                    code: 'MXN',
+                    flag: '🇲🇽',
+                    name: 'México',
+                    currencyName: 'Peso Mexicano',
+                    symbol: '$',
+                    denominations: [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.50],
+                    coinDenoms: [10, 5, 2, 1, 0.50],
+                    colors: {
+                        1000: '#0369a1',
+                        500: '#15803d',
+                        200: '#4d7c0f',
+                        100: '#b91c1c',
+                        50: '#c026d3',
+                        20: '#0284c7',
+                        10: '#d97706',
+                        5: '#ca8a04',
+                        2: '#ca8a04',
+                        1: '#ca8a04',
+                        0.50: '#94a3b8'
+                    }
+                },
+                COP: {
+                    code: 'COP',
+                    flag: '🇨🇴',
+                    name: 'Colombia',
+                    currencyName: 'Peso Colombiano',
+                    symbol: '$',
+                    denominations: [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50],
+                    coinDenoms: [1000, 500, 200, 100, 50],
+                    colors: {
+                        100000: '#1e3a8a',
+                        50000: '#6b21a8',
+                        20000: '#ea580c',
+                        10000: '#be123c',
+                        5000: '#047857',
+                        2000: '#0284c7',
+                        1000: '#b45309',
+                        500: '#b45309',
+                        200: '#64748b',
+                        100: '#64748b',
+                        50: '#94a3b8'
+                    }
+                },
+                BRL: {
+                    code: 'BRL',
+                    flag: '🇧🇷',
+                    name: 'Brasil',
+                    currencyName: 'Real Brasileño',
+                    symbol: 'R$',
+                    denominations: [200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.25, 0.10, 0.05],
+                    coinDenoms: [1, 0.50, 0.25, 0.10, 0.05],
+                    colors: {
+                        200: '#78716c',
+                        100: '#0284c7',
+                        50: '#ea580c',
+                        20: '#ca8a04',
+                        10: '#dc2626',
+                        5: '#7c3aed',
+                        2: '#0d9488',
+                        1: '#d97706',
+                        0.50: '#94a3b8',
+                        0.25: '#b45309',
+                        0.10: '#b45309',
+                        0.05: '#b45309'
+                    }
+                },
+                CLP: {
+                    code: 'CLP',
+                    flag: '🇨🇱',
+                    name: 'Chile',
+                    currencyName: 'Peso Chileno',
+                    symbol: '$',
+                    denominations: [20000, 10000, 5000, 2000, 1000, 500, 100, 50, 10],
+                    coinDenoms: [500, 100, 50, 10],
+                    colors: {
+                        20000: '#ea580c',
+                        10000: '#0284c7',
+                        5000: '#be123c',
+                        2000: '#7c3aed',
+                        1000: '#15803d',
+                        500: '#b45309',
+                        100: '#ca8a04',
+                        50: '#ca8a04',
+                        10: '#94a3b8'
+                    }
+                },
+                PEN: {
+                    code: 'PEN',
+                    flag: '🇵🇪',
+                    name: 'Perú',
+                    currencyName: 'Sol Peruano',
+                    symbol: 'S/',
+                    denominations: [200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10],
+                    coinDenoms: [5, 2, 1, 0.50, 0.20, 0.10],
+                    colors: {
+                        200: '#7e22ce',
+                        100: '#0284c7',
+                        50: '#991b1b',
+                        20: '#ea580c',
+                        10: '#15803d',
+                        5: '#b45309',
+                        2: '#ca8a04',
+                        1: '#ca8a04',
+                        0.50: '#94a3b8',
+                        0.20: '#94a3b8',
+                        0.10: '#94a3b8'
+                    }
+                },
+                ARS: {
+                    code: 'ARS',
+                    flag: '🇦🇷',
+                    name: 'Argentina',
+                    currencyName: 'Peso Argentino',
+                    symbol: '$',
+                    denominations: [20000, 10000, 2000, 1000, 500, 200, 100],
+                    coinDenoms: [100],
+                    colors: {
+                        20000: '#1e3a8a',
+                        10000: '#0369a1',
+                        2000: '#0f766e',
+                        1000: '#ea580c',
+                        500: '#15803d',
+                        200: '#0284c7',
+                        100: '#7c3aed'
+                    }
+                },
+                RUB: {
+                    code: 'RUB',
+                    flag: '🇷🇺',
+                    name: 'Rusia',
+                    currencyName: 'Rublo Ruso',
+                    symbol: '₽',
+                    denominations: [5000, 2000, 1000, 500, 200, 100, 50, 10, 5, 2, 1],
+                    coinDenoms: [10, 5, 2, 1],
+                    colors: {
+                        5000: '#b91c1c',
+                        2000: '#1d4ed8',
+                        1000: '#047857',
+                        500: '#7c3aed',
+                        200: '#16a34a',
+                        100: '#ea580c',
+                        50: '#0284c7',
+                        10: '#b45309',
+                        5: '#ca8a04',
+                        2: '#94a3b8',
+                        1: '#94a3b8'
+                    }
+                },
+                JPY: {
+                    code: 'JPY',
+                    flag: '🇯🇵',
+                    name: 'Japón',
+                    currencyName: 'Yen Japonés',
+                    symbol: '¥',
+                    denominations: [10000, 5000, 2000, 1000, 500, 100, 50, 10, 5, 1],
+                    coinDenoms: [500, 100, 50, 10, 5, 1],
+                    colors: {
+                        10000: '#78716c',
+                        5000: '#7c3aed',
+                        2000: '#15803d',
+                        1000: '#0284c7',
+                        500: '#ca8a04',
+                        100: '#94a3b8',
+                        50: '#94a3b8',
+                        10: '#b45309',
+                        5: '#ca8a04',
+                        1: '#cbd5e1'
+                    }
+                },
+                GBP: {
+                    code: 'GBP',
+                    flag: '🇬🇧',
+                    name: 'Reino Unido',
+                    currencyName: 'Libra Esterlina',
+                    symbol: '£',
+                    denominations: [50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01],
+                    coinDenoms: [2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01],
+                    colors: {
+                        50: '#b91c1c',
+                        20: '#6b21a8',
+                        10: '#ea580c',
+                        5: '#0284c7',
+                        2: '#b45309',
+                        1: '#ca8a04',
+                        0.50: '#94a3b8',
+                        0.20: '#94a3b8',
+                        0.10: '#94a3b8',
+                        0.05: '#94a3b8',
+                        0.02: '#b45309',
+                        0.01: '#b45309'
+                    }
+                },
+                CHF: {
+                    code: 'CHF',
+                    flag: '🇨🇭',
+                    name: 'Suiza',
+                    currencyName: 'Franco Suizo',
+                    symbol: 'CHF',
+                    denominations: [1000, 200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10, 0.05],
+                    coinDenoms: [5, 2, 1, 0.50, 0.20, 0.10, 0.05],
+                    colors: {
+                        1000: '#7c3aed',
+                        200: '#78716c',
+                        100: '#0284c7',
+                        50: '#16a34a',
+                        20: '#dc2626',
+                        10: '#ca8a04',
+                        5: '#94a3b8',
+                        2: '#94a3b8',
+                        1: '#94a3b8',
+                        0.50: '#94a3b8',
+                        0.20: '#ca8a04',
+                        0.10: '#ca8a04',
+                        0.05: '#ca8a04'
+                    }
+                },
+                INR: {
+                    code: 'INR',
+                    flag: '🇮🇳',
+                    name: 'India',
+                    currencyName: 'Rupia India',
+                    symbol: '₹',
+                    denominations: [500, 200, 100, 50, 20, 10, 5, 2, 1],
+                    coinDenoms: [20, 10, 5, 2, 1],
+                    colors: {
+                        500: '#78716c',
+                        200: '#ea580c',
+                        100: '#6366f1',
+                        50: '#06b6d4',
+                        20: '#ca8a04',
+                        10: '#78350f',
+                        5: '#ca8a04',
+                        2: '#94a3b8',
+                        1: '#94a3b8'
+                    }
+                },
+                PHP: {
+                    code: 'PHP',
+                    flag: '🇵🇭',
+                    name: 'Filipinas',
+                    currencyName: 'Peso Filipino',
+                    symbol: '₱',
+                    denominations: [1000, 500, 200, 100, 50, 20, 10, 5, 1],
+                    coinDenoms: [20, 10, 5, 1],
+                    colors: {
+                        1000: '#0284c7',
+                        500: '#ca8a04',
+                        200: '#15803d',
+                        100: '#7c3aed',
+                        50: '#dc2626',
+                        20: '#ea580c',
+                        10: '#94a3b8',
+                        5: '#94a3b8',
+                        1: '#94a3b8'
+                    }
+                }
+            };
+
+            const isCoin = (denom) => {
+                const d = Number(denom);
+                if (state.coinDenoms && Array.isArray(state.coinDenoms)) {
+                    return state.coinDenoms.includes(d);
+                }
+                return [25, 10, 5, 1].includes(d);
+            };
 
             // --- STATE ---
             let state = {
+                currency: 'DOP',
+                currencySymbol: 'RD$',
+                coinDenoms: [25, 10, 5, 1],
                 denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
                 inventory: {}, 
                 employees: [], 
@@ -1625,6 +2133,11 @@
                 billImages: {},   // { 1000: 'data:image/...' } — custom base64 images
                 useDefaultImages: true,
                 roundCoins: true,
+                breakdownColumns: 5,        // 3 | 4 | 5 | 6 | 'auto'
+                breakdownGroupByType: false, // true = Billetes arriba / Monedas abajo
+                breakdownShowZeros: false,   // true = Modo bandeja fija con ceros atenuados
+                breakdownSize: 'normal',     // 'compact' | 'normal' | 'large'
+                breakdownFormat: 'badge',    // 'badge' | 'qty_x_denom' | 'denom_x_qty'
                 payrollMode: 'normal',
                 payrollLoanFund: 0,
                 importSnapshot: null,
@@ -1703,8 +2216,16 @@
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     state = { ...state, ...parsed };
+                    if (!state.currency) state.currency = 'DOP';
+                    if (!state.currencySymbol) state.currencySymbol = 'RD$';
+                    if (!state.coinDenoms) state.coinDenoms = [25, 10, 5, 1];
                     if (state.useDefaultImages === undefined) state.useDefaultImages = true;
                     if (state.roundCoins === undefined) state.roundCoins = true;
+                    if (state.breakdownColumns === undefined) state.breakdownColumns = 5;
+                    if (state.breakdownGroupByType === undefined) state.breakdownGroupByType = false;
+                    if (state.breakdownShowZeros === undefined) state.breakdownShowZeros = false;
+                    if (state.breakdownSize === undefined) state.breakdownSize = 'normal';
+                    if (state.breakdownFormat === undefined) state.breakdownFormat = 'badge';
                     if (state.theme === undefined) {
                         state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                     }
@@ -1728,8 +2249,13 @@
                 renderAll();
             };
 
-            // --- CORE LOGIC: DISTRIBUTION ---
-            const fmt = (num) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(num);
+            // --- CORE LOGIC: DISTRIBUTION & CURRENCY ---
+            const getCurrencySymbol = () => state.currencySymbol || 'RD$';
+            const fmt = (num) => {
+                const val = Number(num) || 0;
+                const isNeg = val < 0;
+                return `${isNeg ? '-' : ''}${getCurrencySymbol()} ${fmtNum(Math.abs(val))}`;
+            };
             const fmtNum = (num) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(Number(num) || 0));
             const showToast = (message, type = 'success') => {
                 const previous = document.getElementById('appToast');
@@ -2181,23 +2707,84 @@
                 saveData();
             };
 
-            const addDenomination = () => {
-                const val = parseFloat(document.getElementById('newDenomInput').value);
-                if (val && !state.denominations.includes(val)) {
-                    state.denominations.push(val);
-                    state.denominations.sort((a,b) => b-a);
-                    state.inventory[val] = 0;
-                    document.getElementById('newDenomInput').value = '';
-                    saveData();
-                    renderConfigModal();
+            const setCurrencyPreset = (key) => {
+                const preset = CURRENCY_PRESETS[key];
+                if (!preset) return;
+                state.currency = preset.code;
+                state.currencySymbol = preset.symbol;
+                state.denominations = [...preset.denominations];
+                state.coinDenoms = [...preset.coinDenoms];
+                
+                // If DOP, default to photo images; for others default to vector chips unless customized
+                if (key === 'DOP') {
+                    state.useDefaultImages = true;
                 }
-            };
+                
+                // Merge preset colors into state.billColors if defined
+                if (preset.colors) {
+                    state.billColors = { ...preset.colors, ...state.billColors };
+                }
 
-            const removeDenom = (val) => {
-                state.denominations = state.denominations.filter(d => d !== val);
-                delete state.inventory[val];
+                // Ensure inventory keys exist
+                state.denominations.forEach(d => {
+                    if (state.inventory[d] === undefined) state.inventory[d] = 0;
+                });
+
                 saveData();
                 renderConfigModal();
+                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAll();
+                showToast(`Moneda cambiada a ${preset.name} (${preset.symbol})`, 'success');
+            };
+
+            const setCurrencySymbol = (sym) => {
+                const val = (sym || '').trim() || '$';
+                state.currencySymbol = val;
+                saveData();
+                renderConfigModal();
+                renderAppearanceConfig();
+                renderAll();
+                showToast(`Símbolo de moneda actualizado a "${val}"`, 'success');
+            };
+
+            const addDenomination = () => {
+                const input = document.getElementById('newDenomInput');
+                if (!input) return;
+                const val = parseFloat(input.value);
+                if (isNaN(val) || val <= 0) {
+                    showToast('Ingresa un valor numérico válido mayor a 0', 'warning');
+                    return;
+                }
+                if (state.denominations.includes(val)) {
+                    showToast(`La denominación ${val} ya existe en la lista`, 'warning');
+                    return;
+                }
+                state.denominations.push(val);
+                state.denominations.sort((a, b) => b - a);
+                if (state.inventory[val] === undefined) state.inventory[val] = 0;
+                input.value = '';
+                saveData();
+                renderConfigModal();
+                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAll();
+                showToast(`Denominación ${val} agregada correctamente`, 'success');
+            };
+
+            const removeDenom = (denom) => {
+                if (state.denominations.length <= 1) {
+                    showToast('Debes mantener al menos una denominación activa', 'warning');
+                    return;
+                }
+                state.denominations = state.denominations.filter(d => Number(d) !== Number(denom));
+                delete state.inventory[denom];
+                saveData();
+                renderConfigModal();
+                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAll();
+                showToast(`Denominación ${denom} eliminada`, 'success');
             };
 
             const resetAll = () => {
@@ -2208,9 +2795,18 @@
             };
 
             const resetDenominations = () => {
-                state.denominations = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
+                const preset = CURRENCY_PRESETS[state.currency || 'DOP'] || CURRENCY_PRESETS.DOP;
+                state.denominations = [...preset.denominations];
+                state.coinDenoms = [...preset.coinDenoms];
+                state.denominations.forEach(d => {
+                    if (state.inventory[d] === undefined) state.inventory[d] = 0;
+                });
                 saveData();
                 renderConfigModal();
+                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAll();
+                showToast(`Denominaciones restauradas al preset ${preset.code}`, 'success');
             };
 
             const exportToCSV = () => {
@@ -2248,7 +2844,7 @@
 
                 // Summary rows
                 csv += `\n"--- RESUMEN FINANCIERO Y SOLICITUD BANCARIA ---"\n`;
-                csv += `"Concepto","Monto (RD$)"\n`;
+                csv += `"Concepto","Monto (${getCurrencySymbol()})"\n`;
                 if (hasPayroll) {
                     csv += `"Total Sueldo Bruto",${payrollSummary.gross}\n`;
                     csv += `"Total Bonificaciones",${payrollSummary.bonuses}\n`;
@@ -2343,6 +2939,7 @@
                 const hasPayroll = payrollSummary.count > 0;
                 const wb = XLSX.utils.book_new();
                 const today = new Date().toLocaleDateString('es-DO');
+                const sym = getCurrencySymbol();
 
                 // ── Sheet 1: Resumen y Banco ──
                 const s1Data = [
@@ -2350,7 +2947,7 @@
                     [`Fecha: ${today}`],
                     [],
                     ['1. RESUMEN DE BILLETES Y MONEDAS PARA PAGO EN CAJA'],
-                    ['Denominación (RD$)', 'Cantidad de Billetes', 'Valor Total (RD$)'],
+                    [`Denominación (${sym})`, 'Cantidad de Billetes', `Valor Total (${sym})`],
                 ];
                 let grandTotal = 0;
                 denoms.forEach(d => {
@@ -2364,7 +2961,7 @@
 
                 // Solicitud al banco
                 s1Data.push(['2. SOLICITUD DE RETIRO AL BANCO (VENTANILLA)']);
-                s1Data.push(['Denominación (RD$)', 'Cantidad a Retirar', 'Valor Total (RD$)']);
+                s1Data.push([`Denominación (${sym})`, 'Cantidad a Retirar', `Valor Total (${sym})`]);
                 denoms.forEach(d => {
                     const qty = bankSummary[d] || 0;
                     const val = qty * d;
@@ -2375,7 +2972,7 @@
 
                 if (hasPayroll || loanFundAmount > 0) {
                     s1Data.push(['3. RESUMEN DE PRÉSTAMOS Y RESERVAS']);
-                    s1Data.push(['Concepto', '', 'Monto (RD$)']);
+                    s1Data.push(['Concepto', '', `Monto (${sym})`]);
                     s1Data.push(['Sueldo Bruto Total', '', payrollSummary.gross]);
                     s1Data.push(['Bonificaciones Totales', '', payrollSummary.bonuses]);
                     s1Data.push(['Descuentos Totales', '', payrollSummary.discounts]);
@@ -2391,8 +2988,8 @@
                 XLSX.utils.book_append_sheet(wb, ws1, 'Resumen y Banco');
 
                 // ── Sheet 2: Distribución por Empleado ──
-                const payrollHeaders = hasPayroll ? ['Bruto', 'Bonif.', 'Desc.', 'Despues desc.', 'Prestamos', 'Neto'] : ['Monto (RD$)'];
-                const headerRow = ['#', 'Nombre', ...payrollHeaders, ...denoms.map(d => `RD$${d}`), 'Estado', 'Pagado'];
+                const payrollHeaders = hasPayroll ? ['Bruto', 'Bonif.', 'Desc.', 'Despues desc.', 'Prestamos', 'Neto'] : [`Monto (${sym})`];
+                const headerRow = ['#', 'Nombre', ...payrollHeaders, ...denoms.map(d => `${sym}${d}`), 'Estado', 'Pagado'];
                 const s2Data = [
                     ['DISTRIBUCIÓN DETALLADA POR EMPLEADO'],
                     [`Fecha: ${today}`],
@@ -2458,7 +3055,7 @@
                     [`Fecha: ${today}`],
                     ['Entidad / Empresa: Nómina Split X'],
                     [],
-                    ['Denominación (RD$)', 'Cantidad Solicitada', 'Valor Total (RD$)'],
+                    [`Denominación (${sym})`, 'Cantidad Solicitada', `Valor Total (${sym})`],
                 ];
                 denoms.forEach(d => {
                     const qty = bankSummary[d] || 0;
@@ -3078,6 +3675,9 @@
                 renderBank();
                 renderConfigModal();
                 updateTotals();
+                if (document.getElementById('appearanceLivePreviewCard')) {
+                    renderAppearancePreviewCard();
+                }
             };
 
             const renderInventory = (leftoverInventory, processedEmployees) => {
@@ -3336,26 +3936,31 @@
                 saveData();
             };
 
-            // Colores oficiales de los billetes y monedas de la República Dominicana
+            // Colores oficiales de los billetes y monedas de la República Dominicana (6ª familia, emisión 2014)
             const BILL_COLORS = {
                 // === BILLETES ===
-                2000: { bg: '#4A90E2', text: '#0d3880', border: '#2563eb' },   // Azul
-                1000: { bg: '#E05A6D', text: '#7f1d1d', border: '#e11d48' },   // Rojo
-                500:  { bg: '#26A69A', text: '#064e3b', border: '#0d9488' },   // Turquesa
-                200:  { bg: '#D81B60', text: '#701a75', border: '#c026d3' },   // Rosa/Magenta
-                100:  { bg: '#F57C00', text: '#7c2d12', border: '#ea580c' },   // Naranja
-                50:   { bg: '#8E44AD', text: '#581c87', border: '#9333ea' },   // Morado
-                20:   { bg: '#7a5c38', text: '#451a03', border: '#78350f' },   // Café
+                2000: { bg: '#4A90E2', text: '#ffffff', border: '#2e5e3e' },   // Azul
+                1000: { bg: '#E05A6D', text: '#ffffff', border: '#96281b' },   // Rojo
+                500:  { bg: '#26A69A', text: '#ffffff', border: '#117080' },   // Turquesa
+                200:  { bg: '#D81B60', text: '#ffffff', border: '#a83f61' },   // Rosa/Magenta
+                100:  { bg: '#F57C00', text: '#ffffff', border: '#ae5214' },   // Naranja
+                50:   { bg: '#8E44AD', text: '#ffffff', border: '#612d76' },   // Morado
+                20:   { bg: '#7a5c38', text: '#ffffff', border: '#5e4529' },   // Café
                 // === MONEDAS ===
-                25:   { bg: '#b8952a', text: '#5c4709', border: '#8f7020' },   // Dorada
-                10:   { bg: '#607d8b', text: '#263238', border: '#455a64' },   // Plateada
-                5:    { bg: '#8d6e63', text: '#3e2723', border: '#6d4c41' },   // Bronce
-                1:    { bg: '#a0784c', text: '#4e342e', border: '#7d5c38' },   // Cobre
+                25:   { bg: '#b8952a', text: '#ffffff', border: '#8f7020' },   // Dorada
+                10:   { bg: '#607d8b', text: '#ffffff', border: '#455a64' },   // Plateada
+                5:    { bg: '#8d6e63', text: '#ffffff', border: '#6d4c41' },   // Bronce
+                1:    { bg: '#a0784c', text: '#ffffff', border: '#7d5c38' },   // Cobre
             };
 
             const getBillImage = (denom) => {
                 if (state.billImages && state.billImages[denom]) return state.billImages[denom];
-                if (state.useDefaultImages !== false && DEFAULT_BILL_IMAGES[denom]) return DEFAULT_BILL_IMAGES[denom];
+                if (state.useDefaultImages !== false) {
+                    const curr = state.currency || 'DOP';
+                    const preset = CURRENCY_PRESETS[curr];
+                    if (preset?.images && preset.images[denom]) return preset.images[denom];
+                    if (DEFAULT_BILL_IMAGES[curr] && DEFAULT_BILL_IMAGES[curr][denom]) return DEFAULT_BILL_IMAGES[curr][denom];
+                }
                 return null;
             };
 
@@ -3372,7 +3977,12 @@
                 if (customColor) {
                     return `background-color:${customColor};color:#fff;border-color:${customColor};filter:brightness(0.95);`;
                 }
-                // Default vector palette with original colors
+                // Preset color or default vector palette
+                const curr = state.currency || 'DOP';
+                const presetHex = CURRENCY_PRESETS[curr]?.colors?.[denom];
+                if (presetHex) {
+                    return `background-color:${presetHex};color:#fff;border-color:${presetHex};`;
+                }
                 const c = BILL_COLORS[denom] || { bg: '#e2e8f0', text: '#475569', border: '#cbd5e1' };
                 return `background-color:${c.bg};color:${c.text};border-color:${c.border};border-width:1.5px;`;
             };
@@ -3527,274 +4137,348 @@
                 container.innerHTML = '';
 
                 data.forEach((emp, index) => {
-                    let breakdownHTML = '';
-                    const visibleDistribution = emp.distribution;
-                    state.denominations.forEach(d => {
-                        if (visibleDistribution[d]) {
-                            const billStyle = getBillStyle(d);
-                            const hasImg = !!getBillImage(d);
-                            const isCoinDenom = isCoin(d);
-                            const isRound = state.roundCoins !== false && isCoinDenom;
-                            const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
-                            const shapeStyle = isRound ? 'width:30px;height:30px;' : 'width:54px;height:28px;';
-                            const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${d}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${d}</span>`);
+                    const card = buildEmployeeCardElement(emp, index, false);
+                    container.appendChild(card);
+                });
+            };
 
-                            breakdownHTML += `
-                                <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;">
-                                    <div class="bill-chip ${shapeClass}" style="${billStyle};${shapeStyle}">
-                                        ${innerHTML}
-                                    </div>
-                                    <span class="bill-badge">${visibleDistribution[d]}</span>
-                                </div>
-                            `;
-                        }
-                    });
-
-                    const isPaid = emp.paid || false;
-                    const effAmount = getEffectiveEmployeeAmount(emp);
-                    const hasCents = (effAmount % 1) !== 0;
-                    const isDeficit = emp.status !== 'ok' || (emp._missingAmount && emp._missingAmount > 0);
-
-                    // Determine Notification Color & State
-                    let statusClass = 'status-green';
-                    let statusTooltip = '100% Cubierto en caja · Listo para pagar';
-                    
-                    if (isPaid) {
-                        statusClass = 'status-paid';
-                        statusTooltip = 'Pagado';
-                    } else if (isDeficit) {
-                        statusClass = 'status-red';
-                        statusTooltip = `Faltan ${fmt(emp._missingAmount || 0)} en caja`;
-                    } else if (hasCents) {
-                        statusClass = 'status-yellow';
-                        statusTooltip = 'Monto con centavos · Requiere redondeo';
+            const buildEmployeeCardElement = (emp, index, isPreview = false) => {
+                const SIZE_CONFIGS = {
+                    compact: {
+                        banknote: 'width:42px;height:22px;font-size:9px;',
+                        coin: 'width:24px;height:24px;font-size:9px;',
+                        badge: 'width:15px;height:15px;font-size:9px;top:-5px;right:-5px;',
+                        textMultiplier: 'text-xs font-bold'
+                    },
+                    normal: {
+                        banknote: 'width:54px;height:28px;font-size:11px;',
+                        coin: 'width:30px;height:30px;font-size:11px;',
+                        badge: 'width:18px;height:18px;font-size:11px;top:-6px;right:-6px;',
+                        textMultiplier: 'text-sm font-bold'
+                    },
+                    large: {
+                        banknote: 'width:68px;height:35px;font-size:13px;',
+                        coin: 'width:38px;height:38px;font-size:13px;',
+                        badge: 'width:22px;height:22px;font-size:12.5px;top:-7px;right:-7px;',
+                        textMultiplier: 'text-base font-extrabold'
                     }
+                };
 
-                    // Build Subtitle / Deduction Line: Vertical Math Operation (Right aligned numbers)
-                    let subTextHTML = '';
-                    const p = emp.payroll;
-                    const isNormalView = state.payrollMode !== 'deductions';
-                    const isExpanded = expandedEmpCards.has(emp.id);
+                const currentSize = SIZE_CONFIGS[state.breakdownSize] || SIZE_CONFIGS.normal;
+                const currentFormat = state.breakdownFormat || 'badge';
 
-                    if (p && (p.gross > 0 || p.bonuses > 0 || p.discounts > 0 || p.loans > 0 || p.afterDiscounts > 0)) {
-                        const grossVal = (p.gross !== undefined && p.gross !== null && p.gross > 0)
-                            ? p.gross
-                            : (emp.originalData?.payroll?.gross || emp.originalData?.amount || emp.amount);
-                        const bonuses = Number(p.bonuses) || 0;
-                        const discounts = Number(p.discounts) || 0;
-                        const loans = Number(p.loans) || 0;
-                        const netBeforeLoan = (p.afterDiscounts !== undefined && p.afterDiscounts !== null) 
-                            ? p.afterDiscounts 
-                            : (grossVal + bonuses - discounts);
+                // Helper to render single chip with tooltip, size scale and custom format
+                const renderSingleChip = (d, count) => {
+                    const billStyle = getBillStyle(d);
+                    const hasImg = !!getBillImage(d);
+                    const isCoinDenom = isCoin(d);
+                    const isRound = state.roundCoins !== false && isCoinDenom;
+                    const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
+                    const shapeStyle = isRound ? currentSize.coin : currentSize.banknote;
+                    const isZero = count === 0;
+                    const chipOpacity = isZero ? 'opacity:0.25;filter:grayscale(100%);' : '';
+                    const badgeStyle = `${currentSize.badge};${isZero ? 'background:#64748b;color:#f1f5f9;opacity:0.6;' : ''}`;
+                    const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${d}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${d}</span>`);
+                    const totalVal = count * Number(d);
+                    const tooltip = count > 0 ? `${count} × ${getCurrencySymbol()} ${fmtNum(d)} = ${getCurrencySymbol()} ${fmtNum(totalVal)}` : `${getCurrencySymbol()} ${fmtNum(d)} (0 asignados)`;
 
-                        if (isNormalView) {
-                            // ── MODO SIN PRÉSTAMOS (Normal) ──
-                            const netAdj = bonuses - discounts;
-                            const adjColor = netAdj > 0 ? 'text-emerald-600 dark:text-emerald-400' : (netAdj < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200');
-                            const adjSign = netAdj > 0 ? '+ ' : (netAdj < 0 ? '- ' : '');
+                    const chipHTML = `
+                        <div class="bill-chip ${shapeClass} chip-size-${state.breakdownSize || 'normal'}" style="${billStyle};${shapeStyle}">
+                            ${innerHTML}
+                        </div>
+                    `;
 
-                            if (isExpanded) {
-                                // Al dar click: Ajuste cambia por Bonificación y Descuento
-                                subTextHTML = `
-                                    <div class="emp-calc-stack font-mono text-xs mt-1">
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-                                            <span>Bruto:</span>
-                                            <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
-                                            
-                                            <span>Bonificación:</span>
-                                            <span class="text-right text-emerald-600 dark:text-emerald-400 font-semibold">+ ${fmtNum(bonuses)}</span>
-                                            
-                                            <span>Descuento:</span>
-                                            <span class="text-right text-rose-600 dark:text-rose-400 font-semibold">- ${fmtNum(discounts)}</span>
-                                        </div>
-                                        <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight mt-0.5 items-baseline">
-                                            <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                Neto <i class="fa-solid fa-chevron-up text-[8px] text-slate-400"></i>
-                                            </span>
-                                            <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(effAmount)}</span>
-                                        </div>
-                                    </div>
-                                `;
-                            } else {
-                                // Vista Normal inicial: solo Bruto, Ajuste y Neto
-                                subTextHTML = `
-                                    <div class="emp-calc-stack font-mono text-xs mt-1">
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-                                            <span>Bruto:</span>
-                                            <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
-                                            
-                                            <span>Ajuste:</span>
-                                            <span class="text-right ${adjColor} font-semibold">${adjSign}${fmtNum(Math.abs(netAdj))}</span>
-                                        </div>
-                                        <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight mt-0.5 items-baseline">
-                                            <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                Neto <i class="fa-solid fa-chevron-down text-[8px] text-slate-400 group-hover:text-blue-500"></i>
-                                            </span>
-                                            <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(effAmount)}</span>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                        } else {
-                            // ── MODO CON PRÉSTAMOS (CP) ──
-                            if (isExpanded) {
-                                // Vista Completa al presionar (Formato Papel y Lápiz de 2 etapas):
-                                // Bruto -> Bonificación -> Descuento -> LÍNEA 1 -> Neto -> Préstamo -> LÍNEA 2 -> Restante
-                                subTextHTML = `
-                                    <div class="emp-calc-stack font-mono text-xs mt-1">
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-                                            <span>Bruto:</span>
-                                            <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
-                                            
-                                            <span>Bonificación:</span>
-                                            <span class="text-right text-emerald-600 dark:text-emerald-400 font-semibold">+ ${fmtNum(bonuses)}</span>
-                                            
-                                            <span>Descuento:</span>
-                                            <span class="text-right text-rose-600 dark:text-rose-400 font-semibold">- ${fmtNum(discounts)}</span>
-                                        </div>
-                                        
-                                        <!-- Línea divisoria 1 -->
-                                        <div class="border-t border-slate-300 dark:border-slate-600 my-1"></div>
-                                        
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-                                            <span>Neto:</span>
-                                            <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(netBeforeLoan)}</span>
-                                            
-                                            <span>Préstamo:</span>
-                                            <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(loans)}</span>
-                                        </div>
-                                        
-                                        <!-- Línea divisoria 2 -->
-                                        <div class="border-t-2 border-slate-400 dark:border-slate-500 my-1"></div>
-                                        
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold leading-tight items-baseline">
-                                            <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                Restante <i class="fa-solid fa-chevron-up text-[8px] text-slate-400"></i>
-                                            </span>
-                                            <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(emp.amount)}</span>
-                                        </div>
-                                    </div>
-                                `;
-                            } else {
-                                // Vista resumida inicial en modo Con Préstamos:
-                                subTextHTML = `
-                                    <div class="emp-calc-stack font-mono text-xs mt-1">
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-                                            <span>Neto:</span>
-                                            <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(netBeforeLoan)}</span>
-                                            
-                                            <span>Préstamo:</span>
-                                            <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(loans)}</span>
-                                        </div>
-                                        <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight mt-0.5 items-baseline">
-                                            <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                                Restante <i class="fa-solid fa-chevron-down text-[8px] text-slate-400 group-hover:text-blue-500"></i>
-                                            </span>
-                                            <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(emp.amount)}</span>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                        }
-                    } else if (emp.isEdited && emp.originalData && Math.abs(emp.originalData.amount - emp.amount) > 0.001) {
-                        subTextHTML = `
-                            <div class="emp-calc-stack font-mono text-xs mt-1">
-                                <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-                                    <span>Antes:</span>
-                                    <span class="text-right line-through text-slate-400 dark:text-slate-500">${fmtNum(emp.originalData.amount)}</span>
-                                </div>
-                                <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
-                                <div class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight mt-0.5 text-right">
-                                    $${fmtNum(effAmount)}
-                                </div>
+                    if (currentFormat === 'qty_x_denom') {
+                        return `
+                            <div class="inline-flex items-center gap-1.5 ${chipOpacity}" title="${tooltip}">
+                                <span class="font-mono ${currentSize.textMultiplier} ${isZero ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}">${count}<span class="text-slate-400 font-sans font-normal opacity-70 ml-0.5">×</span></span>
+                                ${chipHTML}
+                            </div>
+                        `;
+                    } else if (currentFormat === 'denom_x_qty') {
+                        return `
+                            <div class="inline-flex items-center gap-1.5 ${chipOpacity}" title="${tooltip}">
+                                ${chipHTML}
+                                <span class="font-mono ${currentSize.textMultiplier} ${isZero ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}"><span class="text-slate-400 font-sans font-normal opacity-70 mr-0.5">×</span>${count}</span>
                             </div>
                         `;
                     } else {
-                        subTextHTML = `
-                            <div class="emp-calc-stack font-mono text-xs mt-1">
-                                <div class="text-[11px] text-slate-400 dark:text-slate-400 leading-tight">Neto a entregar</div>
-                                <div class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight mt-1 text-right">
-                                    $${fmtNum(effAmount)}
-                                </div>
+                        return `
+                            <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;${chipOpacity}" title="${tooltip}">
+                                ${chipHTML}
+                                <span class="bill-badge" style="${badgeStyle}">${count}</span>
                             </div>
                         `;
                     }
+                };
 
-                    // Badges
-                    let badgeHTML = '';
-                    if (emp.isManual) {
-                        badgeHTML = `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1 shrink-0" title="Agregado manualmente"><i class="fa-solid fa-user-plus text-[8px]"></i>Manual</span>`;
-                    } else if (emp.isEdited) {
-                        badgeHTML = `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1 shrink-0" title="Modificado de importación original"><i class="fa-solid fa-pen text-[8px]"></i>Editado</span>`;
-                    }
+                const colCount = state.breakdownColumns || 5;
+                const autoMin = currentFormat === 'badge' ? (state.breakdownSize === 'compact' ? '42px' : state.breakdownSize === 'large' ? '68px' : '54px') : (state.breakdownSize === 'compact' ? '65px' : state.breakdownSize === 'large' ? '95px' : '80px');
+                const gridTemplate = colCount === 'auto' ? `repeat(auto-fill, minmax(${autoMin}, max-content))` : `repeat(${colCount}, max-content)`;
+                const gridGap = currentFormat === 'badge' ? '6px 8px' : '8px 12px';
+                const gridStyle = `display:grid;grid-template-columns:${gridTemplate};gap:${gridGap};align-items:center;justify-content:start;`;
 
-                    // Deficit / Warning note if applicable
-                    let errorNoteHTML = '';
-                    if (!isPaid && isDeficit) {
-                        errorNoteHTML = `<div class="text-[11px] text-rose-600 dark:text-rose-400 font-semibold mt-0.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Faltan ${fmt(emp._missingAmount || 0)} en caja</div>`;
-                    } else if (!isPaid && hasCents) {
-                        errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-scissors mr-1"></i>Monto con centavos (${fmt(emp.amount)})</div>`;
-                    }
+                let breakdownHTML = '';
+                const visibleDistribution = emp.distribution || {};
+                const showZeros = state.breakdownShowZeros === true;
+                const groupByType = state.breakdownGroupByType === true;
 
-                    // Breakdown chips HTML inside container
-                    const cashBoxHTML = breakdownHTML || '<span class="text-[11px] text-slate-400 dark:text-slate-500 italic">Sin billetes asignados...</span>';
+                if (groupByType) {
+                    const billDenoms = state.denominations.filter(d => !isCoin(d));
+                    const coinDenoms = state.denominations.filter(d => isCoin(d));
 
-                    let cardClass = 'emp-card';
-                    if (isPaid) cardClass += ' paid';
+                    let billsChips = '';
+                    billDenoms.forEach(d => {
+                        const count = visibleDistribution[d] || 0;
+                        if (count > 0 || showZeros) billsChips += renderSingleChip(d, count);
+                    });
 
-                    const card = document.createElement('div');
-                    card.className = cardClass;
-                    card.innerHTML = `
-                        <!-- Left Status Notification Pill -->
-                        <div class="emp-status-pill ${statusClass}" title="${statusTooltip}" onclick="app.togglePaid(${emp.id}); event.stopPropagation();">
-                            <span class="text-base font-extrabold leading-none">${index + 1}</span>
-                            ${isPaid ? '<i class="fa-solid fa-check text-[11px] mt-1"></i>' : ''}
-                        </div>
+                    let coinsChips = '';
+                    coinDenoms.forEach(d => {
+                        const count = visibleDistribution[d] || 0;
+                        if (count > 0 || showZeros) coinsChips += renderSingleChip(d, count);
+                    });
 
-                        <!-- Main Content -->
-                        <div class="emp-card-content">
-                            <!-- Info & Net Amount Stack -->
-                            <div class="emp-info-block cursor-pointer select-none group" onclick="app.toggleCardDetails(${emp.id}, event)" title="Clic para alternar desglose de cálculo">
-                                <div class="flex items-center gap-1.5 min-w-0">
-                                    <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors" title="${escapeHTML(emp.name)}">${escapeHTML(emp.name)}</h3>
-                                    ${badgeHTML}
-                                </div>
-                                ${subTextHTML}
-                                ${errorNoteHTML}
+                    if (billsChips || coinsChips) {
+                        breakdownHTML = `
+                            <div class="flex flex-col gap-1.5 w-full">
+                                ${billsChips ? `<div style="${gridStyle}">${billsChips}</div>` : ''}
+                                ${(billsChips && coinsChips) ? `<div class="h-px bg-slate-200/60 dark:bg-slate-800 my-0.5"></div>` : ''}
+                                ${coinsChips ? `<div style="${gridStyle}">${coinsChips}</div>` : ''}
                             </div>
+                        `;
+                    }
+                } else {
+                    let chipsHTML = '';
+                    state.denominations.forEach(d => {
+                        const count = visibleDistribution[d] || 0;
+                        if (count > 0 || showZeros) chipsHTML += renderSingleChip(d, count);
+                    });
+                    if (chipsHTML) {
+                        breakdownHTML = `<div style="${gridStyle}">${chipsHTML}</div>`;
+                    }
+                }
 
-                            <!-- Cash Breakdown Module -->
-                            <div class="emp-cash-box">
-                                ${cashBoxHTML}
-                            </div>
+                const isPaid = emp.paid || false;
+                const effAmount = getEffectiveEmployeeAmount(emp);
+                const hasCents = (effAmount % 1) !== 0;
+                const isDeficit = emp.status !== 'ok' || (emp._missingAmount && emp._missingAmount > 0);
 
-                            <!-- Action Column (Close on top-right, Edit & Checkmark below) -->
-                            <div class="emp-actions-bar">
-                                <button onclick="app.removeEmployee(${emp.id}); event.stopPropagation();"
-                                    class="w-6 h-6 rounded-md flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all -mr-1 -mt-1"
-                                    title="Eliminar empleado">
-                                    <i class="fa-solid fa-xmark text-xs"></i>
-                                </button>
-                                <div class="flex flex-col items-center gap-1.5 mt-auto">
-                                    <button onclick="app.openEditModal(${emp.id}); event.stopPropagation();"
-                                        class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-750 transition-all border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 bg-white dark:bg-slate-800 shadow-2xs"
-                                        title="Editar datos y nómina">
-                                        <i class="fa-solid fa-pen text-[11px]"></i>
-                                    </button>
-                                    <button onclick="app.togglePaid(${emp.id}); event.stopPropagation();"
-                                        class="w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-2xs ${isPaid ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700' : 'text-slate-300 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}"
-                                        title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
-                                        <i class="fa-solid fa-check text-xs"></i>
-                                    </button>
+                let statusClass = 'status-green';
+                let statusTooltip = '100% Cubierto en caja · Listo para pagar';
+                if (isPaid) {
+                    statusClass = 'status-paid';
+                    statusTooltip = 'Pagado';
+                } else if (isDeficit) {
+                    statusClass = 'status-red';
+                    statusTooltip = `Faltan ${fmt(emp._missingAmount || 0)} en caja`;
+                } else if (hasCents) {
+                    statusClass = 'status-yellow';
+                    statusTooltip = 'Monto con centavos · Requiere redondeo';
+                }
+
+                let subTextHTML = '';
+                const p = emp.payroll;
+                const isNormalView = state.payrollMode !== 'deductions';
+                const isExpanded = expandedEmpCards.has(emp.id);
+
+                if (p && (p.gross > 0 || p.bonuses > 0 || p.discounts > 0 || p.loans > 0 || p.afterDiscounts > 0)) {
+                    const grossVal = (p.gross !== undefined && p.gross !== null && p.gross > 0)
+                        ? p.gross
+                        : (emp.originalData?.payroll?.gross || emp.originalData?.amount || emp.amount);
+                    const bonuses = Number(p.bonuses) || 0;
+                    const discounts = Number(p.discounts) || 0;
+                    const loans = Number(p.loans) || 0;
+                    const netBeforeLoan = (p.afterDiscounts !== undefined && p.afterDiscounts !== null) 
+                        ? p.afterDiscounts 
+                        : (grossVal + bonuses - discounts);
+
+                    if (isNormalView) {
+                        const netAdj = bonuses - discounts;
+                        const adjColor = netAdj > 0 ? 'text-emerald-600 dark:text-emerald-400' : (netAdj < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-200');
+                        const adjSign = netAdj > 0 ? '+ ' : (netAdj < 0 ? '- ' : '');
+
+                        if (isExpanded) {
+                            subTextHTML = `
+                                <div class="emp-calc-stack font-mono text-xs mt-1">
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                        <span>Bruto:</span>
+                                        <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
+                                        <span>Bonificación:</span>
+                                        <span class="text-right text-emerald-600 dark:text-emerald-400 font-semibold">+ ${fmtNum(bonuses)}</span>
+                                        <span>Descuento:</span>
+                                        <span class="text-right text-rose-600 dark:text-rose-400 font-semibold">- ${fmtNum(discounts)}</span>
+                                    </div>
+                                    <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight mt-0.5 items-baseline">
+                                        <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                            Neto <i class="fa-solid fa-chevron-up text-[8px] text-slate-400"></i>
+                                        </span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(effAmount)}</span>
+                                    </div>
                                 </div>
+                            `;
+                        } else {
+                            subTextHTML = `
+                                <div class="emp-calc-stack font-mono text-xs mt-1">
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                        <span>Bruto:</span>
+                                        <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
+                                        <span>Ajuste:</span>
+                                        <span class="text-right ${adjColor} font-semibold">${adjSign}${fmtNum(Math.abs(netAdj))}</span>
+                                    </div>
+                                    <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight mt-0.5 items-baseline">
+                                        <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                            Neto <i class="fa-solid fa-chevron-down text-[8px] text-slate-400 group-hover:text-blue-500"></i>
+                                        </span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(effAmount)}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        if (isExpanded) {
+                            subTextHTML = `
+                                <div class="emp-calc-stack font-mono text-xs mt-1">
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                        <span>Bruto:</span>
+                                        <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
+                                        <span>Bonificación:</span>
+                                        <span class="text-right text-emerald-600 dark:text-emerald-400 font-semibold">+ ${fmtNum(bonuses)}</span>
+                                        <span>Descuento:</span>
+                                        <span class="text-right text-rose-600 dark:text-rose-400 font-semibold">- ${fmtNum(discounts)}</span>
+                                    </div>
+                                    <div class="border-t border-slate-300 dark:border-slate-600 my-1"></div>
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                        <span>Neto:</span>
+                                        <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(netBeforeLoan)}</span>
+                                        <span>Préstamo:</span>
+                                        <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(loans)}</span>
+                                    </div>
+                                    <div class="border-t-2 border-slate-400 dark:border-slate-500 my-1"></div>
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold leading-tight items-baseline">
+                                        <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                            Restante <i class="fa-solid fa-chevron-up text-[8px] text-slate-400"></i>
+                                        </span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(emp.amount)}</span>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            subTextHTML = `
+                                <div class="emp-calc-stack font-mono text-xs mt-1">
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                        <span>Neto:</span>
+                                        <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(netBeforeLoan)}</span>
+                                        <span>Préstamo:</span>
+                                        <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(loans)}</span>
+                                    </div>
+                                    <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
+                                    <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight mt-0.5 items-baseline">
+                                        <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                            Restante <i class="fa-solid fa-chevron-down text-[8px] text-slate-400 group-hover:text-blue-500"></i>
+                                        </span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(emp.amount)}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                } else if (emp.isEdited && emp.originalData && Math.abs(emp.originalData.amount - emp.amount) > 0.001) {
+                    subTextHTML = `
+                        <div class="emp-calc-stack font-mono text-xs mt-1">
+                            <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+                                <span>Antes:</span>
+                                <span class="text-right line-through text-slate-400 dark:text-slate-500">${fmtNum(emp.originalData.amount)}</span>
+                            </div>
+                            <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
+                            <div class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight mt-0.5 text-right">
+                                $${fmtNum(effAmount)}
                             </div>
                         </div>
                     `;
-                    container.appendChild(card);
-                });
+                } else {
+                    subTextHTML = `
+                        <div class="emp-calc-stack font-mono text-xs mt-1">
+                            <div class="text-[11px] text-slate-400 dark:text-slate-400 leading-tight">Neto a entregar</div>
+                            <div class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight mt-1 text-right">
+                                $${fmtNum(effAmount)}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                let badgeHTML = '';
+                if (isPreview) {
+                    badgeHTML = `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1 shrink-0" title="Tarjeta de muestra"><i class="fa-solid fa-eye text-[8px]"></i>Muestra</span>`;
+                } else if (emp.isManual) {
+                    badgeHTML = `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1 shrink-0" title="Agregado manualmente"><i class="fa-solid fa-user-plus text-[8px]"></i>Manual</span>`;
+                } else if (emp.isEdited) {
+                    badgeHTML = `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1 shrink-0" title="Modificado de importación original"><i class="fa-solid fa-pen text-[8px]"></i>Editado</span>`;
+                }
+
+                let errorNoteHTML = '';
+                if (!isPaid && isDeficit && !isPreview) {
+                    errorNoteHTML = `<div class="text-[11px] text-rose-600 dark:text-rose-400 font-semibold mt-0.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Faltan ${fmt(emp._missingAmount || 0)} en caja</div>`;
+                } else if (!isPaid && hasCents) {
+                    errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-scissors mr-1"></i>Monto con centavos (${fmt(emp.amount)})</div>`;
+                }
+
+                const cashBoxHTML = breakdownHTML || '<span class="text-[11px] text-slate-400 dark:text-slate-500 italic">Sin billetes asignados...</span>';
+
+                let cardClass = 'emp-card';
+                if (isPaid) cardClass += ' paid';
+
+                const card = document.createElement('div');
+                card.className = cardClass;
+                card.innerHTML = `
+                    <!-- Left Status Notification Pill -->
+                    <div class="emp-status-pill ${statusClass}" title="${statusTooltip}" ${isPreview ? '' : `onclick="app.togglePaid(${emp.id}); event.stopPropagation();"`}>
+                        <span class="text-base font-extrabold leading-none">${index + 1}</span>
+                        ${isPaid ? '<i class="fa-solid fa-check text-[11px] mt-1"></i>' : ''}
+                    </div>
+
+                    <!-- Main Content -->
+                    <div class="emp-card-content">
+                        <!-- Info & Net Amount Stack -->
+                        <div class="emp-info-block cursor-pointer select-none group" onclick="app.toggleCardDetails(${typeof emp.id === 'string' ? `'${emp.id}'` : emp.id}, event)" title="Clic para alternar desglose de cálculo">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors" title="${escapeHTML(emp.name)}">${escapeHTML(emp.name)}</h3>
+                                ${badgeHTML}
+                            </div>
+                            ${subTextHTML}
+                            ${errorNoteHTML}
+                        </div>
+
+                        <!-- Cash Breakdown Module -->
+                        <div class="emp-cash-box">
+                            ${cashBoxHTML}
+                        </div>
+
+                        <!-- Action Column -->
+                        <div class="emp-actions-bar">
+                            <button ${isPreview ? 'type="button"' : `onclick="app.removeEmployee(${emp.id}); event.stopPropagation();"`}
+                                class="w-6 h-6 rounded-md flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all -mr-1 -mt-1"
+                                title="Eliminar empleado">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                            <div class="flex flex-col items-center gap-1.5 mt-auto">
+                                <button ${isPreview ? 'type="button"' : `onclick="app.openEditModal(${emp.id}); event.stopPropagation();"`}
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-750 transition-all border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 bg-white dark:bg-slate-800 shadow-2xs"
+                                    title="Editar datos y nómina">
+                                    <i class="fa-solid fa-pen text-[11px]"></i>
+                                </button>
+                                <button ${isPreview ? 'type="button"' : `onclick="app.togglePaid(${emp.id}); event.stopPropagation();"`}
+                                    class="w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-2xs ${isPaid ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700' : 'text-slate-300 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}"
+                                    title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
+                                    <i class="fa-solid fa-check text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return card;
             };
 
             const renderBank = () => {
@@ -3838,32 +4522,81 @@
             };
 
             const renderConfigModal = () => {
+                // 1. Render Currency Presets Grid
+                const presetGrid = document.getElementById('currencyPresetGrid');
+                if (presetGrid) {
+                    const activeCurr = state.currency || 'DOP';
+                    let presetsHTML = '';
+                    Object.keys(CURRENCY_PRESETS).forEach(key => {
+                        const p = CURRENCY_PRESETS[key];
+                        const isSelected = activeCurr === p.code;
+                        presetsHTML += `
+                            <button type="button" onclick="app.setCurrencyPreset('${key}')" 
+                                class="p-2 rounded-xl border text-left transition-all flex items-center justify-between gap-1.5 ${isSelected ? 'bg-blue-50/90 dark:bg-blue-950/70 border-blue-500 dark:border-blue-500 shadow-xs ring-1 ring-blue-500/20' : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850'}">
+                                <div class="min-w-0 flex-grow">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <span class="text-base leading-none">${p.flag}</span>
+                                        <span class="text-xs font-bold text-slate-800 dark:text-slate-100">${p.code}</span>
+                                        <span class="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border border-slate-200 dark:border-slate-700">${p.symbol}</span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5" title="${p.name}">${p.name}</div>
+                                </div>
+                                ${isSelected ? '<i class="fa-solid fa-circle-check text-blue-600 dark:text-blue-400 text-sm shrink-0"></i>' : ''}
+                            </button>
+                        `;
+                    });
+                    presetGrid.innerHTML = presetsHTML;
+                }
+
+                // 2. Sync Symbol Input & Prefix
+                const symInput = document.getElementById('currencySymbolInput');
+                if (symInput) symInput.value = state.currencySymbol || 'RD$';
+                const addPrefix = document.getElementById('addDenomSymbolPrefix');
+                if (addPrefix) addPrefix.innerText = state.currencySymbol || 'RD$';
+
+                // 3. Render Active Denominations
                 const container = document.getElementById('denomListConfig');
-                container.innerHTML = '';
-                state.denominations.forEach(d => {
-                    const chip = document.createElement('div');
-                    chip.className = "px-3 py-1 bg-white border border-slate-300 rounded-full text-sm flex items-center gap-2";
-                    chip.innerHTML = `
-                        ${d}
-                        <button onclick="app.removeDenom(${d})" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-times"></i></button>
-                    `;
-                    container.appendChild(chip);
-                });
+                if (container) {
+                    container.innerHTML = '';
+                    state.denominations.forEach(d => {
+                        const chip = document.createElement('div');
+                        const isCoinDenom = isCoin(d);
+                        chip.className = `px-3 py-1.5 rounded-lg text-xs font-bold font-mono flex items-center gap-2 border shadow-2xs ${isCoinDenom ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/80' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800/80'}`;
+                        chip.innerHTML = `
+                            <span>${state.currencySymbol || ''} ${d} ${isCoinDenom ? '<span class="text-[9px] font-sans font-normal opacity-70">🪙</span>' : '<span class="text-[9px] font-sans font-normal opacity-70">💵</span>'}</span>
+                            <button onclick="app.removeDenom(${d})" class="text-slate-400 hover:text-rose-500 transition-colors -mr-1" title="Eliminar denominación"><i class="fa-solid fa-xmark text-xs"></i></button>
+                        `;
+                        container.appendChild(chip);
+                    });
+                }
+            };
+
+            const openConfigModal = (tab = 'appearance') => {
+                document.getElementById('configModal').classList.remove('hidden');
+                switchConfigTab(tab);
             };
 
             const switchConfigTab = (tab) => {
-                ['denoms','appearance'].forEach(t => {
-                    document.getElementById(`cfgTab-${t}`).className =
-                        t === tab
-                        ? 'flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white text-blue-700 shadow-sm'
-                        : 'flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 hover:text-slate-700';
+                ['appearance', 'customBills', 'denoms'].forEach(t => {
+                    const btn = document.getElementById(`cfgTab-${t}`);
+                    if (btn) {
+                        btn.className = (t === tab)
+                            ? 'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs'
+                            : 'flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200';
+                    }
                     const view = document.getElementById(`cfgView-${t}`);
-                    t === tab ? view.classList.remove('hidden') : view.classList.add('hidden');
+                    if (view) {
+                        t === tab ? view.classList.remove('hidden') : view.classList.add('hidden');
+                    }
                 });
                 const resetBtn = document.getElementById('cfgResetBtn');
-                if (tab === 'denoms') resetBtn.classList.remove('hidden');
-                else resetBtn.classList.add('hidden');
+                if (resetBtn) {
+                    if (tab === 'denoms') resetBtn.classList.remove('hidden');
+                    else resetBtn.classList.add('hidden');
+                }
                 if (tab === 'appearance') renderAppearanceConfig();
+                if (tab === 'customBills') renderCustomBillsConfig();
+                if (tab === 'denoms') renderConfigModal();
             };
 
             const toggleUseDefaultImages = (enabled) => {
@@ -3878,7 +4611,79 @@
                 renderAppearanceConfig();
             };
 
+            const setBreakdownFormat = (fmt) => {
+                state.breakdownFormat = fmt;
+                saveData();
+                renderAppearanceConfig();
+                renderAll();
+            };
+
+            const setBreakdownSize = (size) => {
+                state.breakdownSize = size;
+                saveData();
+                renderAppearanceConfig();
+                renderAll();
+            };
+
+            const setBreakdownColumns = (cols) => {
+                state.breakdownColumns = cols;
+                saveData();
+                renderAppearanceConfig();
+                renderAll();
+            };
+
+            const toggleBreakdownGroupByType = (enabled) => {
+                state.breakdownGroupByType = enabled;
+                saveData();
+                renderAppearanceConfig();
+                renderAll();
+            };
+
+            const toggleBreakdownShowZeros = (enabled) => {
+                state.breakdownShowZeros = enabled;
+                saveData();
+                renderAppearanceConfig();
+                renderAll();
+            };
+
+            const renderAppearancePreviewCard = () => {
+                const previewContainer = document.getElementById('appearanceLivePreviewCard');
+                if (!previewContainer) return;
+                previewContainer.innerHTML = '';
+
+                let sampleEmp;
+                if (state.employees && state.employees.length > 0) {
+                    const first = state.employees[0];
+                    sampleEmp = JSON.parse(JSON.stringify(first));
+                    if (!sampleEmp.distribution || Object.keys(sampleEmp.distribution).length === 0) {
+                        sampleEmp.distribution = { 2000: 7, 1000: 1, 500: 1, 50: 1, 25: 1, 1: 3 };
+                    }
+                } else {
+                    sampleEmp = {
+                        id: 'preview-sample',
+                        name: 'Juan Pérez',
+                        amount: 15578,
+                        paid: false,
+                        status: 'ok',
+                        distribution: { 2000: 7, 1000: 1, 500: 1, 50: 1, 25: 1, 1: 3 },
+                        payroll: {
+                            gross: 16778,
+                            bonuses: 0,
+                            discounts: 0,
+                            loans: 1200,
+                            afterDiscounts: 16778,
+                            calculatedNet: 15578,
+                            net: 15578
+                        }
+                    };
+                }
+
+                const card = buildEmployeeCardElement(sampleEmp, 0, true);
+                previewContainer.appendChild(card);
+            };
+
             const renderAppearanceConfig = () => {
+                renderAppearancePreviewCard();
                 const switchImg = document.getElementById('switchUseImages');
                 if (switchImg) switchImg.checked = state.useDefaultImages !== false;
                 const switchRound = document.getElementById('switchRoundCoins');
@@ -3886,7 +4691,70 @@
                 const switchDark = document.getElementById('switchDarkMode');
                 if (switchDark) switchDark.checked = state.theme === 'dark';
 
+                // Format buttons active state
+                const currentFmt = state.breakdownFormat || 'badge';
+                ['badge', 'qty_x_denom', 'denom_x_qty'].forEach(f => {
+                    const btn = document.getElementById(`fmtBtn-${f}`);
+                    if (btn) {
+                        const isActive = currentFmt === f;
+                        btn.className = isActive 
+                            ? 'px-2.5 py-1 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs font-bold' 
+                            : 'px-2.5 py-1 rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200';
+                    }
+                });
+
+                // Size buttons active state
+                const currentSz = state.breakdownSize || 'normal';
+                ['compact', 'normal', 'large'].forEach(s => {
+                    const btn = document.getElementById(`sizeBtn-${s}`);
+                    if (btn) {
+                        const isActive = currentSz === s;
+                        btn.className = isActive 
+                            ? 'px-2.5 py-1 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs font-bold' 
+                            : 'px-2.5 py-1 rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200';
+                    }
+                });
+
+                // Column buttons active state
+                const currentCols = state.breakdownColumns || 5;
+                [3, 4, 5, 6, 'auto'].forEach(c => {
+                    const btn = document.getElementById(`colBtn-${c}`);
+                    if (btn) {
+                        const isActive = String(currentCols) === String(c);
+                        btn.className = isActive 
+                            ? 'px-2.5 py-1 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs font-bold' 
+                            : 'px-2.5 py-1 rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200';
+                    }
+                });
+
+                const switchGroup = document.getElementById('switchGroupByType');
+                if (switchGroup) switchGroup.checked = state.breakdownGroupByType === true;
+
+                const switchZeros = document.getElementById('switchShowZeros');
+                if (switchZeros) switchZeros.checked = state.breakdownShowZeros === true;
+
+            };
+
+            const renderCustomBillsConfig = () => {
                 const container = document.getElementById('appearanceList');
+                if (!container) return;
+
+                const curr = state.currency || 'DOP';
+                const currPreset = CURRENCY_PRESETS[curr] || CURRENCY_PRESETS.DOP;
+                const badgeInfo = document.getElementById('customBillsCurrencyBadge');
+                if (badgeInfo) {
+                    badgeInfo.innerHTML = `
+                        <div class="flex items-center justify-between gap-2 w-full flex-wrap">
+                            <span class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100">
+                                <span>${currPreset.flag}</span> <span>${currPreset.name} (${currPreset.code})</span>
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-white/80 dark:bg-slate-900/80 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                                📁 imagenes/${currPreset.code}/
+                            </span>
+                        </div>
+                    `;
+                }
+
                 container.innerHTML = '';
                 state.denominations.forEach(denom => {
                     const customImage = state.billImages && state.billImages[denom];
@@ -3894,14 +4762,16 @@
                     const isCoinDenom = isCoin(denom);
                     const isRound = state.roundCoins !== false && isCoinDenom;
                     const customColor = state.billColors && state.billColors[denom];
-                    const defaultColor = BILL_COLORS[denom] ? BILL_COLORS[denom].bg : '#e2e8f0';
+                    const defaultColor = currPreset?.colors?.[denom] || (BILL_COLORS[denom] ? BILL_COLORS[denom].bg : '#e2e8f0');
                     const currentColor = customColor || defaultColor;
                     const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
                     const shapeStyle = isRound ? 'width:32px;height:32px;' : 'width:52px;height:28px;';
+                    const billStyle = getBillStyle(denom);
                     const innerHTML = activeImage ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
+                    const sym = state.currencySymbol || '';
 
                     const row = document.createElement('div');
-                    row.className = 'flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-100';
+                    row.className = 'flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/80 dark:border-slate-800';
                     row.innerHTML = `
                         <!-- Preview chip -->
                         <div class="shrink-0 flex items-center justify-center" style="width:54px">
@@ -3909,24 +4779,27 @@
                                 ${innerHTML}
                             </div>
                         </div>
-                        <div class="font-medium text-slate-700 text-xs w-12 shrink-0">${denom}${isCoinDenom ? ' <span class="text-[9px] text-slate-400 block font-normal">moneda</span>' : ''}</div>
+                        <div class="font-bold text-slate-800 dark:text-slate-200 text-xs w-16 shrink-0 font-mono">
+                            ${sym} ${denom}
+                            ${isCoinDenom ? ' <span class="text-[9px] text-amber-600 dark:text-amber-400 block font-normal font-sans">🪙 moneda</span>' : ' <span class="text-[9px] text-blue-600 dark:text-blue-400 block font-normal font-sans">💵 billete</span>'}
+                        </div>
                         <!-- Color picker -->
-                        <div class="flex items-center gap-1.5 flex-grow min-w-0">
-                            <label class="text-[10px] text-slate-400 uppercase tracking-wide shrink-0">Color</label>
+                        <div class="flex items-center gap-2 flex-grow min-w-0">
+                            <label class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide shrink-0">Color</label>
                             <input type="color"
                                 value="${currentColor}"
                                 oninput="app.updateBillColor(${denom}, this.value)"
-                                class="w-7 h-6 rounded cursor-pointer border border-slate-200 p-0.5 bg-white shrink-0"
-                                title="Cambiar color del billete $${denom}">
-                            ${customColor ? `<button onclick="app.resetBillColor(${denom})" class="text-[10px] text-slate-400 hover:text-red-500" title="Restaurar color original"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
+                                class="w-8 h-7 rounded cursor-pointer border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-800 shrink-0"
+                                title="Cambiar color del billete ${sym} ${denom}">
+                            ${customColor ? `<button onclick="app.resetBillColor(${denom})" class="text-xs text-slate-400 hover:text-red-500 px-1" title="Restaurar color original"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
                         </div>
                         <!-- Image controls -->
-                        <div class="flex items-center gap-1.5 shrink-0">
-                            <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-1 rounded border border-blue-200 transition-colors" title="Cargar imagen personalizada">
-                                <i class="fa-solid fa-upload mr-1"></i>${customImage ? 'Cambiar' : 'Subir'}
+                        <div class="flex items-center gap-2 shrink-0">
+                            <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors inline-flex items-center gap-1" title="Cargar imagen personalizada">
+                                <i class="fa-solid fa-upload"></i> ${customImage ? 'Cambiar' : 'Subir'}
                                 <input type="file" accept="image/*" class="hidden" onchange="app.uploadBillImage(${denom}, this)">
                             </label>
-                            ${customImage ? `<button onclick="app.clearBillImage(${denom})" class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-1 rounded border border-red-200 bg-red-50" title="Quitar imagen personalizada"><i class="fa-solid fa-trash"></i></button>` : ''}
+                            ${customImage ? `<button onclick="app.clearBillImage(${denom})" class="text-xs text-rose-500 hover:text-rose-700 px-2 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60" title="Quitar imagen personalizada"><i class="fa-solid fa-trash"></i></button>` : ''}
                         </div>
                     `;
                     container.appendChild(row);
@@ -3937,13 +4810,17 @@
                 if (!state.billColors) state.billColors = {};
                 state.billColors[denom] = color;
                 saveData();
-                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAppearancePreviewCard();
+                renderAll();
             };
 
             const resetBillColor = (denom) => {
                 if (state.billColors) delete state.billColors[denom];
                 saveData();
-                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAppearancePreviewCard();
+                renderAll();
             };
 
             const uploadBillImage = (denom, input) => {
@@ -3954,7 +4831,9 @@
                     if (!state.billImages) state.billImages = {};
                     state.billImages[denom] = e.target.result; // base64
                     saveData();
-                    renderAppearanceConfig();
+                    renderCustomBillsConfig();
+                    renderAppearancePreviewCard();
+                    renderAll();
                 };
                 reader.readAsDataURL(file);
             };
@@ -3962,21 +4841,27 @@
             const clearBillImage = (denom) => {
                 if (state.billImages) delete state.billImages[denom];
                 saveData();
-                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAppearancePreviewCard();
+                renderAll();
             };
 
             const resetAllAppearance = () => {
                 if (!confirm('¿Restaurar todos los colores a los valores por defecto?')) return;
                 state.billColors = {};
                 saveData();
-                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAppearancePreviewCard();
+                renderAll();
             };
 
             const clearAllImages = () => {
                 if (!confirm('¿Quitar todas las imágenes de billetes?')) return;
                 state.billImages = {};
                 saveData();
-                renderAppearanceConfig();
+                renderCustomBillsConfig();
+                renderAppearancePreviewCard();
+                renderAll();
             };
 
             const updateTotals = () => {
@@ -4287,12 +5172,12 @@
                     const btnPct = document.getElementById('bonusTypePercent');
                     const sym = document.getElementById('bonusSymbol');
                     if (isFixed) {
-                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
-                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
-                        sym.textContent = '$';
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs';
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400';
+                        sym.textContent = getCurrencySymbol();
                     } else {
-                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
-                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs';
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400';
                         sym.textContent = '%';
                     }
                 } else if (field === 'discount') {
@@ -4300,12 +5185,12 @@
                     const btnPct = document.getElementById('discountTypePercent');
                     const sym = document.getElementById('discountSymbol');
                     if (isFixed) {
-                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
-                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
-                        sym.textContent = '$';
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs';
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400';
+                        sym.textContent = getCurrencySymbol();
                     } else {
-                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all bg-white text-blue-600 shadow-xs';
-                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500';
+                        btnPct.className = 'px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs';
+                        btnFixed.className = 'px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400';
                         sym.textContent = '%';
                     }
                 }
@@ -4368,7 +5253,7 @@
                         `;
                     }
                 });
-                chipsContainer.innerHTML = chipsHTML || '<span class="text-xs text-slate-400 italic">RD$ 0.00 asignados</span>';
+                chipsContainer.innerHTML = chipsHTML || `<span class="text-xs text-slate-400 italic">${getCurrencySymbol()} 0.00 asignados</span>`;
             };
 
             const syncNetFromCalculated = () => {
@@ -4523,6 +5408,8 @@
                 addDenomination,
                 removeDenom,
                 resetDenominations,
+                setCurrencyPreset,
+                setCurrencySymbol,
                 renderConfigModal,
                 exportToCSV,
                 exportToExcel,
@@ -4554,8 +5441,15 @@
                 toggleLoanDetailsPanel,
                 calcLoanFromDetails,
                 calcLoanFromInterestAmount,
+                openConfigModal,
                 switchConfigTab,
                 renderAppearanceConfig,
+                renderCustomBillsConfig,
+                setBreakdownFormat,
+                setBreakdownSize,
+                setBreakdownColumns,
+                toggleBreakdownGroupByType,
+                toggleBreakdownShowZeros,
                 toggleUseDefaultImages,
                 toggleRoundCoins,
                 updateBillColor,
