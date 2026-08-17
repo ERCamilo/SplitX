@@ -352,6 +352,7 @@
             line-height: 1;
             font-size: 11px;
             font-weight: 800;
+            color: inherit;
         }
         .chip-vector-coin {
             border-radius: 50% !important;
@@ -371,6 +372,7 @@
             line-height: 1;
             font-size: 11px;
             font-weight: 800;
+            color: inherit;
         }
 
         /* Size scaling for banknote & coin text numbers */
@@ -1338,6 +1340,34 @@
                         </label>
                     </div>
                     <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
+
+                    <!-- Vector chip text color mode -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Color del texto en iconos vectoriales</div>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400">Contraste y legibilidad de los números dentro de los iconos de billetes y monedas.</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                            <button id="chipTextMode-dark_tone" onclick="app.setChipTextColor('dark_tone')" 
+                                class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-900 border border-blue-950/40 shrink-0"></span>
+                                <span>Tono oscuro</span>
+                            </button>
+                            <button id="chipTextMode-black" onclick="app.setChipTextColor('black')" 
+                                class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-700 shrink-0"></span>
+                                <span>Negro</span>
+                            </button>
+                            <button id="chipTextMode-white" onclick="app.setChipTextColor('white')" 
+                                class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-white border border-slate-400 shrink-0"></span>
+                                <span>Blanco</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Monedas en figuras redondas</div>
@@ -1586,6 +1616,66 @@
                 <button onclick="app.processImport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm font-medium">
                     <i class="fa-solid fa-file-import mr-1"></i> Cargar Datos
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         POST-IMPORT: AUTO-DISTRIBUTE MODAL
+    ═══════════════════════════════════════════ -->
+    <div id="postImportModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <i class="fa-solid fa-circle-check text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Importación exitosa</h3>
+                    <p id="postImportCount" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+                </div>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-sm text-slate-600 dark:text-slate-300">¿Deseas calcular y repartir el efectivo automáticamente?</p>
+                <div class="bg-blue-50 dark:bg-blue-950/40 rounded-xl p-3 border border-blue-100 dark:border-blue-900">
+                    <p class="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                        <i class="fa-solid fa-bolt mr-1"></i>
+                        <strong>Reparto automático</strong> calcula los billetes necesarios, los agrega a tu caja y distribuye a todos los empleados al instante.
+                    </p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-200 dark:border-slate-800">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        <i class="fa-solid fa-hand mr-1"></i>
+                        <strong>Manual</strong>: ve a la pestaña Banco, ajusta los billetes y luego reparte.
+                    </p>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button onclick="app.closePostImportModal(false)" class="px-4 py-2.5 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">
+                    <i class="fa-solid fa-hand mr-1"></i> Manual
+                </button>
+                <button onclick="app.closePostImportModal(true)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-bolt"></i> Repartir Automático
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         GENERIC CUSTOM DIALOG / ALERT / CONFIRM MODAL
+    ═══════════════════════════════════════════ -->
+    <div id="customDialogModal" class="hidden fixed inset-0 modal-backdrop z-[110] flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col">
+            <div class="p-5 flex items-start gap-4">
+                <div id="dialogIconContainer" class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl shadow-xs">
+                    <i id="dialogIcon" class="fa-solid fa-circle-question"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 id="dialogTitle" class="font-bold text-slate-900 dark:text-slate-100 text-base leading-snug">Confirmar acción</h3>
+                    <p id="dialogMessage" class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed"></p>
+                </div>
+            </div>
+            <div id="dialogActions" class="p-3.5 bg-slate-50 dark:bg-slate-950/80 flex flex-wrap justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <!-- Dynamic buttons rendered here -->
             </div>
         </div>
     </div>
@@ -2138,6 +2228,7 @@
                 breakdownShowZeros: false,   // true = Modo bandeja fija con ceros atenuados
                 breakdownSize: 'normal',     // 'compact' | 'normal' | 'large'
                 breakdownFormat: 'badge',    // 'badge' | 'qty_x_denom' | 'denom_x_qty'
+                chipTextColor: 'dark_tone',  // 'dark_tone' | 'black' | 'white'
                 payrollMode: 'normal',
                 payrollLoanFund: 0,
                 importSnapshot: null,
@@ -2226,6 +2317,7 @@
                     if (state.breakdownShowZeros === undefined) state.breakdownShowZeros = false;
                     if (state.breakdownSize === undefined) state.breakdownSize = 'normal';
                     if (state.breakdownFormat === undefined) state.breakdownFormat = 'badge';
+                    if (!state.chipTextColor) state.chipTextColor = 'dark_tone';
                     if (state.theme === undefined) {
                         state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                     }
@@ -2266,6 +2358,185 @@
                 toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-info'} mr-2"></i>${escapeHTML(message)}`;
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 3500);
+            };
+
+            // --- CUSTOM MODAL DIALOGS (Replaces native alert & confirm) ---
+            let _activeDialogResolver = null;
+
+            const closeCustomDialog = (result) => {
+                const modal = document.getElementById('customDialogModal');
+                if (modal) modal.classList.add('hidden');
+                if (_activeDialogResolver) {
+                    const resolve = _activeDialogResolver;
+                    _activeDialogResolver = null;
+                    resolve(result);
+                }
+            };
+
+            const showCustomDialog = ({
+                title = 'Atención',
+                message = '',
+                icon = 'fa-circle-info',
+                type = 'info', // 'danger' | 'warning' | 'info' | 'success' | 'question'
+                buttons = []
+            }) => {
+                return new Promise((resolve) => {
+                    _activeDialogResolver = resolve;
+
+                    const modal = document.getElementById('customDialogModal');
+                    const iconCont = document.getElementById('dialogIconContainer');
+                    const iconEl = document.getElementById('dialogIcon');
+                    const titleEl = document.getElementById('dialogTitle');
+                    const msgEl = document.getElementById('dialogMessage');
+                    const actionsEl = document.getElementById('dialogActions');
+
+                    if (!modal) {
+                        resolve(false);
+                        return;
+                    }
+
+                    const typeStyles = {
+                        danger: {
+                            container: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800',
+                            defaultIcon: 'fa-triangle-exclamation',
+                            btnPrimary: 'bg-rose-600 hover:bg-rose-700 text-white'
+                        },
+                        warning: {
+                            container: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800',
+                            defaultIcon: 'fa-triangle-exclamation',
+                            btnPrimary: 'bg-amber-600 hover:bg-amber-700 text-white'
+                        },
+                        success: {
+                            container: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800',
+                            defaultIcon: 'fa-circle-check',
+                            btnPrimary: 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        },
+                        info: {
+                            container: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
+                            defaultIcon: 'fa-circle-info',
+                            btnPrimary: 'bg-blue-600 hover:bg-blue-700 text-white'
+                        },
+                        question: {
+                            container: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800',
+                            defaultIcon: 'fa-circle-question',
+                            btnPrimary: 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }
+                    };
+
+                    const currentStyle = typeStyles[type] || typeStyles.info;
+                    if (iconCont) iconCont.className = `w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl shadow-xs ${currentStyle.container}`;
+                    if (iconEl) iconEl.className = `fa-solid ${icon || currentStyle.defaultIcon}`;
+                    if (titleEl) titleEl.textContent = title;
+                    if (msgEl) msgEl.innerHTML = typeof message === 'string' ? escapeHTML(message).replace(/\n/g, '<br>') : '';
+
+                    if (actionsEl) {
+                        actionsEl.innerHTML = '';
+                        buttons.forEach(btn => {
+                            const b = document.createElement('button');
+                            b.type = 'button';
+                            const baseClass = 'px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer';
+                            const customClass = btn.class || (btn.isPrimary 
+                                ? currentStyle.btnPrimary 
+                                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800');
+                            b.className = `${baseClass} ${customClass}`;
+                            b.innerHTML = `${btn.icon ? `<i class="fa-solid ${btn.icon}"></i> ` : ''}${escapeHTML(btn.label)}`;
+                            b.onclick = () => closeCustomDialog(btn.value);
+                            actionsEl.appendChild(b);
+                        });
+                    }
+
+                    modal.classList.remove('hidden');
+                });
+            };
+
+            const showCustomAlert = (msgOrOpts, optionalTitle = 'Atención') => {
+                let opts = {};
+                if (typeof msgOrOpts === 'string') {
+                    opts = {
+                        title: optionalTitle,
+                        message: msgOrOpts,
+                        type: 'info',
+                        icon: 'fa-circle-info'
+                    };
+                } else {
+                    opts = msgOrOpts || {};
+                }
+
+                return showCustomDialog({
+                    title: opts.title || 'Atención',
+                    message: opts.message || '',
+                    icon: opts.icon || 'fa-circle-info',
+                    type: opts.type || 'info',
+                    buttons: [
+                        {
+                            label: opts.confirmText || 'Entendido',
+                            value: true,
+                            isPrimary: true,
+                            icon: 'fa-check'
+                        }
+                    ]
+                });
+            };
+
+            const showCustomConfirm = (msgOrOpts, optionalTitle = '¿Confirmar acción?') => {
+                let opts = {};
+                if (typeof msgOrOpts === 'string') {
+                    opts = {
+                        title: optionalTitle,
+                        message: msgOrOpts,
+                        type: 'warning',
+                        icon: 'fa-triangle-exclamation',
+                        confirmText: 'Aceptar',
+                        cancelText: 'Cancelar'
+                    };
+                } else {
+                    opts = msgOrOpts || {};
+                }
+
+                return showCustomDialog({
+                    title: opts.title || '¿Confirmar acción?',
+                    message: opts.message || '',
+                    icon: opts.icon || (opts.type === 'danger' ? 'fa-triangle-exclamation' : 'fa-circle-question'),
+                    type: opts.type || 'warning',
+                    buttons: [
+                        {
+                            label: opts.cancelText || 'Cancelar',
+                            value: false,
+                            isPrimary: false
+                        },
+                        {
+                            label: opts.confirmText || 'Aceptar',
+                            value: true,
+                            isPrimary: true,
+                            class: opts.confirmClass,
+                            icon: opts.confirmIcon || (opts.type === 'danger' ? 'fa-trash' : 'fa-check')
+                        }
+                    ]
+                });
+            };
+
+            const showCustomChoice = ({
+                title = 'Elige una opción',
+                message = '',
+                icon = 'fa-circle-question',
+                type = 'question',
+                choices = []
+            }) => {
+                const buttons = choices.map(c => ({
+                    label: c.label,
+                    value: c.value,
+                    icon: c.icon,
+                    isPrimary: c.isPrimary,
+                    class: c.class
+                }));
+
+                return showCustomDialog({
+                    title,
+                    message,
+                    icon,
+                    type,
+                    buttons
+                });
             };
             const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({
                 '&': '&amp;',
@@ -2787,8 +3058,16 @@
                 showToast(`Denominación ${denom} eliminada`, 'success');
             };
 
-            const resetAll = () => {
-                if(confirm('¿Borrar todos los datos?')) {
+            const resetAll = async () => {
+                const ok = await showCustomConfirm({
+                    title: '¿Borrar todos los datos?',
+                    message: 'Esta acción restablecerá por completo la aplicación a su estado de fábrica. Se borrarán todos los empleados, inventario, caja y configuraciones guardadas.',
+                    icon: 'fa-trash-can',
+                    type: 'danger',
+                    confirmText: 'Sí, borrar todo',
+                    cancelText: 'Cancelar'
+                });
+                if (ok) {
                     storageRemove('Split_data');
                     location.reload();
                 }
@@ -2934,7 +3213,16 @@
 
             // ── Export Excel (.xlsx) ──────────────────────────────────────────
             const exportToExcel = () => {
-                if (typeof XLSX === 'undefined') { alert('Librería Excel no cargada.'); return; }
+                if (typeof XLSX === 'undefined') {
+                    showCustomAlert({
+                        title: 'Librería Excel no disponible',
+                        message: 'No se pudo cargar la librería SheetJS (XLSX). Por favor verifica tu conexión a internet o recarga la página.',
+                        icon: 'fa-circle-exclamation',
+                        type: 'error',
+                        confirmText: 'Entendido'
+                    });
+                    return;
+                }
                 const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw, bankSummary } = buildExportData();
                 const hasPayroll = payrollSummary.count > 0;
                 const wb = XLSX.utils.book_new();
@@ -3075,7 +3363,16 @@
 
             // ── Export PDF ────────────────────────────────────────────────────
             const exportToPDF = () => {
-                if (typeof window.jspdf === 'undefined') { alert('Librería PDF no cargada.'); return; }
+                if (typeof window.jspdf === 'undefined') {
+                    showCustomAlert({
+                        title: 'Librería PDF no disponible',
+                        message: 'No se pudo cargar la librería jsPDF. Por favor verifica tu conexión a internet o recarga la página.',
+                        icon: 'fa-circle-exclamation',
+                        type: 'error',
+                        confirmText: 'Entendido'
+                    });
+                    return;
+                }
                 const { jsPDF } = window.jspdf;
                 const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount } = buildExportData();
                 const today = new Date().toLocaleDateString();
@@ -3619,7 +3916,7 @@
                 document.getElementById('importModal').classList.add('hidden');
             };
 
-            const processImport = () => {
+            const processImport = async () => {
                 const rawText = document.getElementById('jsonImportInput').value.trim();
                 const errEl = document.getElementById('importErrorMsg');
                 
@@ -3644,15 +3941,55 @@
                     }
 
                     if (newEmps.length > 0) {
-                        if(confirm(`Se han detectado ${newEmps.length} empleados. ¿Deseas reemplazar la lista actual (OK) o agregarlos al final (Cancelar)?`)) {
-                            state.employees = newEmps;
+                        if (state.employees.length > 0) {
+                            const choice = await showCustomChoice({
+                                title: 'Colaboradores detectados',
+                                message: `Se detectaron ${newEmps.length} colaboradores en la importación. Ya tienes ${state.employees.length} colaboradores en la lista actual. ¿Cómo deseas proceder?`,
+                                icon: 'fa-users-gear',
+                                type: 'question',
+                                choices: [
+                                    {
+                                        label: 'Cancelar',
+                                        value: 'cancel',
+                                        isPrimary: false
+                                    },
+                                    {
+                                        label: 'Agregar al final',
+                                        value: 'append',
+                                        icon: 'fa-user-plus',
+                                        class: 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                                    },
+                                    {
+                                        label: 'Reemplazar lista',
+                                        value: 'replace',
+                                        icon: 'fa-rotate',
+                                        isPrimary: true,
+                                        class: 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    }
+                                ]
+                            });
+
+                            if (!choice || choice === 'cancel') return;
+
+                            if (choice === 'replace') {
+                                state.employees = newEmps;
+                            } else if (choice === 'append') {
+                                state.employees = [...state.employees, ...newEmps];
+                            }
                         } else {
-                            state.employees = [...state.employees, ...newEmps];
+                            state.employees = newEmps;
                         }
+
                         if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
                         state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
                         saveData();
                         closeImportModal();
+
+                        // Show post-import auto-distribute modal
+                        const totalAmount = state.employees.reduce((sum, e) => sum + getEffectiveEmployeeAmount(e), 0);
+                        const countEl = document.getElementById('postImportCount');
+                        if (countEl) countEl.textContent = `${state.employees.length} empleados · Total: ${fmt(totalAmount)}`;
+                        document.getElementById('postImportModal').classList.remove('hidden');
                     } else {
                         throw new Error("No se encontraron empleados válidos.");
                     }
@@ -3660,6 +3997,37 @@
                 } catch (e) {
                     errEl.innerText = "Error: " + e.message;
                     errEl.classList.remove('hidden');
+                }
+            };
+
+            const closePostImportModal = (autoDistribute) => {
+                document.getElementById('postImportModal').classList.add('hidden');
+                if (autoDistribute) {
+                    // Clear existing inventory and auto-fill from bank needs
+                    state.inventory = {};
+                    state.denominations.forEach(d => state.inventory[d] = 0);
+                    
+                    // Calculate what's needed and fill directly
+                    const bankData = calculateBankNeeds();
+                    let totalAdded = 0;
+                    state.denominations.forEach(d => {
+                        const quantity = bankData.breakdown[d]?.final || 0;
+                        state.inventory[d] = (state.inventory[d] || 0) + quantity;
+                        totalAdded += quantity * d;
+                    });
+                    
+                    state.mode = 'inventory';
+                    switchTab('inventory');
+                    saveData();
+                    
+                    if (totalAdded > 0) {
+                        showToast(`Reparto automático: ${fmt(totalAdded)} distribuidos a ${state.employees.length} empleados.`, 'success');
+                    } else {
+                        showToast('Empleados importados. No se necesitan billetes adicionales.', 'info');
+                    }
+                } else {
+                    renderAll();
+                    showToast('Empleados importados. Ve a Banco para preparar el efectivo.', 'info');
                 }
             };
 
@@ -3815,12 +4183,20 @@
 
             const togglePayrollMode = () => setPayrollMode(state.payrollMode === 'deductions' ? 'normal' : 'deductions');
 
-            const resetOperation = () => {
+            const resetOperation = async () => {
                 if (!state.employees.length) {
                     showToast('No hay empleados ni una operación para reiniciar.', 'info');
                     return;
                 }
-                if (!confirm('¿Reiniciar la operación? Se conservarán los empleados y sus montos, pero se vaciarán Mi Caja, los retiros, límites, pagos y el fondo para préstamos.')) return;
+                const ok = await showCustomConfirm({
+                    title: '¿Reiniciar la operación?',
+                    message: 'Se conservarán los empleados y sus montos, pero se vaciarán Mi Caja, los retiros, límites, pagos y el fondo para préstamos.',
+                    icon: 'fa-rotate-left',
+                    type: 'warning',
+                    confirmText: 'Sí, reiniciar',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
 
                 state.denominations.forEach(denom => state.inventory[denom] = 0);
                 state.bankLimits = {};
@@ -3837,12 +4213,20 @@
                 showToast('Operación reiniciada. Se conservaron los empleados y sus montos.');
             };
 
-            const restoreImportSnapshot = () => {
+            const restoreImportSnapshot = async () => {
                 if (!Array.isArray(state.importSnapshot) || !state.importSnapshot.length) {
                     showToast('Todavía no hay una importación guardada para restaurar.', 'info');
                     return;
                 }
-                if (!confirm('¿Restaurar la última importación? Se recuperarán nombres, montos y desglose originales. También se limpiarán Mi Caja, retiros, pagos y el fondo para préstamos.')) return;
+                const ok = await showCustomConfirm({
+                    title: '¿Restaurar última importación?',
+                    message: 'Se recuperarán nombres, montos y desglose originales. También se limpiarán Mi Caja, retiros, pagos y el fondo para préstamos.',
+                    icon: 'fa-clock-rotate-left',
+                    type: 'warning',
+                    confirmText: 'Sí, restaurar',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
 
                 state.employees = JSON.parse(JSON.stringify(state.importSnapshot)).map((employee, index) => ({
                     ...employee,
@@ -3904,13 +4288,31 @@
             };
 
             // Round all employee amounts, removing cents
-            const roundAllAmounts = () => {
+            const roundAllAmounts = async () => {
                 const hasCents = state.employees.some(e => e.amount !== Math.floor(e.amount));
-                if (!hasCents) { alert('Todos los montos ya son enteros.'); return; }
+                if (!hasCents) {
+                    showCustomAlert({
+                        title: 'Sin centavos pendientes',
+                        message: 'Todos los montos de los colaboradores ya son números enteros sin centavos.',
+                        icon: 'fa-circle-check',
+                        type: 'info',
+                        confirmText: 'Entendido'
+                    });
+                    return;
+                }
                 const count = state.employees.filter(e => e.amount !== Math.floor(e.amount)).length;
-                if (!confirm(`Se quitarán los centavos de ${count} empleado(s). ¿Continuar?`)) return;
+                const ok = await showCustomConfirm({
+                    title: 'Cortar centavos',
+                    message: `Se eliminarán los decimales redondeando hacia abajo en ${count} colaborador(es). ¿Deseas continuar?`,
+                    icon: 'fa-scissors',
+                    type: 'warning',
+                    confirmText: 'Sí, cortar centavos',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
                 state.employees = state.employees.map(e => ({ ...e, amount: Math.floor(e.amount) }));
                 saveData();
+                showToast(`Centavos eliminados en ${count} colaborador(es).`, 'success');
             };
 
             // Update employee field inline
@@ -3939,18 +4341,42 @@
             // Colores oficiales de los billetes y monedas de la República Dominicana (6ª familia, emisión 2014)
             const BILL_COLORS = {
                 // === BILLETES ===
-                2000: { bg: '#4A90E2', text: '#ffffff', border: '#2e5e3e' },   // Azul
-                1000: { bg: '#E05A6D', text: '#ffffff', border: '#96281b' },   // Rojo
-                500:  { bg: '#26A69A', text: '#ffffff', border: '#117080' },   // Turquesa
-                200:  { bg: '#D81B60', text: '#ffffff', border: '#a83f61' },   // Rosa/Magenta
-                100:  { bg: '#F57C00', text: '#ffffff', border: '#ae5214' },   // Naranja
-                50:   { bg: '#8E44AD', text: '#ffffff', border: '#612d76' },   // Morado
-                20:   { bg: '#7a5c38', text: '#ffffff', border: '#5e4529' },   // Café
+                2000: { bg: '#4A90E2', darkText: '#0d3880', text: '#ffffff', border: '#2563eb' },   // Azul
+                1000: { bg: '#E05A6D', darkText: '#7f1d1d', text: '#ffffff', border: '#e11d48' },   // Rojo
+                500:  { bg: '#26A69A', darkText: '#064e3b', text: '#ffffff', border: '#0d9488' },   // Turquesa
+                200:  { bg: '#D81B60', darkText: '#701a75', text: '#ffffff', border: '#c026d3' },   // Rosa/Magenta
+                100:  { bg: '#F57C00', darkText: '#7c2d12', text: '#ffffff', border: '#ea580c' },   // Naranja
+                50:   { bg: '#8E44AD', darkText: '#581c87', text: '#ffffff', border: '#9333ea' },   // Morado
+                20:   { bg: '#7a5c38', darkText: '#451a03', text: '#ffffff', border: '#78350f' },   // Café
                 // === MONEDAS ===
-                25:   { bg: '#b8952a', text: '#ffffff', border: '#8f7020' },   // Dorada
-                10:   { bg: '#607d8b', text: '#ffffff', border: '#455a64' },   // Plateada
-                5:    { bg: '#8d6e63', text: '#ffffff', border: '#6d4c41' },   // Bronce
-                1:    { bg: '#a0784c', text: '#ffffff', border: '#7d5c38' },   // Cobre
+                25:   { bg: '#b8952a', darkText: '#5c4709', text: '#ffffff', border: '#8f7020' },   // Dorada
+                10:   { bg: '#607d8b', darkText: '#1e293b', text: '#ffffff', border: '#455a64' },   // Plateada
+                5:    { bg: '#8d6e63', darkText: '#3e2723', text: '#ffffff', border: '#6d4c41' },   // Bronce
+                1:    { bg: '#a0784c', darkText: '#4e342e', text: '#ffffff', border: '#7d5c38' },   // Cobre
+            };
+
+            const darkenHex = (hex, factor = 0.42) => {
+                if (!hex || typeof hex !== 'string') return '#0f172a';
+                let c = hex.trim().replace(/^#/, '');
+                if (c.length === 3) c = c.split('').map(x => x + x).join('');
+                if (c.length !== 6) return '#0f172a';
+                const num = parseInt(c, 16);
+                const r = Math.max(0, Math.floor(((num >> 16) & 255) * factor));
+                const g = Math.max(0, Math.floor(((num >> 8) & 255) * factor));
+                const b = Math.max(0, Math.floor((num & 255) * factor));
+                return `rgb(${r}, ${g}, ${b})`;
+            };
+
+            const getChipTextColor = (denom, baseBgColor) => {
+                const mode = state.chipTextColor || 'dark_tone';
+                if (mode === 'black') return '#0f172a';
+                if (mode === 'white') return '#ffffff';
+
+                // mode === 'dark_tone' (default)
+                if (BILL_COLORS[denom]?.darkText) {
+                    return BILL_COLORS[denom].darkText;
+                }
+                return darkenHex(baseBgColor || '#475569', 0.42);
             };
 
             const getBillImage = (denom) => {
@@ -3975,16 +4401,16 @@
                 // Custom color override
                 const customColor = state.billColors && state.billColors[denom];
                 if (customColor) {
-                    return `background-color:${customColor};color:#fff;border-color:${customColor};filter:brightness(0.95);`;
+                    const textColor = getChipTextColor(denom, customColor);
+                    return `background-color:${customColor};color:${textColor};border-color:${customColor};border-width:1.5px;`;
                 }
                 // Preset color or default vector palette
                 const curr = state.currency || 'DOP';
                 const presetHex = CURRENCY_PRESETS[curr]?.colors?.[denom];
-                if (presetHex) {
-                    return `background-color:${presetHex};color:#fff;border-color:${presetHex};`;
-                }
-                const c = BILL_COLORS[denom] || { bg: '#e2e8f0', text: '#475569', border: '#cbd5e1' };
-                return `background-color:${c.bg};color:${c.text};border-color:${c.border};border-width:1.5px;`;
+                const baseBg = presetHex || (BILL_COLORS[denom] ? BILL_COLORS[denom].bg : '#e2e8f0');
+                const border = BILL_COLORS[denom]?.border || presetHex || '#cbd5e1';
+                const textColor = getChipTextColor(denom, baseBg);
+                return `background-color:${baseBg};color:${textColor};border-color:${border};border-width:1.5px;`;
             };
 
             const renderEmployees = (data, loanFundResult = { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }) => {
@@ -4263,18 +4689,19 @@
                 const effAmount = getEffectiveEmployeeAmount(emp);
                 const hasCents = (effAmount % 1) !== 0;
                 const isDeficit = emp.status !== 'ok' || (emp._missingAmount && emp._missingAmount > 0);
+                const isCentsDeficit = isDeficit && (emp._missingAmount || 0) < 1;
 
                 let statusClass = 'status-green';
                 let statusTooltip = '100% Cubierto en caja · Listo para pagar';
                 if (isPaid) {
                     statusClass = 'status-paid';
                     statusTooltip = 'Pagado';
-                } else if (isDeficit) {
+                } else if (isDeficit && !isCentsDeficit) {
                     statusClass = 'status-red';
                     statusTooltip = `Faltan ${fmt(emp._missingAmount || 0)} en caja`;
-                } else if (hasCents) {
+                } else if (isCentsDeficit || hasCents) {
                     statusClass = 'status-yellow';
-                    statusTooltip = 'Monto con centavos · Requiere redondeo';
+                    statusTooltip = isCentsDeficit ? `Faltan centavos: ${fmt(emp._missingAmount || 0)}` : 'Monto con centavos · Requiere redondeo';
                 }
 
                 let subTextHTML = '';
@@ -4419,8 +4846,10 @@
                 }
 
                 let errorNoteHTML = '';
-                if (!isPaid && isDeficit && !isPreview) {
+                if (!isPaid && isDeficit && !isCentsDeficit && !isPreview) {
                     errorNoteHTML = `<div class="text-[11px] text-rose-600 dark:text-rose-400 font-semibold mt-0.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Faltan ${fmt(emp._missingAmount || 0)} en caja</div>`;
+                } else if (!isPaid && isCentsDeficit && !isPreview) {
+                    errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-coins mr-1"></i>Faltan centavos: ${fmt(emp._missingAmount || 0)}</div>`;
                 } else if (!isPaid && hasCents) {
                     errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-scissors mr-1"></i>Monto con centavos (${fmt(emp.amount)})</div>`;
                 }
@@ -4618,6 +5047,16 @@
                 renderAll();
             };
 
+            const setChipTextColor = (mode) => {
+                state.chipTextColor = mode; // 'dark_tone' | 'black' | 'white'
+                saveData();
+                renderAppearanceConfig();
+                renderAppearancePreviewCard();
+                renderCustomBillsConfig();
+                renderAll();
+                showToast(`Color de texto: ${mode === 'dark_tone' ? 'Tono oscuro de la moneda' : (mode === 'black' ? 'Negro' : 'Blanco')}`, 'success');
+            };
+
             const setBreakdownSize = (size) => {
                 state.breakdownSize = size;
                 saveData();
@@ -4690,6 +5129,18 @@
                 if (switchRound) switchRound.checked = state.roundCoins !== false;
                 const switchDark = document.getElementById('switchDarkMode');
                 if (switchDark) switchDark.checked = state.theme === 'dark';
+
+                // Vector text color mode buttons active state
+                const currentTextMode = state.chipTextColor || 'dark_tone';
+                ['dark_tone', 'black', 'white'].forEach(m => {
+                    const btn = document.getElementById(`chipTextMode-${m}`);
+                    if (btn) {
+                        const isActive = currentTextMode === m;
+                        btn.className = isActive 
+                            ? 'py-1.5 px-2 text-xs font-bold rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs flex items-center justify-center gap-1.5' 
+                            : 'py-1.5 px-2 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center gap-1.5';
+                    }
+                });
 
                 // Format buttons active state
                 const currentFmt = state.breakdownFormat || 'badge';
@@ -4846,22 +5297,40 @@
                 renderAll();
             };
 
-            const resetAllAppearance = () => {
-                if (!confirm('¿Restaurar todos los colores a los valores por defecto?')) return;
+            const resetAllAppearance = async () => {
+                const ok = await showCustomConfirm({
+                    title: '¿Restaurar colores?',
+                    message: '¿Deseas restaurar los colores de todos los billetes y monedas a los valores por defecto de la moneda activa?',
+                    icon: 'fa-palette',
+                    type: 'warning',
+                    confirmText: 'Restaurar',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
                 state.billColors = {};
                 saveData();
                 renderCustomBillsConfig();
                 renderAppearancePreviewCard();
                 renderAll();
+                showToast('Colores restaurados por defecto.', 'success');
             };
 
-            const clearAllImages = () => {
-                if (!confirm('¿Quitar todas las imágenes de billetes?')) return;
+            const clearAllImages = async () => {
+                const ok = await showCustomConfirm({
+                    title: '¿Quitar imágenes personalizadas?',
+                    message: 'Se removerán todas las fotos personalizadas subidas y se volverán a utilizar las imágenes del sistema o chips vectoriales.',
+                    icon: 'fa-image',
+                    type: 'warning',
+                    confirmText: 'Quitar imágenes',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
                 state.billImages = {};
                 saveData();
                 renderCustomBillsConfig();
                 renderAppearancePreviewCard();
                 renderAll();
+                showToast('Imágenes personalizadas removidas.', 'success');
             };
 
             const updateTotals = () => {
@@ -5346,12 +5815,20 @@
                 showToast(`Empleado ${name} actualizado correctamente.`);
             };
 
-            const revertEmployeeToOriginal = (empId) => {
+            const revertEmployeeToOriginal = async (empId) => {
                 const id = empId || currentEditEmpId;
                 const emp = state.employees.find(e => e.id === id);
                 if (!emp || !emp.originalData) return;
 
-                if (!confirm(`¿Restaurar los valores originales de importación para ${emp.name}?`)) return;
+                const ok = await showCustomConfirm({
+                    title: '¿Restaurar valores originales?',
+                    message: `¿Deseas restaurar los valores originales de importación para ${emp.name}? Se perderán los cambios manuales aplicados.`,
+                    icon: 'fa-rotate-left',
+                    type: 'warning',
+                    confirmText: 'Restaurar',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
 
                 const orig = JSON.parse(JSON.stringify(emp.originalData));
                 state.employees = state.employees.map(e => {
@@ -5416,6 +5893,7 @@
                 exportToPDF,
                 openImportModal,
                 closeImportModal,
+                closePostImportModal,
                 processImport,
                 switchImportTab,
                 roundAllAmounts,
@@ -5446,6 +5924,7 @@
                 renderAppearanceConfig,
                 renderCustomBillsConfig,
                 setBreakdownFormat,
+                setChipTextColor,
                 setBreakdownSize,
                 setBreakdownColumns,
                 toggleBreakdownGroupByType,
@@ -5459,7 +5938,11 @@
                 resetAllAppearance,
                 clearAllImages,
                 toggleTheme,
-                applyTheme
+                applyTheme,
+                showCustomAlert,
+                showCustomConfirm,
+                showCustomChoice,
+                closeCustomDialog
             };
         })();
 
