@@ -1,23 +1,20 @@
 /**
  * SplitX postMessage Receiver & Security Integration Tests
+ * Evaluates the real production SplitXBridge module.
  */
 const { test, describe, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { isAllowedSplitXOrigin, isAuthorizedSource, createSplitXBridge } = require('../js/SplitXBridge.js');
 
-describe('SplitX postMessage Receiver Security Contract', () => {
+describe('SplitXBridge Production Security Contract', () => {
     let mockState;
-    let processedTransfers;
     let postedMessages;
     let savedDataCalled;
+    let bridge;
+    let mockOpener;
+    let mockWindow;
 
-    const isAllowedSplitXOrigin = (origin) => {
-        if (!origin) return false;
-        if (origin === 'https://asistencia.erlin.do') return true;
-        if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
-        return false;
-    };
-
-    const normalizeImportedEmployee = (item, idx) => ({
+    const normalizeEmployee = (item, idx) => ({
         id: idx + 1,
         name: item.nombre || item.name,
         amount: item.monto || item.amount || 0,
@@ -34,74 +31,75 @@ describe('SplitX postMessage Receiver Security Contract', () => {
         }
     });
 
-    const createHandler = () => {
-        return async (event) => {
-            if (!isAllowedSplitXOrigin(event.origin)) {
-                return { ignored: true, reason: 'origin_not_allowed' };
-            }
-            if (!event.data || typeof event.data !== 'object') return { ignored: true, reason: 'invalid_data' };
-            if (event.data.type !== 'SPLITX_IMPORT_PAYROLL') return { ignored: true, reason: 'unhandled_type' };
-
-            if (event.data.source !== 'Sistema-de-Asistencia') {
-                return { ignored: true, reason: 'unrecognized_source' };
-            }
-
-            if (event.data.version !== '1.0') {
-                if (event.source && typeof event.source.postMessage === 'function') {
-                    event.source.postMessage({
-                        type: 'SPLITX_IMPORT_ERROR',
-                        transferId: event.data.transferId || null,
-                        error: `Versión de protocolo no soportada (${event.data.version || 'desconocida'}). Se requiere v1.0.`
-                    }, event.origin);
-                }
-                return { error: 'version_unsupported' };
-            }
-
-            const transferId = event.data.transferId;
-            if (transferId && processedTransfers.has(transferId)) {
-                return { ignored: true, reason: 'duplicate_transfer' };
-            }
-            if (transferId) {
-                processedTransfers.add(transferId);
-            }
-
-            const { employees: rawEmployees, currency, period } = event.data;
-            if (!Array.isArray(rawEmployees) || rawEmployees.length === 0) {
-                throw new Error('No se recibieron colaboradores en el payload.');
-            }
-
-            if (currency) mockState.currency = currency;
-            const newEmps = rawEmployees.map((item, idx) => normalizeImportedEmployee(item, idx));
-            mockState.employees = newEmps;
-            mockState.payrollMode = 'deductions';
-            savedDataCalled = true;
-
-            if (event.source && typeof event.source.postMessage === 'function') {
-                event.source.postMessage({
-                    type: 'SPLITX_IMPORT_SUCCESS',
-                    transferId: transferId || null,
-                    count: newEmps.length,
-                    period: period || null
-                }, event.origin);
-            }
-            return { success: true, count: newEmps.length };
-        };
-    };
-
     beforeEach(() => {
         mockState = { employees: [], currency: 'DOP', payrollMode: 'normal' };
-        processedTransfers = new Set();
         postedMessages = [];
         savedDataCalled = false;
+
+        mockOpener = {
+            postMessage: (msg, targetOrigin) => postedMessages.push({ msg, targetOrigin })
+        };
+
+        mockWindow = {
+            opener: mockOpener,
+            document: { referrer: 'https://asistencia.erlin.do' },
+            addEventListener: () => {},
+            removeEventListener: () => {}
+        };
+
+        bridge = createSplitXBridge({
+            getState: () => mockState,
+            setState: (newState) => { mockState = newState; },
+            saveData: () => { savedDataCalled = true; },
+            setCurrencyPreset: (code) => { mockState.currency = code; },
+            normalizeEmployee,
+            showCustomChoice: async () => 'replace',
+            showToast: () => {},
+            windowRef: mockWindow
+        });
+    });
+
+    test('isAllowedSplitXOrigin allows asistencia.erlin.do, localhost and 127.0.0.1', () => {
+        assert.equal(isAllowedSplitXOrigin('https://asistencia.erlin.do'), true);
+        assert.equal(isAllowedSplitXOrigin('http://localhost:3000'), true);
+        assert.equal(isAllowedSplitXOrigin('http://127.0.0.1:8080'), true);
+        assert.equal(isAllowedSplitXOrigin('https://localhost'), true);
+        assert.equal(isAllowedSplitXOrigin('https://malicious-site.com'), false);
+        assert.equal(isAllowedSplitXOrigin('http://evil.com'), false);
+        assert.equal(isAllowedSplitXOrigin(''), false);
+        assert.equal(isAllowedSplitXOrigin(null), false);
+    });
+
+    test('isAuthorizedSource verifies that event.source matches window.opener', () => {
+        const fakeSource = { postMessage: () => {} };
+        assert.equal(isAuthorizedSource(mockOpener, mockOpener), true);
+        assert.equal(isAuthorizedSource(fakeSource, mockOpener), false);
+        assert.equal(isAuthorizedSource(fakeSource, null), true);
+    });
+
+    test('responds to SPLITX_PING with SPLITX_READY and transferId', async () => {
+        const result = await bridge.handleMessage({
+            origin: 'https://asistencia.erlin.do',
+            source: mockOpener,
+            data: {
+                type: 'SPLITX_PING',
+                transferId: 'tx_ping_123',
+                version: '1.0'
+            }
+        });
+
+        assert.equal(result.handled, true);
+        assert.equal(result.action, 'pong_ready');
+        assert.equal(postedMessages.length, 1);
+        assert.equal(postedMessages[0].msg.type, 'SPLITX_READY');
+        assert.equal(postedMessages[0].msg.transferId, 'tx_ping_123');
+        assert.equal(postedMessages[0].targetOrigin, 'https://asistencia.erlin.do');
     });
 
     test('ignores messages from unauthorized origins', async () => {
-        const handler = createHandler();
-        const mockSource = { postMessage: (msg, targetOrigin) => postedMessages.push({ msg, targetOrigin }) };
-
-        const result = await handler({
+        const result = await bridge.handleMessage({
             origin: 'https://malicious-site.com',
-            source: mockSource,
+            source: mockOpener,
             data: {
                 type: 'SPLITX_IMPORT_PAYROLL',
                 source: 'Sistema-de-Asistencia',
@@ -111,31 +109,50 @@ describe('SplitX postMessage Receiver Security Contract', () => {
             }
         });
 
-        assert.equal(result.ignored, true);
+        assert.equal(result.handled, false);
         assert.equal(result.reason, 'origin_not_allowed');
         assert.equal(mockState.employees.length, 0);
         assert.equal(postedMessages.length, 0);
     });
 
-    test('accepts messages from https://asistencia.erlin.do and localhost/127.0.0.1', async () => {
-        const handler = createHandler();
-        const mockSource = { postMessage: (msg, targetOrigin) => postedMessages.push({ msg, targetOrigin }) };
-
-        const result = await handler({
+    test('ignores messages where event.source is not window.opener', async () => {
+        const otherWindow = { postMessage: () => {} };
+        const result = await bridge.handleMessage({
             origin: 'https://asistencia.erlin.do',
-            source: mockSource,
+            source: otherWindow,
+            data: {
+                type: 'SPLITX_IMPORT_PAYROLL',
+                source: 'Sistema-de-Asistencia',
+                version: '1.0',
+                transferId: 'tx_123',
+                employees: [{ nombre: 'Juan', monto: 500 }]
+            }
+        });
+
+        assert.equal(result.handled, false);
+        assert.equal(result.reason, 'source_not_opener');
+        assert.equal(mockState.employees.length, 0);
+        assert.equal(postedMessages.length, 0);
+    });
+
+    test('accepts payroll import from https://asistencia.erlin.do, normalizes and responds with SPLITX_IMPORT_SUCCESS', async () => {
+        const result = await bridge.handleMessage({
+            origin: 'https://asistencia.erlin.do',
+            source: mockOpener,
             data: {
                 type: 'SPLITX_IMPORT_PAYROLL',
                 source: 'Sistema-de-Asistencia',
                 version: '1.0',
                 transferId: 'tx_prod_1',
                 currency: 'USD',
+                period: { start: '2026-08-01', end: '2026-08-15' },
                 employees: [
                     { nombre: 'Ana', monto: 1200, prestamoCapital: 1000, prestamoInteres: 200 }
                 ]
             }
         });
 
+        assert.equal(result.handled, true);
         assert.equal(result.success, true);
         assert.equal(mockState.employees.length, 1);
         assert.equal(mockState.currency, 'USD');
@@ -148,12 +165,9 @@ describe('SplitX postMessage Receiver Security Contract', () => {
     });
 
     test('rejects incompatible protocol versions with SPLITX_IMPORT_ERROR', async () => {
-        const handler = createHandler();
-        const mockSource = { postMessage: (msg, targetOrigin) => postedMessages.push({ msg, targetOrigin }) };
-
-        const result = await handler({
+        const result = await bridge.handleMessage({
             origin: 'http://127.0.0.1:8080',
-            source: mockSource,
+            source: mockOpener,
             data: {
                 type: 'SPLITX_IMPORT_PAYROLL',
                 source: 'Sistema-de-Asistencia',
@@ -163,6 +177,7 @@ describe('SplitX postMessage Receiver Security Contract', () => {
             }
         });
 
+        assert.equal(result.handled, true);
         assert.equal(result.error, 'version_unsupported');
         assert.equal(postedMessages.length, 1);
         assert.equal(postedMessages[0].msg.type, 'SPLITX_IMPORT_ERROR');
@@ -171,12 +186,9 @@ describe('SplitX postMessage Receiver Security Contract', () => {
     });
 
     test('idempotency: ignores duplicate payload with same transferId', async () => {
-        const handler = createHandler();
-        const mockSource = { postMessage: (msg, targetOrigin) => postedMessages.push({ msg, targetOrigin }) };
-
         const payload = {
             origin: 'http://localhost:3000',
-            source: mockSource,
+            source: mockOpener,
             data: {
                 type: 'SPLITX_IMPORT_PAYROLL',
                 source: 'Sistema-de-Asistencia',
@@ -186,12 +198,13 @@ describe('SplitX postMessage Receiver Security Contract', () => {
             }
         };
 
-        const firstResult = await handler(payload);
+        const firstResult = await bridge.handleMessage(payload);
+        assert.equal(firstResult.handled, true);
         assert.equal(firstResult.success, true);
         assert.equal(postedMessages.length, 1);
 
-        const duplicateResult = await handler(payload);
-        assert.equal(duplicateResult.ignored, true);
+        const duplicateResult = await bridge.handleMessage(payload);
+        assert.equal(duplicateResult.handled, true);
         assert.equal(duplicateResult.reason, 'duplicate_transfer');
         assert.equal(postedMessages.length, 1);
         assert.equal(mockState.employees.length, 1);

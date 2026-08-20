@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="js/SplitXBridge.js"></script>
 
     <script>
         tailwind.config = {
@@ -2279,22 +2280,18 @@
                 setupEventListeners();
 
                 // Cross-window postMessage bridge (e.g. from Sistema de Asistencia)
-                window.addEventListener("message", handleCrossWindowMessage);
-                if (window.opener && typeof window.opener.postMessage === "function") {
-                    try {
-                        let targetOpenerOrigin = "*";
-                        if (document.referrer) {
-                            try {
-                                const refOrigin = new URL(document.referrer).origin;
-                                if (isAllowedSplitXOrigin(refOrigin)) {
-                                    targetOpenerOrigin = refOrigin;
-                                }
-                            } catch (e) {}
-                        }
-                        window.opener.postMessage({ type: "SPLITX_READY", version: "1.0" }, targetOpenerOrigin);
-                    } catch (e) {
-                        console.warn("SplitX: no se pudo emitir SPLITX_READY a window.opener", e);
-                    }
+                if (typeof SplitXBridge !== 'undefined') {
+                    const bridge = SplitXBridge.createSplitXBridge({
+                        getState: () => state,
+                        setState: (newState) => { state = newState; },
+                        saveData,
+                        setCurrencyPreset,
+                        normalizeEmployee: normalizeImportedEmployee,
+                        showCustomChoice,
+                        showToast,
+                        windowRef: window
+                    });
+                    bridge.attach();
                 }
             };
 
@@ -5916,142 +5913,6 @@
                     openEditModal(id);
                 }
                 showToast(`Valores originales restaurados para ${orig.name}.`);
-            };
-
-            const isAllowedSplitXOrigin = (origin) => {
-                if (!origin) return false;
-                if (origin === "https://asistencia.erlin.do") return true;
-                // Permitir localhost / 127.0.0.1 para pruebas y desarrollo
-                if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
-                return false;
-            };
-
-            const _processedSplitXTransfers = new Set();
-
-            const handleCrossWindowMessage = async (event) => {
-                // 1. Validación de origen permitido
-                if (!isAllowedSplitXOrigin(event.origin)) {
-                    console.warn("SplitX: Mensaje ignorado por origen no permitido:", event.origin);
-                    return;
-                }
-                if (!event.data || typeof event.data !== "object") return;
-                if (event.data.type !== "SPLITX_IMPORT_PAYROLL") return;
-
-                // 2. Validación de fuente emisora
-                if (event.data.source !== "Sistema-de-Asistencia") {
-                    console.warn("SplitX: Mensaje ignorado - source no reconocido:", event.data.source);
-                    return;
-                }
-
-                // 3. Validación de versión de protocolo
-                if (event.data.version !== "1.0") {
-                    if (event.source && typeof event.source.postMessage === "function") {
-                        event.source.postMessage({
-                            type: "SPLITX_IMPORT_ERROR",
-                            transferId: event.data.transferId || null,
-                            error: `Versión de protocolo no soportada (${event.data.version || 'desconocida'}). Se requiere v1.0.`
-                        }, event.origin);
-                    }
-                    return;
-                }
-
-                // 4. Idempotencia y control de duplicados por transferId
-                const transferId = event.data.transferId;
-                if (transferId && _processedSplitXTransfers.has(transferId)) {
-                    console.info("SplitX: Transferencia ya procesada o en curso, ignorando duplicado:", transferId);
-                    return;
-                }
-                if (transferId) {
-                    _processedSplitXTransfers.add(transferId);
-                }
-
-                try {
-                    const { employees: rawEmployees, currency, period } = event.data;
-                    if (!Array.isArray(rawEmployees) || rawEmployees.length === 0) {
-                        throw new Error("No se recibieron colaboradores en el payload.");
-                    }
-
-                    if (currency && typeof currency === "string") {
-                        const code = currency.toUpperCase();
-                        if (["DOP", "USD", "EUR", "MXN", "COP", "ARS", "CLP", "PEN", "BRL", "GBP", "CHF", "JPY", "INR", "PHP", "RUB"].includes(code)) {
-                            setCurrencyPreset(code);
-                        }
-                    }
-
-                    const newEmps = rawEmployees.map((item, idx) => normalizeImportedEmployee(item, idx));
-
-                    if (state.employees && state.employees.length > 0) {
-                        const choice = await showCustomChoice({
-                            title: "Nómina recibida",
-                            message: `Se recibieron ${newEmps.length} colaboradores desde Sistema de Asistencia${period && period.start ? " (" + period.start + " al " + period.end + ")" : ""}. Ya tienes ${state.employees.length} en la lista actual. ¿Cómo deseas proceder?`,
-                            icon: "fa-users-gear",
-                            type: "question",
-                            choices: [
-                                {
-                                    label: "Cancelar",
-                                    value: "cancel",
-                                    isPrimary: false
-                                },
-                                {
-                                    label: "Agregar al final",
-                                    value: "append",
-                                    icon: "fa-user-plus",
-                                    class: "bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                                },
-                                {
-                                    label: "Reemplazar todo",
-                                    value: "replace",
-                                    icon: "fa-rotate",
-                                    class: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-                                }
-                            ]
-                        });
-
-                        if (choice === "cancel") {
-                            if (event.source && typeof event.source.postMessage === "function") {
-                                event.source.postMessage({
-                                    type: "SPLITX_IMPORT_CANCELLED",
-                                    transferId: transferId || null
-                                }, event.origin);
-                            }
-                            return;
-                        }
-
-                        if (choice === "replace") {
-                            state.employees = newEmps;
-                        } else if (choice === "append") {
-                            state.employees = [...state.employees, ...newEmps];
-                        }
-                    } else {
-                        state.employees = newEmps;
-                    }
-
-                    if (state.employees.some(e => e.payroll)) {
-                        state.payrollMode = "deductions";
-                    }
-
-                    saveData();
-                    showToast(`✅ ${newEmps.length} colaboradores importados desde Sistema de Asistencia.`);
-
-                    if (event.source && typeof event.source.postMessage === "function") {
-                        event.source.postMessage({
-                            type: "SPLITX_IMPORT_SUCCESS",
-                            transferId: transferId || null,
-                            count: newEmps.length,
-                            period: period || null
-                        }, event.origin);
-                    }
-                } catch (err) {
-                    console.error("SplitX postMessage error:", err);
-                    showToast(`❌ Error al importar nómina: ${err.message}`, "error");
-                    if (event.source && typeof event.source.postMessage === "function") {
-                        event.source.postMessage({
-                            type: "SPLITX_IMPORT_ERROR",
-                            transferId: transferId || null,
-                            error: err.message
-                        }, event.origin);
-                    }
-                }
             };
 
             const setupEventListeners = () => {
