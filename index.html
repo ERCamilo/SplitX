@@ -2282,7 +2282,16 @@
                 window.addEventListener("message", handleCrossWindowMessage);
                 if (window.opener && typeof window.opener.postMessage === "function") {
                     try {
-                        window.opener.postMessage({ type: "SPLITX_READY", version: "1.0" }, "*");
+                        let targetOpenerOrigin = "*";
+                        if (document.referrer) {
+                            try {
+                                const refOrigin = new URL(document.referrer).origin;
+                                if (isAllowedSplitXOrigin(refOrigin)) {
+                                    targetOpenerOrigin = refOrigin;
+                                }
+                            } catch (e) {}
+                        }
+                        window.opener.postMessage({ type: "SPLITX_READY", version: "1.0" }, targetOpenerOrigin);
                     } catch (e) {
                         console.warn("SplitX: no se pudo emitir SPLITX_READY a window.opener", e);
                     }
@@ -5909,9 +5918,52 @@
                 showToast(`Valores originales restaurados para ${orig.name}.`);
             };
 
+            const isAllowedSplitXOrigin = (origin) => {
+                if (!origin) return false;
+                if (origin === "https://asistencia.erlin.do") return true;
+                // Permitir localhost / 127.0.0.1 para pruebas y desarrollo
+                if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
+                return false;
+            };
+
+            const _processedSplitXTransfers = new Set();
+
             const handleCrossWindowMessage = async (event) => {
+                // 1. Validación de origen permitido
+                if (!isAllowedSplitXOrigin(event.origin)) {
+                    console.warn("SplitX: Mensaje ignorado por origen no permitido:", event.origin);
+                    return;
+                }
                 if (!event.data || typeof event.data !== "object") return;
                 if (event.data.type !== "SPLITX_IMPORT_PAYROLL") return;
+
+                // 2. Validación de fuente emisora
+                if (event.data.source !== "Sistema-de-Asistencia") {
+                    console.warn("SplitX: Mensaje ignorado - source no reconocido:", event.data.source);
+                    return;
+                }
+
+                // 3. Validación de versión de protocolo
+                if (event.data.version !== "1.0") {
+                    if (event.source && typeof event.source.postMessage === "function") {
+                        event.source.postMessage({
+                            type: "SPLITX_IMPORT_ERROR",
+                            transferId: event.data.transferId || null,
+                            error: `Versión de protocolo no soportada (${event.data.version || 'desconocida'}). Se requiere v1.0.`
+                        }, event.origin);
+                    }
+                    return;
+                }
+
+                // 4. Idempotencia y control de duplicados por transferId
+                const transferId = event.data.transferId;
+                if (transferId && _processedSplitXTransfers.has(transferId)) {
+                    console.info("SplitX: Transferencia ya procesada o en curso, ignorando duplicado:", transferId);
+                    return;
+                }
+                if (transferId) {
+                    _processedSplitXTransfers.add(transferId);
+                }
 
                 try {
                     const { employees: rawEmployees, currency, period } = event.data;
@@ -5957,7 +6009,10 @@
 
                         if (choice === "cancel") {
                             if (event.source && typeof event.source.postMessage === "function") {
-                                event.source.postMessage({ type: "SPLITX_IMPORT_CANCELLED" }, "*");
+                                event.source.postMessage({
+                                    type: "SPLITX_IMPORT_CANCELLED",
+                                    transferId: transferId || null
+                                }, event.origin);
                             }
                             return;
                         }
@@ -5981,9 +6036,10 @@
                     if (event.source && typeof event.source.postMessage === "function") {
                         event.source.postMessage({
                             type: "SPLITX_IMPORT_SUCCESS",
+                            transferId: transferId || null,
                             count: newEmps.length,
                             period: period || null
-                        }, "*");
+                        }, event.origin);
                     }
                 } catch (err) {
                     console.error("SplitX postMessage error:", err);
@@ -5991,8 +6047,9 @@
                     if (event.source && typeof event.source.postMessage === "function") {
                         event.source.postMessage({
                             type: "SPLITX_IMPORT_ERROR",
+                            transferId: transferId || null,
                             error: err.message
-                        }, "*");
+                        }, event.origin);
                     }
                 }
             };
