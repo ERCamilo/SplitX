@@ -2277,6 +2277,16 @@
                 loadData();
                 renderAll();
                 setupEventListeners();
+
+                // Cross-window postMessage bridge (e.g. from Sistema de Asistencia)
+                window.addEventListener("message", handleCrossWindowMessage);
+                if (window.opener && typeof window.opener.postMessage === "function") {
+                    try {
+                        window.opener.postMessage({ type: "SPLITX_READY", version: "1.0" }, "*");
+                    } catch (e) {
+                        console.warn("SplitX: no se pudo emitir SPLITX_READY a window.opener", e);
+                    }
+                }
             };
 
             // Storage helper — falls back to in-memory if localStorage is blocked (e.g. file:// from OneDrive)
@@ -2564,6 +2574,23 @@
                 const bonuses = parseImportNumber(item.bonificaciones ?? item.bonuses, 0);
                 const discounts = parseImportNumber(item.descuentos ?? item.discounts, 0);
                 const loans = parseImportNumber(item.prestamos ?? item.loans, 0);
+                const prestamoCapital = parseImportNumber(item.prestamoCapital ?? item.loanPrincipal ?? item.loanDetails?.principal, null);
+                const prestamoInteres = parseImportNumber(item.prestamoInteres ?? item.loanInterest ?? item.loanInterestAmount ?? item.loanDetails?.interestAmount, null);
+                const saldoPendiente = parseImportNumber(item.saldoPendiente ?? item.balancePendiente ?? item.remainingBalance ?? item.loanDetails?.remainingBalance, null);
+                const tasaInteres = parseImportNumber(item.tasaInteres ?? item.interestRate ?? item.loanDetails?.interestRate, null);
+
+                let loanDetails = null;
+                if (loans > 0 || prestamoCapital !== null || prestamoInteres !== null || saldoPendiente !== null) {
+                    const interestAmount = prestamoInteres ?? 0;
+                    const principal = prestamoCapital !== null ? prestamoCapital : Math.max(0, loans - interestAmount);
+                    loanDetails = {
+                        principal,
+                        interestRate: tasaInteres ?? (loans > 0 && interestAmount > 0 && principal > 0 ? Number(((interestAmount / principal) * 100).toFixed(2)) : 0),
+                        interestAmount,
+                        remainingBalance: saldoPendiente ?? 0
+                    };
+                }
+
                 const afterDiscounts = gross !== null ? gross + bonuses - discounts : null;
                 const calculatedNet = afterDiscounts !== null ? afterDiscounts - loans : null;
                 const amount = parseImportNumber(importedAmount, calculatedNet);
@@ -2591,6 +2618,7 @@
                         discounts,
                         afterDiscounts: afterDiscounts ?? amount + loans,
                         loans,
+                        loanDetails,
                         net: amount,
                         calculatedNet,
                         difference,
@@ -2650,9 +2678,13 @@
                     const diffLoans = Math.max(0, origLoans - loans);
                     summary.loansUncollected += diffLoans;
 
-                    // Loan details: interest & debt portfolio
+                    // Loan details: principal, interest & debt portfolio
                     const ld = emp.payroll.loanDetails || {};
-                    summary.totalInterest += ld.interestAmount || 0;
+                    const interest = ld.interestAmount || 0;
+                    const principal = ld.principal !== undefined ? ld.principal : Math.max(0, loans - interest);
+
+                    summary.totalPrincipal += principal;
+                    summary.totalInterest += interest;
                     summary.totalRemainingBalance += ld.remainingBalance || 0;
 
                     return summary;
@@ -2667,6 +2699,7 @@
                     net: 0,
                     loansScheduled: 0,
                     loansUncollected: 0,
+                    totalPrincipal: 0,
                     totalInterest: 0,
                     totalRemainingBalance: 0
                 });
@@ -4456,10 +4489,22 @@
                         <div class="flex flex-col gap-2.5">
                             <!-- Header Card -->
                             <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3">
-                                <div class="flex items-baseline gap-2 flex-wrap min-w-0">
-                                    <span class="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">${payrollSummary.loansCount || 0}</span>
-                                    <span class="text-sm font-bold text-slate-800 dark:text-slate-200">Préstamos descontados</span>
-                                    <span class="text-xs text-slate-400 dark:text-slate-400 font-medium">(${payrollSummary.count} colaboradores en nómina)</span>
+                                <div class="flex flex-col gap-1 min-w-0">
+                                    <div class="flex items-baseline gap-2 flex-wrap">
+                                        <span class="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">${payrollSummary.loansCount || 0}</span>
+                                        <span class="text-sm font-bold text-slate-800 dark:text-slate-200">Préstamos descontados</span>
+                                        <span class="text-xs text-slate-400 dark:text-slate-400 font-medium">(${payrollSummary.count} colaboradores en nómina)</span>
+                                    </div>
+                                    ${payrollSummary.loans > 0 ? `
+                                        <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                            <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                                                <span class="text-slate-400 dark:text-slate-500">Capital:</span> <strong>${fmtNum(payrollSummary.totalPrincipal)}</strong>
+                                            </span>
+                                            <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 font-mono">
+                                                <span class="text-amber-500 dark:text-amber-400">Interés recaudado:</span> <strong>${fmtNum(payrollSummary.totalInterest)}</strong>
+                                            </span>
+                                        </div>
+                                    ` : ''}
                                 </div>
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-teal-700 dark:bg-teal-600 text-white shadow-xs shrink-0">
                                     <i class="fa-solid fa-tag text-[9px]"></i> Resumen de Recaudación
@@ -4483,6 +4528,12 @@
 
                                             <span class="text-slate-600 dark:text-slate-400">Préstamos:</span>
                                             <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(payrollSummary.loans || 0)}</span>
+                                            ${payrollSummary.loans > 0 ? `
+                                                <span class="text-[11px] text-slate-500 dark:text-slate-400 pl-3">↳ Capital recaudado:</span>
+                                                <span class="text-right text-[11px] text-slate-600 dark:text-slate-300 font-mono">${fmtNum(payrollSummary.totalPrincipal)}</span>
+                                                <span class="text-[11px] text-amber-600 dark:text-amber-400 pl-3 font-medium">↳ Interés recaudado:</span>
+                                                <span class="text-right text-[11px] text-amber-600 dark:text-amber-400 font-mono font-bold">${fmtNum(payrollSummary.totalInterest)}</span>
+                                            ` : ''}
                                         </div>
                                         <div class="text-2xl font-black font-mono text-slate-950 dark:text-slate-50 tracking-tight mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-right">
                                             $${fmtNum(payrollSummary.net)}
@@ -4716,6 +4767,9 @@
                     const bonuses = Number(p.bonuses) || 0;
                     const discounts = Number(p.discounts) || 0;
                     const loans = Number(p.loans) || 0;
+                    const ld = p.loanDetails || {};
+                    const loanPrincipal = ld.principal !== undefined ? ld.principal : (loans - (ld.interestAmount || 0));
+                    const loanInterest = ld.interestAmount || 0;
                     const netBeforeLoan = (p.afterDiscounts !== undefined && p.afterDiscounts !== null) 
                         ? p.afterDiscounts 
                         : (grossVal + bonuses - discounts);
@@ -4782,6 +4836,12 @@
                                         <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(netBeforeLoan)}</span>
                                         <span>Préstamo:</span>
                                         <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(loans)}</span>
+                                        ${(loans > 0 && (loanInterest > 0 || loanPrincipal > 0)) ? `
+                                            <span class="text-[10px] text-slate-500 dark:text-slate-400 pl-2">↳ Capital:</span>
+                                            <span class="text-right text-[10px] text-slate-600 dark:text-slate-300 font-mono">${fmtNum(loanPrincipal)}</span>
+                                            <span class="text-[10px] text-amber-600 dark:text-amber-400 pl-2 font-medium">↳ Interés:</span>
+                                            <span class="text-right text-[10px] text-amber-600 dark:text-amber-400 font-mono font-semibold">${fmtNum(loanInterest)}</span>
+                                        ` : ''}
                                     </div>
                                     <div class="border-t-2 border-slate-400 dark:border-slate-500 my-1"></div>
                                     <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold leading-tight items-baseline">
@@ -5847,6 +5907,94 @@
                     openEditModal(id);
                 }
                 showToast(`Valores originales restaurados para ${orig.name}.`);
+            };
+
+            const handleCrossWindowMessage = async (event) => {
+                if (!event.data || typeof event.data !== "object") return;
+                if (event.data.type !== "SPLITX_IMPORT_PAYROLL") return;
+
+                try {
+                    const { employees: rawEmployees, currency, period } = event.data;
+                    if (!Array.isArray(rawEmployees) || rawEmployees.length === 0) {
+                        throw new Error("No se recibieron colaboradores en el payload.");
+                    }
+
+                    if (currency && typeof currency === "string") {
+                        const code = currency.toUpperCase();
+                        if (["DOP", "USD", "EUR", "MXN", "COP", "ARS", "CLP", "PEN", "BRL", "GBP", "CHF", "JPY", "INR", "PHP", "RUB"].includes(code)) {
+                            setCurrencyPreset(code);
+                        }
+                    }
+
+                    const newEmps = rawEmployees.map((item, idx) => normalizeImportedEmployee(item, idx));
+
+                    if (state.employees && state.employees.length > 0) {
+                        const choice = await showCustomChoice({
+                            title: "Nómina recibida",
+                            message: `Se recibieron ${newEmps.length} colaboradores desde Sistema de Asistencia${period && period.start ? " (" + period.start + " al " + period.end + ")" : ""}. Ya tienes ${state.employees.length} en la lista actual. ¿Cómo deseas proceder?`,
+                            icon: "fa-users-gear",
+                            type: "question",
+                            choices: [
+                                {
+                                    label: "Cancelar",
+                                    value: "cancel",
+                                    isPrimary: false
+                                },
+                                {
+                                    label: "Agregar al final",
+                                    value: "append",
+                                    icon: "fa-user-plus",
+                                    class: "bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                },
+                                {
+                                    label: "Reemplazar todo",
+                                    value: "replace",
+                                    icon: "fa-rotate",
+                                    class: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                }
+                            ]
+                        });
+
+                        if (choice === "cancel") {
+                            if (event.source && typeof event.source.postMessage === "function") {
+                                event.source.postMessage({ type: "SPLITX_IMPORT_CANCELLED" }, "*");
+                            }
+                            return;
+                        }
+
+                        if (choice === "replace") {
+                            state.employees = newEmps;
+                        } else if (choice === "append") {
+                            state.employees = [...state.employees, ...newEmps];
+                        }
+                    } else {
+                        state.employees = newEmps;
+                    }
+
+                    if (state.employees.some(e => e.payroll)) {
+                        state.payrollMode = "deductions";
+                    }
+
+                    saveData();
+                    showToast(`✅ ${newEmps.length} colaboradores importados desde Sistema de Asistencia.`);
+
+                    if (event.source && typeof event.source.postMessage === "function") {
+                        event.source.postMessage({
+                            type: "SPLITX_IMPORT_SUCCESS",
+                            count: newEmps.length,
+                            period: period || null
+                        }, "*");
+                    }
+                } catch (err) {
+                    console.error("SplitX postMessage error:", err);
+                    showToast(`❌ Error al importar nómina: ${err.message}`, "error");
+                    if (event.source && typeof event.source.postMessage === "function") {
+                        event.source.postMessage({
+                            type: "SPLITX_IMPORT_ERROR",
+                            error: err.message
+                        }, "*");
+                    }
+                }
             };
 
             const setupEventListeners = () => {
