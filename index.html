@@ -2569,7 +2569,7 @@
                 return isNaN(parsed) ? fallback : parsed;
             };
 
-            const hasPayrollFields = (item) => ['bruto', 'gross', 'bonificaciones', 'bonuses', 'descuentos', 'discounts', 'prestamos', 'loans', 'bonusDetails', 'deductionDetails'].some(key => item[key] !== undefined && item[key] !== null && item[key] !== '');
+            const hasPayrollFields = (item) => ['bruto', 'gross', 'bonificaciones', 'bonuses', 'descuentos', 'discounts', 'prestamos', 'loans', 'bonusDetails', 'deductionDetails', 'loanBreakdown'].some(key => item[key] !== undefined && item[key] !== null && item[key] !== '');
 
             // Extra import data (employee number, work days, concepts…) used by printable sheets.
             const sheetFields = typeof SplitXSheetFields !== 'undefined' ? SplitXSheetFields : null;
@@ -2583,7 +2583,7 @@
                 const gross = parseImportNumber(item.bruto ?? item.gross, null);
                 const bonuses = parseImportNumber(item.bonificaciones ?? item.bonuses ?? sheetFields?.sumDetailAmounts(item.bonusDetails), 0);
                 const discounts = parseImportNumber(item.descuentos ?? item.discounts ?? sheetFields?.sumDetailAmounts(item.deductionDetails), 0);
-                const loans = parseImportNumber(item.prestamos ?? item.loans, 0);
+                const loans = parseImportNumber(item.prestamos ?? item.loans ?? sheetFields?.sumLoanAmounts(item.loanBreakdown), 0);
                 const prestamoCapital = parseImportNumber(item.prestamoCapital ?? item.loanPrincipal ?? item.loanDetails?.principal, null);
                 const prestamoInteres = parseImportNumber(item.prestamoInteres ?? item.loanInterest ?? item.loanInterestAmount ?? item.loanDetails?.interestAmount, null);
                 const saldoPendiente = parseImportNumber(item.saldoPendiente ?? item.balancePendiente ?? item.remainingBalance ?? item.loanDetails?.remainingBalance, null);

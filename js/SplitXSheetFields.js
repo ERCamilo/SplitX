@@ -20,6 +20,8 @@
 
     /**
      * @typedef {{ id: string, concept: string, type: string, value: number, amount: number }} ConceptDetail
+     * @typedef {{ id: string, concept: string, amount: number, status?: string, principal?: number, interest?: number, balanceBefore?: number, balanceAfter?: number }} LoanItem
+     * @typedef {{ balanceBefore?: number, amount?: number, balanceAfter?: number, totalOutstanding?: number, totalOutstandingAfter?: number }} LoanSummary
      * @typedef {{ unit?: string, regular?: number, overtime?: number, holiday?: number, restDay?: number, total?: number }} WorkDays
      * @typedef {{ start?: string, end?: string }} Period
      * @typedef {{ schema?: string, period?: Period, currency?: string, projectId?: string, projectName?: string, companyName?: string, payrollName?: string }} ExportContext
@@ -29,10 +31,12 @@
      * @property {string} [employeeName]
      * @property {string} [sourceEmployeeId]
      * @property {WorkDays} [workDays]
-     * @property {{ id: string, name: string }[]} [positions]
+     * @property {{ id: string, name: string, days?: number, dailyRate?: number }[]} [positions]
      * @property {{ id: string, name: string, number?: string }[]} [leaders]
      * @property {ConceptDetail[]} [bonusDetails]
      * @property {ConceptDetail[]} [deductionDetails]
+     * @property {LoanItem[]} [loanItems] Cada préstamo/adelanto descontado en este pago.
+     * @property {LoanSummary} [loanSummary]
      * @property {ExportContext} [exportContext]
      *
      * @typedef {{ key: string, label: string, type: 'text' | 'number', decimals?: number | 'auto', noTotal?: boolean, get: (record: any, ctx: { index: number }) => unknown }} FieldDef
@@ -40,7 +44,7 @@
 
     const MAX_ITEMS = 100;
     const MAX_TEXT = 200;
-    const CONCEPT_GROUPS = /** @type {const} */ ([['bonus', 'bonusDetails'], ['deduction', 'deductionDetails']]);
+    const CONCEPT_GROUPS = /** @type {const} */ ([['bonus', 'bonusDetails'], ['deduction', 'deductionDetails'], ['loan', 'loanItems']]);
 
     /** @param {unknown} v */
     const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -116,6 +120,70 @@
         return out;
     };
 
+    /** @param {unknown} list */
+    const pickPositions = (list) => {
+        if (!Array.isArray(list)) return undefined;
+        /** @type {{ id: string, name: string, days?: number, dailyRate?: number }[]} */
+        const out = [];
+        for (const raw of list.slice(0, MAX_ITEMS)) {
+            if (!isObj(raw)) continue;
+            const r = /** @type {any} */ (raw);
+            const name = str(r.name);
+            if (!name) continue;
+            /** @type {{ id: string, name: string, days?: number, dailyRate?: number }} */
+            const pos = { id: str(r.id) ?? slugify(name), name };
+            const days = num(r.workDays?.total);
+            const dailyRate = num(r.dailyRate);
+            if (days !== undefined) pos.days = days;
+            if (dailyRate !== undefined) pos.dailyRate = dailyRate;
+            out.push(pos);
+        }
+        return out;
+    };
+
+    /** @param {unknown} list @returns {LoanItem[] | undefined} */
+    const pickLoanItems = (list) => {
+        if (!Array.isArray(list)) return undefined;
+        /** @type {LoanItem[]} */
+        const out = [];
+        for (const raw of list.slice(0, MAX_ITEMS)) {
+            if (!isObj(raw)) continue;
+            const l = /** @type {any} */ (raw);
+            const concept = str(l.concept) ?? str(l.concepto);
+            const id = str(l.loanId) ?? str(l.id) ?? (concept ? slugify(concept) : undefined);
+            const amount = num(l.deductionAmount) ?? num(l.amount);
+            if (!id || amount === undefined) continue;
+            /** @type {LoanItem} */
+            const item = { id, concept: concept ?? id, amount };
+            const status = str(l.status);
+            if (status) item.status = status;
+            /** @type {[keyof LoanItem, unknown][]} */
+            const optional = [['principal', l.principalAmount], ['interest', l.interestAmount], ['balanceBefore', l.balanceBefore], ['balanceAfter', l.projectedBalanceAfter]];
+            for (const [k, v] of optional) {
+                const n = num(v);
+                if (n !== undefined) /** @type {any} */ (item)[k] = n;
+            }
+            out.push(item);
+        }
+        return out;
+    };
+
+    /** @param {unknown} v @returns {LoanSummary | undefined} */
+    const pickLoanSummary = (v) => {
+        if (!isObj(v)) return undefined;
+        const s = /** @type {any} */ (v);
+        /** @type {LoanSummary} */
+        const out = {};
+        /** @type {[keyof LoanSummary, unknown][]} */
+        const map = [['balanceBefore', s.balanceBefore], ['amount', s.deductionAmount], ['balanceAfter', s.projectedBalanceAfter],
+            ['totalOutstanding', s.totalOutstandingBalance], ['totalOutstandingAfter', s.projectedTotalOutstandingBalance]];
+        for (const [k, raw] of map) {
+            const n = num(raw);
+            if (n !== undefined) out[k] = n;
+        }
+        return Object.keys(out).length ? out : undefined;
+    };
+
     /** @param {unknown} v @returns {ExportContext | undefined} */
     const pickContext = (v) => {
         if (!isObj(v)) return undefined;
@@ -148,11 +216,13 @@
         const employeeName = str(item.employeeName);
         const sourceEmployeeId = str(item.sourceEmployeeId);
         const workDays = pickWorkDays(item.workDays);
-        const positions = pickRefs(item.positions, false);
+        const positions = pickPositions(item.positions);
         const leaders = pickRefs(item.leaders, true);
         const bonusDetails = pickDetails(item.bonusDetails);
         const deductionDetails = pickDetails(item.deductionDetails);
         const exportContext = pickContext(item.exportContext);
+        const loanItems = pickLoanItems(item.loanBreakdown);
+        const loanSummary = pickLoanSummary(item.loanSummary);
         if (employeeNumber) out.employeeNumber = employeeNumber;
         if (employeeName) out.employeeName = employeeName;
         if (sourceEmployeeId) out.sourceEmployeeId = sourceEmployeeId;
@@ -161,6 +231,8 @@
         if (leaders) out.leaders = leaders;
         if (bonusDetails) out.bonusDetails = bonusDetails;
         if (deductionDetails) out.deductionDetails = deductionDetails;
+        if (loanItems) out.loanItems = loanItems;
+        if (loanSummary) out.loanSummary = loanSummary;
         if (exportContext) out.exportContext = exportContext;
         return out;
     };
@@ -172,6 +244,32 @@
     const sumDetailAmounts = (details) => {
         const list = pickDetails(details);
         return list ? list.reduce((sum, d) => sum + d.amount, 0) : undefined;
+    };
+
+    /**
+     * Suma de lo descontado por préstamos en este pago (undefined si no es una lista).
+     * @param {unknown} breakdown
+     */
+    const sumLoanAmounts = (breakdown) => {
+        const list = pickLoanItems(breakdown);
+        return list ? list.reduce((sum, l) => sum + l.amount, 0) : undefined;
+    };
+
+    /**
+     * Sueldo por día: el del puesto si el export lo trae (ponderado por días si hay varios puestos);
+     * si no, bruto ÷ días trabajados.
+     * @param {any} r
+     */
+    const dailyRateOf = (r) => {
+        const rated = (r.positions || []).filter((/** @type {any} */ p) => typeof p.dailyRate === 'number');
+        if (rated.length) {
+            const weight = (/** @type {any} */ p) => (typeof p.days === 'number' && p.days > 0 ? p.days : 1);
+            const totalW = rated.reduce((/** @type {number} */ s, /** @type {any} */ p) => s + weight(p), 0);
+            return rated.reduce((/** @type {number} */ s, /** @type {any} */ p) => s + p.dailyRate * weight(p), 0) / totalW;
+        }
+        const gross = r.payroll?.gross;
+        const total = r.workDays?.total;
+        return gross > 0 && total > 0 ? gross / total : null;
     };
 
     /** "2026-10-01" → "01/10/2026" */
@@ -209,19 +307,16 @@
             { key: 'loans', label: 'Préstamo/Adelanto', type: 'number', get: payroll((p) => p.loans) },
             { key: 'loanPrincipal', label: 'Capital del préstamo', type: 'number', get: payroll((p) => p.loanDetails?.principal) },
             { key: 'loanInterest', label: 'Interés del préstamo', type: 'number', get: payroll((p) => p.loanDetails?.interestAmount) },
-            { key: 'loanBalance', label: 'Saldo pendiente', type: 'number', get: payroll((p) => p.loanDetails?.remainingBalance) },
+            { key: 'loanBalance', label: 'Saldo pendiente', type: 'number', noTotal: true, get: payroll((p) => p.loanDetails?.remainingBalance) },
+            { key: 'loanBalanceBefore', label: 'Saldo antes del pago', type: 'number', noTotal: true, get: (r) => r.loanSummary?.balanceBefore ?? null },
+            { key: 'loanBalanceAfter', label: 'Saldo después del pago', type: 'number', noTotal: true, get: (r) => r.loanSummary?.balanceAfter ?? null },
             { key: 'days', label: 'Días trabajados', type: 'number', decimals: 'auto', noTotal: true, get: days('total') },
             { key: 'daysRegular', label: 'Días regulares', type: 'number', decimals: 'auto', noTotal: true, get: days('regular') },
             { key: 'daysOvertime', label: 'Días extra', type: 'number', decimals: 'auto', noTotal: true, get: days('overtime') },
             { key: 'daysHoliday', label: 'Días feriados', type: 'number', decimals: 'auto', noTotal: true, get: days('holiday') },
             { key: 'daysRest', label: 'Días de descanso', type: 'number', decimals: 'auto', noTotal: true, get: days('restDay') },
             {
-                key: 'dailyRate', label: 'Sueldo por día', type: 'number', noTotal: true,
-                get: (r) => {
-                    const gross = r.payroll?.gross;
-                    const total = r.workDays?.total;
-                    return gross > 0 && total > 0 ? gross / total : null;
-                }
+                key: 'dailyRate', label: 'Sueldo por día', type: 'number', noTotal: true, get: dailyRateOf
             },
             { key: 'position', label: 'Puesto', type: 'text', get: (r) => (r.positions || []).map((/** @type {any} */ p) => p.name).join(', ') },
             { key: 'leader', label: 'Líder', type: 'text', get: (r) => (r.leaders || []).map((/** @type {any} */ l) => l.name).join(', ') },
@@ -250,16 +345,16 @@
         }
 
         /**
-         * Campos dinámicos 'bonus:<id>' y 'deduction:<id>': el monto del concepto del empleado
+         * Campos dinámicos 'bonus:<id>', 'deduction:<id>' y 'loan:<id>': el monto del concepto del empleado
          * (sumado si se repite) o vacío si no lo tiene.
          * @param {string} key
          * @returns {FieldDef | undefined}
          */
         const resolveField = (key) => {
-            const m = /^(bonus|deduction):(.+)$/.exec(key);
+            const m = /^(bonus|deduction|loan):(.+)$/.exec(key);
             if (!m) return undefined;
             const [, prefix, id] = m;
-            const prop = prefix === 'bonus' ? 'bonusDetails' : 'deductionDetails';
+            const prop = /** @type {'bonusDetails' | 'deductionDetails' | 'loanItems'} */ ({ bonus: 'bonusDetails', deduction: 'deductionDetails', loan: 'loanItems' }[prefix]);
             return {
                 key,
                 label: catalog.get(key) || id,
@@ -276,5 +371,5 @@
         return { fields, resolveField, listConcepts };
     };
 
-    return { pickImportExtras, sumDetailAmounts, createFieldSet, slugify };
+    return { pickImportExtras, sumDetailAmounts, sumLoanAmounts, createFieldSet, slugify };
 });

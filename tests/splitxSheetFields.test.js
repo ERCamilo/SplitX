@@ -62,7 +62,7 @@ describe('pickImportExtras', () => {
         assert.equal(extras.employeeName, 'Ana Ejemplo');
         assert.equal(extras.sourceEmployeeId, 'EMP-DEMO-1');
         assert.equal(extras.workDays.total, 10);
-        assert.deepEqual(extras.positions, [{ id: 'PUESTO-DEMO', name: 'Albañil' }]);
+        assert.deepEqual(extras.positions, [{ id: 'PUESTO-DEMO', name: 'Albañil', days: 10 }]);
         assert.deepEqual(extras.leaders, [{ id: 'LIDER-DEMO', name: 'Líder de ejemplo', number: '10' }]);
         assert.deepEqual(extras.deductionDetails[0], { id: 'ley', concept: 'Descuento de ley', type: 'percentage', value: 3, amount: 300 });
     });
@@ -167,9 +167,81 @@ describe('Field set', () => {
 });
 
 describe('Non-monetary fields', () => {
-    test('day fields are flagged noTotal so they never start the running total', () => {
+    test('day and balance fields are flagged noTotal so they never start the running total', () => {
         const { fields } = SF.createFieldSet();
         const flagged = fields.filter((f) => f.noTotal).map((f) => f.key);
-        assert.deepEqual(flagged, ['days', 'daysRegular', 'daysOvertime', 'daysHoliday', 'daysRest', 'dailyRate']);
+        assert.deepEqual(flagged, ['loanBalance', 'loanBalanceBefore', 'loanBalanceAfter', 'days', 'daysRegular', 'daysOvertime', 'daysHoliday', 'daysRest', 'dailyRate']);
+    });
+});
+
+describe('Export v1 loans and position rates', () => {
+    const loanItem = () => ({
+        ...sampleItem(),
+        monto: 9200,
+        prestamos: 500,
+        positions: [{ id: 'PUESTO-DEMO', name: 'Albañil', workDays: { total: 10 }, dailyRate: 1000 }],
+        loanBreakdown: [{
+            loanId: 'PRESTAMO-DEMO', concept: 'Adelanto de salario', status: 'proposed',
+            balanceBefore: 3000, deductionAmount: 500, principalAmount: 500, interestAmount: 0,
+            projectedBalanceAfter: 2500, currentBalance: 3000
+        }],
+        loanSummary: {
+            scope: 'selected-loans', projectionAvailable: true, balanceBefore: 3000, deductionAmount: 500,
+            principalAmount: 500, interestAmount: 0, projectedBalanceAfter: 2500,
+            totalOutstandingBalance: 3000, projectedTotalOutstandingBalance: 2500
+        }
+    });
+    const toLoanEmployee = (item) => ({ ...toEmployee(item), payroll: { ...toEmployee(item).payroll, loans: item.prestamos } });
+
+    test('pickImportExtras keeps loan items, the loan summary and position daily rates', () => {
+        const x = SF.pickImportExtras(loanItem());
+        assert.deepEqual(x.positions, [{ id: 'PUESTO-DEMO', name: 'Albañil', days: 10, dailyRate: 1000 }]);
+        assert.deepEqual(x.loanItems, [{
+            id: 'PRESTAMO-DEMO', concept: 'Adelanto de salario', status: 'proposed', amount: 500,
+            principal: 500, interest: 0, balanceBefore: 3000, balanceAfter: 2500
+        }]);
+        assert.deepEqual(x.loanSummary, { balanceBefore: 3000, amount: 500, balanceAfter: 2500, totalOutstanding: 3000, totalOutstandingAfter: 2500 });
+    });
+
+    test('sumLoanAmounts adds deduction amounts', () => {
+        assert.equal(SF.sumLoanAmounts(loanItem().loanBreakdown), 500);
+        assert.equal(SF.sumLoanAmounts(undefined), undefined);
+    });
+
+    const emp = toLoanEmployee(loanItem());
+    const set = SF.createFieldSet({ records: [emp] });
+    const engine = SB.createEngine({ fields: set.fields, resolveField: set.resolveField, locale: 'en-US' });
+    const value = (key, r = emp) => engine.evaluateCell({ mode: 'text', chips: [{ kind: 'field', key }] }, r, { index: 0 }, null).text;
+    const label = (key) => engine.evaluateCell({ mode: 'text', chips: [{ kind: 'field', key, as: 'label' }] }, emp, { index: 0 }, null).text;
+
+    test('daily rate comes from the position rate when the export sends it', () => {
+        const odd = toLoanEmployee({ ...loanItem(), bruto: 10450 });
+        assert.equal(value('dailyRate', odd), '1,000.00');
+    });
+
+    test('several positions give a day-weighted daily rate', () => {
+        const multi = toLoanEmployee({ ...loanItem(), positions: [
+            { id: 'a', name: 'Albañil', workDays: { total: 6 }, dailyRate: 1000 },
+            { id: 'b', name: 'Maestro', workDays: { total: 4 }, dailyRate: 1500 }
+        ] });
+        assert.equal(value('dailyRate', multi), '1,200.00');
+        assert.equal(value('position', multi), 'Albañil, Maestro');
+    });
+
+    test('balance before and after this payment', () => {
+        assert.equal(label('loanBalanceBefore'), 'Saldo antes del pago');
+        assert.equal(value('loanBalanceBefore'), '3,000.00');
+        assert.equal(value('loanBalanceAfter'), '2,500.00');
+    });
+
+    test('each loan becomes a dynamic loan:<id> field labelled with its concept', () => {
+        assert.equal(label('loan:PRESTAMO-DEMO'), 'Adelanto de salario');
+        assert.equal(value('loan:PRESTAMO-DEMO'), '500.00');
+        assert.ok(set.listConcepts().some((c) => c.key === 'loan:PRESTAMO-DEMO'));
+    });
+
+    test('loan balance fields are not monetary totals', () => {
+        const flagged = set.fields.filter((f) => f.noTotal).map((f) => f.key);
+        assert.ok(flagged.includes('loanBalanceBefore') && flagged.includes('loanBalanceAfter'));
     });
 });
