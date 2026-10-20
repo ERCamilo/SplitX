@@ -372,3 +372,17 @@ describe('Template grid validation', () => {
         assert.equal(SB.validateTemplate(t).errors.length, 2);
     });
 });
+
+describe('Auto decimals', () => {
+    const e = SB.createEngine({
+        locale: 'en-US',
+        fields: [{ key: 'days', label: 'Días', type: 'number', decimals: 'auto', get: (r) => r.days }]
+    });
+    const show = (days) => e.evaluateCell({ mode: 'text', chips: [{ kind: 'field', key: 'days' }] }, { days }, { index: 0 }, null).text;
+
+    test('prints whole numbers without decimals and keeps up to two otherwise', () => {
+        assert.equal(show(10), '10');
+        assert.equal(show(10.5), '10.5');
+        assert.equal(show(2.125), '2.13');
+    });
+});

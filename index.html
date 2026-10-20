@@ -14,6 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="js/SplitXBridge.js"></script>
+    <script src="js/SplitXSheetFields.js"></script>
 
     <script>
         tailwind.config = {
@@ -2568,7 +2569,10 @@
                 return isNaN(parsed) ? fallback : parsed;
             };
 
-            const hasPayrollFields = (item) => ['bruto', 'gross', 'bonificaciones', 'bonuses', 'descuentos', 'discounts', 'prestamos', 'loans'].some(key => item[key] !== undefined && item[key] !== null && item[key] !== '');
+            const hasPayrollFields = (item) => ['bruto', 'gross', 'bonificaciones', 'bonuses', 'descuentos', 'discounts', 'prestamos', 'loans', 'bonusDetails', 'deductionDetails'].some(key => item[key] !== undefined && item[key] !== null && item[key] !== '');
+
+            // Extra import data (employee number, work days, concepts…) used by printable sheets.
+            const sheetFields = typeof SplitXSheetFields !== 'undefined' ? SplitXSheetFields : null;
 
             const normalizeImportedEmployee = (item, idx) => {
                 const name = item.nombre || item.name;
@@ -2577,8 +2581,8 @@
                 const importedAmount = item.monto ?? item.amount;
                 const hasDetails = hasPayrollFields(item);
                 const gross = parseImportNumber(item.bruto ?? item.gross, null);
-                const bonuses = parseImportNumber(item.bonificaciones ?? item.bonuses, 0);
-                const discounts = parseImportNumber(item.descuentos ?? item.discounts, 0);
+                const bonuses = parseImportNumber(item.bonificaciones ?? item.bonuses ?? sheetFields?.sumDetailAmounts(item.bonusDetails), 0);
+                const discounts = parseImportNumber(item.descuentos ?? item.discounts ?? sheetFields?.sumDetailAmounts(item.deductionDetails), 0);
                 const loans = parseImportNumber(item.prestamos ?? item.loans, 0);
                 const prestamoCapital = parseImportNumber(item.prestamoCapital ?? item.loanPrincipal ?? item.loanDetails?.principal, null);
                 const prestamoInteres = parseImportNumber(item.prestamoInteres ?? item.loanInterest ?? item.loanInterestAmount ?? item.loanDetails?.interestAmount, null);
@@ -2631,6 +2635,8 @@
                         reconciled: difference === null ? null : Math.abs(difference) <= 0.01
                     };
                 }
+
+                if (sheetFields) Object.assign(employee, sheetFields.pickImportExtras(item));
 
                 employee.originalData = JSON.parse(JSON.stringify({
                     name: employee.name,

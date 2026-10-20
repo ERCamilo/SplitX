@@ -64,7 +64,7 @@
      * @property {string} key
      * @property {string} label
      * @property {'text' | 'number'} type
-     * @property {number} [decimals]
+     * @property {number | 'auto'} [decimals] 'auto' = sin decimales si es entero, hasta 2 si no.
      * @property {(record: any, ctx: RenderContext) => unknown} get
      *
      * @typedef {'letter' | 'a4' | 'legal' | 'half-letter'} PaperName
@@ -233,14 +233,16 @@
         const defaultDecimals = options.decimals ?? 2;
         /** @type {Map<string, FieldDef>} */
         const fieldMap = new Map(options.fields.map((fd) => [fd.key, fd]));
-        /** @type {Map<number, Intl.NumberFormat>} */
+        /** @type {Map<number | 'auto', Intl.NumberFormat>} */
         const formatters = new Map();
 
-        /** @param {number} n @param {number} [decimals] */
+        /** @param {number} n @param {number | 'auto'} [decimals] */
         const formatNumber = (n, decimals = defaultDecimals) => {
             let fmt = formatters.get(decimals);
             if (!fmt) {
-                fmt = new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+                fmt = decimals === 'auto'
+                    ? new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+                    : new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
                 formatters.set(decimals, fmt);
             }
             return fmt.format(n);

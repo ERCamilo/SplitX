@@ -7,5 +7,5 @@
     "lib": ["ES2020", "DOM"],
     "types": []
   },
-  "include": ["js/SheetBuilder.js", "types/*.d.ts"]
+  "include": ["js/SheetBuilder.js", "js/SplitXSheetFields.js", "types/*.d.ts"]
 }
