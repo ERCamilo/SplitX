@@ -115,3 +115,152 @@ describe('catOf', () => {
         assert.equal(SS.catOf('gross'), 'field');
     });
 });
+
+describe('smartRowFor (drop a field on the card → a whole "Concepto | Monto" row)', () => {
+    const def = (key) => engine.requireField(key);
+
+    test('bonus rows get + and hide when empty', () => {
+        const row = SS.smartRowFor('bonuses', def('bonuses'), 2);
+        assert.deepEqual(row, {
+            whenEmpty: 'hide',
+            cells: [
+                { mode: 'text', chips: [{ kind: 'field', key: 'bonuses', as: 'label' }] },
+                { mode: 'number', align: 'right', chips: [{ kind: 'op', op: '+' }, { kind: 'field', key: 'bonuses' }] }
+            ]
+        });
+    });
+
+    test('deductions and loans get − and hide when empty', () => {
+        assert.equal(SS.smartRowFor('discounts', def('discounts'), 2).cells[1].chips[0].op, '-');
+        assert.equal(SS.smartRowFor('loan:adelanto', { key: 'loan:adelanto', label: 'Adelanto', type: 'number' }, 2).cells[1].chips[0].op, '-');
+    });
+
+    test('plain amounts and text fields have no sign and always show', () => {
+        const gross = SS.smartRowFor('gross', def('gross'), 2);
+        assert.equal(gross.whenEmpty, undefined);
+        assert.deepEqual(gross.cells[1].chips, [{ kind: 'field', key: 'gross' }]);
+        const name = SS.smartRowFor('name', def('name'), 2);
+        assert.equal(name.cells[1].mode, 'text');
+    });
+
+    test('three columns leave the middle cell empty', () => {
+        const row = SS.smartRowFor('gross', def('gross'), 3);
+        assert.equal(row.cells.length, 3);
+        assert.deepEqual(row.cells[1].chips, []);
+    });
+
+    test('one column puts label and value in the same cell', () => {
+        const row = SS.smartRowFor('bonuses', def('bonuses'), 1);
+        assert.equal(row.cells.length, 1);
+        assert.deepEqual(row.cells[0].chips.map((c) => c.kind), ['field', 'op', 'field']);
+        assert.equal(row.cells[0].mode, 'number');
+    });
+
+    test('the created row evaluates as expected', () => {
+        const out = engine.evaluateRows([
+            SS.smartRowFor('gross', def('gross'), 2),
+            SS.smartRowFor('discounts', def('discounts'), 2)
+        ], employees[0], { index: 0 });
+        assert.deepEqual(out.map((r) => r.cells.map((c) => c.text)), [['Bruto', '10,000.00'], ['Descuentos', '- 800.00']]);
+    });
+});
+
+describe('smartColumnFor (drop a field on the table → a new column)', () => {
+    test('money columns are numeric and summed', () => {
+        assert.deepEqual(SS.smartColumnFor('gross', engine.requireField('gross')), {
+            header: 'Bruto', width: 1.2, border: 'all', sum: true,
+            cell: { mode: 'number', align: 'right', chips: [{ kind: 'field', key: 'gross' }] }
+        });
+    });
+
+    test('text columns are wider and not summed; daily rate is not summed', () => {
+        const name = SS.smartColumnFor('name', engine.requireField('name'));
+        assert.equal(name.sum, false);
+        assert.equal(name.width, 2);
+        assert.equal(SS.smartColumnFor('dailyRate', engine.requireField('dailyRate')).sum, false);
+    });
+});
+
+describe('pageSummary', () => {
+    test('cards: paper, orientation, grid and card size', () => {
+        assert.equal(SS.pageSummary(SS.defaultCardTemplate()), 'Carta · Vertical · 2×4 · 96×62 mm');
+    });
+    test('table: paper, orientation and row height', () => {
+        assert.equal(SS.pageSummary(SS.defaultTableTemplate()), 'Carta · Horizontal · filas de 11 mm');
+    });
+});
+
+describe('selectEmployees', () => {
+    const list = [
+        { id: 1, name: 'A', paid: true, payroll: { loans: 0 } },
+        { id: 2, name: 'B', paid: false, payroll: { loans: 300 } },
+        { id: 3, name: 'C', paid: false }
+    ];
+    test('modes: all, unpaid, with loan, custom', () => {
+        assert.deepEqual(SS.selectEmployees(list, { mode: 'all' }).map((e) => e.id), [1, 2, 3]);
+        assert.deepEqual(SS.selectEmployees(list, { mode: 'unpaid' }).map((e) => e.id), [2, 3]);
+        assert.deepEqual(SS.selectEmployees(list, { mode: 'loan' }).map((e) => e.id), [2]);
+        assert.deepEqual(SS.selectEmployees(list, { mode: 'custom', ids: [3, 1] }).map((e) => e.id), [1, 3]);
+    });
+    test('copies repeat each employee in place', () => {
+        assert.deepEqual(SS.selectEmployees(list, { mode: 'unpaid', copies: 2 }).map((e) => e.id), [2, 2, 3, 3]);
+    });
+});
+
+describe('createHistory (undo / redo)', () => {
+    test('undo and redo walk the snapshots', () => {
+        const h = SS.createHistory(10);
+        h.push('v1'); h.push('v2');
+        assert.equal(h.undo('v3'), 'v2');
+        assert.equal(h.undo('v2'), 'v1');
+        assert.equal(h.undo('v1'), null);
+        assert.equal(h.redo('v1'), 'v2');
+        assert.equal(h.redo('v2'), 'v3');
+        assert.equal(h.redo('v3'), null);
+    });
+    test('a new change clears redo; the stack is capped', () => {
+        const h = SS.createHistory(2);
+        h.push('a'); h.push('b'); h.push('c');
+        assert.equal(h.undo('d'), 'c');
+        h.push('x');
+        assert.equal(h.redo('y'), null);
+        assert.equal(h.undo('y'), 'x');
+        assert.equal(h.undo('x'), 'b');
+        assert.equal(h.undo('b'), null);
+    });
+});
+
+describe('paletteMatches', () => {
+    test('ignores accents and case', () => {
+        assert.equal(SS.paletteMatches('Préstamo/Adelanto', 'prest'), true);
+        assert.equal(SS.paletteMatches('Días trabajados', 'DIAS'), true);
+        assert.equal(SS.paletteMatches('Bruto', 'neto'), false);
+        assert.equal(SS.paletteMatches('Bruto', ''), true);
+    });
+});
+
+describe('migrateStore', () => {
+    test('turns the old single-template store into named template lists', () => {
+        const old = { A: SS.defaultCardTemplate(), B: SS.defaultTableTemplate(), colors: false };
+        const s = SS.migrateStore(old);
+        assert.equal(s.version, 2);
+        assert.equal(s.templates.length, 2);
+        assert.deepEqual(s.templates.map((t) => t.template.type).sort(), ['cards', 'table']);
+        assert.equal(s.active.A, s.templates.find((t) => t.template.type === 'cards').id);
+        assert.equal(s.colors, false);
+    });
+    test('empty or broken input gives one example of each type', () => {
+        for (const raw of [null, {}, { templates: 'x' }]) {
+            const s = SS.migrateStore(raw);
+            assert.equal(s.templates.length, 2);
+            assert.ok(s.active.A && s.active.B);
+        }
+    });
+    test('drops invalid stored templates but keeps valid ones', () => {
+        const good = { id: 't1', name: 'Bueno', template: SS.defaultCardTemplate() };
+        const bad = { id: 't2', name: 'Malo', template: { type: 'cards' } };
+        const s = SS.migrateStore({ version: 2, templates: [good, bad], active: { A: 't2' } });
+        assert.deepEqual(s.templates.filter((t) => t.template.type === 'cards').map((t) => t.id), ['t1']);
+        assert.equal(s.active.A, 't1');
+    });
+});
