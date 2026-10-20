@@ -15,6 +15,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <script src="js/SplitXBridge.js"></script>
     <script src="js/SplitXSheetFields.js"></script>
+    <script src="js/SheetBuilder.js"></script>
+    <script src="js/SheetStudio.js"></script>
 
     <script>
         tailwind.config = {
@@ -926,7 +928,13 @@
                     <button onclick="app.openExportModal()" class="toolbar-btn green hidden sm:flex">
                         <i class="fa-solid fa-file-export text-xs"></i> Exportar
                     </button>
+                    <button onclick="app.openSheetStudio()" class="toolbar-btn amber hidden sm:flex" title="Tarjetas para sobres y hoja de firmas">
+                        <i class="fa-solid fa-print text-xs"></i> Hojas
+                    </button>
                     <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
+                    <button onclick="app.openSheetStudio()" title="Hojas imprimibles: tarjetas para sobres y hoja de firmas" aria-label="Hojas imprimibles" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all sm:hidden">
+                        <i class="fa-solid fa-print text-sm"></i>
+                    </button>
                     <button onclick="app.openExportModal()" title="Exportar nómina (Excel, PDF, CSV)" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
                         <i class="fa-solid fa-file-export text-sm"></i>
                     </button>
@@ -2570,6 +2578,21 @@
             };
 
             const hasPayrollFields = (item) => ['bruto', 'gross', 'bonificaciones', 'bonuses', 'descuentos', 'discounts', 'prestamos', 'loans', 'bonusDetails', 'deductionDetails', 'loanBreakdown'].some(key => item[key] !== undefined && item[key] !== null && item[key] !== '');
+
+            // Printable sheets (envelope cards + signature sheet). Created on first open.
+            let sheetStudio = null;
+            const openSheetStudio = () => {
+                if (typeof SheetStudio === 'undefined') return showToast('No se pudo cargar el módulo de hojas imprimibles.', 'error');
+                if (!state.employees.length) return showToast('Agrega o importa empleados primero.', 'error');
+                if (!sheetStudio) {
+                    sheetStudio = SheetStudio.createStudio({
+                        root: document.getElementById('sheetStudio'),
+                        getEmployees: () => state.employees,
+                        getNetAmount: (emp) => getEffectiveEmployeeAmount(emp)
+                    });
+                }
+                sheetStudio.open();
+            };
 
             // Extra import data (employee number, work days, concepts…) used by printable sheets.
             const sheetFields = typeof SplitXSheetFields !== 'undefined' ? SplitXSheetFields : null;
@@ -5986,6 +6009,7 @@
                 exportToExcel,
                 exportToPDF,
                 openImportModal,
+                openSheetStudio,
                 closeImportModal,
                 closePostImportModal,
                 processImport,
@@ -6043,5 +6067,6 @@
         window.app = app;
         window.onload = app.init;
     </script>
+    <div id="sheetStudio" hidden></div>
 </body>
 </html>
