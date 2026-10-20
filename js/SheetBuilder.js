@@ -21,7 +21,7 @@
 
     /**
      * @typedef {'+' | '-' | '*' | '/'} Operator
-     * @typedef {{ kind: 'field', key: string }} FieldChip
+     * @typedef {{ kind: 'field', key: string, as?: 'value' | 'label' }} FieldChip
      * @typedef {{ kind: 'text', value: string }} TextChip
      * @typedef {{ kind: 'number', value: number, percent?: boolean }} NumberChip
      * @typedef {{ kind: 'op', op: Operator }} OpChip
@@ -29,22 +29,33 @@
      * @typedef {{ kind: 'running' }} RunningChip
      * @typedef {FieldChip | TextChip | NumberChip | OpChip | ParenChip | RunningChip} Chip
      *
-     * @typedef {Object} Line
+     * @typedef {Object} Cell
      * @property {'text' | 'number'} mode
      * @property {Chip[]} chips
      * @property {'auto' | 'set' | 'apply' | 'ignore'} [total] Cómo afecta al total acumulado.
-     * @property {'result' | 'expression' | 'both'} [show] Qué imprime una línea numérica.
-     * @property {boolean} [hidden] Se calcula pero no se imprime.
+     * @property {'result' | 'expression' | 'both'} [show] Qué imprime una celda numérica.
+     * @property {number} [span] Columnas que ocupa (1 por defecto).
      * @property {'left' | 'center' | 'right'} [align]
      * @property {boolean} [bold]
      * @property {number} [size] Tamaño de letra en pt.
      *
-     * @typedef {Object} LineResult
+     * @typedef {Object} Row
+     * @property {Cell[]} cells
+     * @property {'show' | 'dash' | 'hide'} [whenEmpty] Qué hacer si todos sus campos-valor están vacíos o en 0.
+     * @property {boolean} [hidden] Se calcula pero no se imprime.
+     *
+     * @typedef {Object} CellResult
      * @property {string} text
      * @property {number | null} value
-     * @property {number | null} total Total acumulado después de esta línea.
+     * @property {number | null} total Total acumulado después de esta celda.
      * @property {string | null} error
-     * @property {Line} line
+     * @property {Cell} cell
+     *
+     * @typedef {Object} RowResult
+     * @property {CellResult[]} cells
+     * @property {boolean} empty Todos sus campos-valor están vacíos o en 0.
+     * @property {boolean} hidden No se imprime.
+     * @property {Row} row
      *
      * @typedef {Object} RenderContext
      * @property {number} index Posición del registro en la lista original.
@@ -85,7 +96,8 @@
      * @property {1} version
      * @property {'cards'} type
      * @property {string} name
-     * @property {Line[]} lines
+     * @property {number[]} columns Anchos relativos de las columnas de la tarjeta (p. ej. [2, 1]).
+     * @property {Row[]} rows
      * @property {LayoutSpec} layout
      * @property {{ field: string, dir: 'asc' | 'desc' }} [sortBy]
      *
@@ -93,6 +105,8 @@
      * @property {FieldDef[]} fields
      * @property {string} [locale]
      * @property {number} [decimals]
+     * @property {(key: string) => FieldDef | undefined} [resolveField]
+     *   Campos dinámicos no declarados de antemano (p. ej. 'discount:perdida_de_equipo').
      */
 
     /** @type {Record<PaperName, [number, number]>} Tamaños en mm (ancho, alto) en vertical. */
@@ -109,7 +123,8 @@
     const CHIP_KINDS = ['field', 'text', 'number', 'op', 'paren', 'running'];
     const ERROR_TEXT = '—';
 
-    const LIMITS = { lines: 60, chips: 40, text: 200, name: 100 };
+    const LIMITS = { rows: 60, columns: 6, chips: 40, text: 200, name: 100 };
+    const EMPTY_TEXT = '-';
 
     /** Elimina el ruido de coma flotante (0.1 + 0.2 = 0.3). */
     const clean = (/** @type {number} */ n) => Number(n.toFixed(10));
@@ -231,11 +246,17 @@
             return fmt.format(n);
         };
 
+        /** @type {Map<string, FieldDef>} Campos dinámicos ya resueltos. */
+        const resolvedFields = new Map();
+
         /** @param {string} key */
         const requireField = (key) => {
-            const fd = fieldMap.get(key);
-            if (!fd) throw new FormulaError(`Campo desconocido: ${key}`);
-            return fd;
+            const fd = fieldMap.get(key) || resolvedFields.get(key);
+            if (fd) return fd;
+            const dynamic = options.resolveField ? options.resolveField(key) : undefined;
+            if (!dynamic) throw new FormulaError(`Campo desconocido: ${key}`);
+            resolvedFields.set(key, dynamic);
+            return dynamic;
         };
 
         /** @param {unknown} raw */
@@ -244,6 +265,12 @@
             const n = typeof raw === 'number' ? raw : parseFloat(String(raw));
             return Number.isFinite(n) ? n : 0;
         };
+
+        /** @param {Chip} chip @returns {chip is FieldChip} */
+        const isValueField = (chip) => chip.kind === 'field' && chip.as !== 'label';
+
+        /** Textos y etiquetas de campo: se imprimen pero no se calculan. @param {Chip} chip */
+        const isTextLike = (chip) => chip.kind === 'text' || (chip.kind === 'field' && chip.as === 'label');
 
         /** @param {FieldChip} chip @param {any} record @param {RenderContext} ctx */
         const readNumber = (chip, record, ctx) => {
@@ -255,6 +282,14 @@
                 return n;
             }
             return toNumber(raw);
+        };
+
+        /** @param {FieldChip} chip @param {any} record @param {RenderContext} ctx */
+        const isFieldEmpty = (chip, record, ctx) => {
+            const fd = requireField(chip.key);
+            const raw = fd.get(record, ctx);
+            if (fd.type === 'number') return toNumber(raw) === 0;
+            return raw === null || raw === undefined || String(raw).trim() === '';
         };
 
         /**
@@ -271,6 +306,7 @@
                 case 'running': return formatNumber(running ?? 0);
                 case 'field': {
                     const fd = requireField(chip.key);
+                    if (chip.as === 'label') return fd.label;
                     const raw = fd.get(record, ctx);
                     if (fd.type === 'number') return formatNumber(toNumber(raw), fd.decimals);
                     return raw === null || raw === undefined ? '' : String(raw);
@@ -290,8 +326,8 @@
             /** @type {Token[]} */
             const tokens = [];
             for (const chip of chips) {
+                if (isTextLike(chip)) continue;
                 switch (chip.kind) {
-                    case 'text': break; // Etiquetas: se imprimen pero no se calculan.
                     case 'number': tokens.push({ t: 'num', v: chip.value, percent: !!chip.percent }); break;
                     case 'field': tokens.push({ t: 'num', v: readNumber(chip, record, ctx), percent: false }); break;
                     case 'running': tokens.push({ t: 'num', v: running ?? 0, percent: false }); break;
@@ -303,29 +339,29 @@
         };
 
         /**
-         * Evalúa una línea. `running` es el total acumulado de las líneas anteriores (null si aún no hay).
-         * @param {Line} line @param {any} record @param {RenderContext} ctx @param {number | null} running
-         * @returns {LineResult}
+         * Evalúa una celda. `running` es el total acumulado de las celdas anteriores (null si aún no hay).
+         * @param {Cell} cell @param {any} record @param {RenderContext} ctx @param {number | null} running
+         * @returns {CellResult}
          */
-        const evaluateLine = (line, record, ctx, running) => {
+        const evaluateCell = (cell, record, ctx, running) => {
             try {
-                if (line.mode === 'text') {
-                    const text = joinParts(line.chips.map((c) => chipText(c, record, ctx, running)));
-                    return { text, value: null, total: running, error: null, line };
+                if (cell.mode === 'text') {
+                    const text = joinParts(cell.chips.map((c) => chipText(c, record, ctx, running)));
+                    return { text, value: null, total: running, error: null, cell };
                 }
 
-                const chips = line.chips;
+                const chips = cell.chips;
                 let labelEnd = 0;
-                while (labelEnd < chips.length && chips[labelEnd].kind === 'text') labelEnd++;
+                while (labelEnd < chips.length && isTextLike(chips[labelEnd])) labelEnd++;
                 let suffixStart = chips.length;
-                while (suffixStart > labelEnd && chips[suffixStart - 1].kind === 'text') suffixStart--;
+                while (suffixStart > labelEnd && isTextLike(chips[suffixStart - 1])) suffixStart--;
                 const label = joinParts(chips.slice(0, labelEnd).map((c) => chipText(c, record, ctx, running)));
                 const suffix = joinParts(chips.slice(suffixStart).map((c) => chipText(c, record, ctx, running)));
                 const core = chips.slice(labelEnd, suffixStart);
 
                 const leading = core[0];
                 const leadingOp = leading && leading.kind === 'op' ? leading.op : null;
-                const mode = line.total || 'auto';
+                const mode = cell.total || 'auto';
                 const applies = mode === 'apply' || (mode === 'auto' && leadingOp !== null);
 
                 let value;
@@ -347,31 +383,60 @@
                     resultText = formatNumber(value);
                 }
 
-                const show = line.show || 'result';
+                const show = cell.show || 'result';
                 const expression = joinParts(chips.map((c) => chipText(c, record, ctx, running)));
                 let text;
                 if (show === 'expression') text = expression;
                 else if (show === 'both') text = `${expression} = ${formatNumber(leadingOp ? (newTotal ?? value) : value)}`;
                 else text = joinParts([label, resultText, suffix]);
 
-                return { text, value, total: newTotal, error: null, line };
+                return { text, value, total: newTotal, error: null, cell };
             } catch (err) {
                 if (!(err instanceof FormulaError)) throw err;
-                return { text: ERROR_TEXT, value: null, total: running, error: err.message, line };
+                return { text: ERROR_TEXT, value: null, total: running, error: err.message, cell };
             }
         };
 
         /**
-         * Evalúa las líneas de una tarjeta en orden, encadenando el total acumulado.
-         * @param {Line[]} lines @param {any} record @param {RenderContext} ctx
+         * Una fila está vacía si tiene al menos un campo-valor y todos están vacíos o en 0.
+         * Las filas con solo textos o etiquetas nunca se consideran vacías.
+         * @param {Row} row @param {any} record @param {RenderContext} ctx
          */
-        const evaluateLines = (lines, record, ctx) => {
+        const isRowEmpty = (row, record, ctx) => {
+            const fieldsInRow = row.cells.flatMap((c) => c.chips.filter(isValueField));
+            if (fieldsInRow.length === 0) return false;
+            try {
+                return fieldsInRow.every((chip) => isFieldEmpty(chip, record, ctx));
+            } catch (err) {
+                if (!(err instanceof FormulaError)) throw err;
+                return false; // Que el error se vea en la celda en lugar de ocultar la fila.
+            }
+        };
+
+        /**
+         * Evalúa las filas en orden, encadenando el total acumulado de izquierda a derecha
+         * y de arriba abajo. Las filas vacías ocultas o con guion no cambian el total.
+         * @param {Row[]} rows @param {any} record @param {RenderContext} ctx
+         * @returns {RowResult[]}
+         */
+        const evaluateRows = (rows, record, ctx) => {
             /** @type {number | null} */
             let running = null;
-            return lines.map((line) => {
-                const result = evaluateLine(line, record, ctx, running);
-                running = result.total;
-                return result;
+            return rows.map((row) => {
+                const empty = isRowEmpty(row, record, ctx);
+                const whenEmpty = row.whenEmpty || 'show';
+                const frozen = empty && whenEmpty !== 'show';
+                let rowRunning = running;
+                const cells = row.cells.map((cell) => {
+                    if (frozen && whenEmpty === 'dash' && cell.chips.some(isValueField)) {
+                        return { text: EMPTY_TEXT, value: null, total: rowRunning, error: null, cell };
+                    }
+                    const result = evaluateCell(cell, record, ctx, rowRunning);
+                    rowRunning = result.total;
+                    return result;
+                });
+                if (!frozen) running = rowRunning;
+                return { cells, empty, hidden: !!row.hidden || (empty && whenEmpty === 'hide'), row };
             });
         };
 
@@ -400,15 +465,16 @@
          */
         const renderCards = (template, records) => {
             const layout = computeLayout(template.layout);
-            const cards = sortRecords(records, template.sortBy).map(({ record, ctx }) => evaluateLines(template.lines, record, ctx));
+            const cards = sortRecords(records, template.sortBy).map(({ record, ctx }) => evaluateRows(template.rows, record, ctx));
             return { layout, pages: paginate(cards, layout.perPage) };
         };
 
         return {
             fields: options.fields,
             formatNumber,
-            evaluateLine,
-            evaluateLines,
+            requireField,
+            evaluateCell,
+            evaluateRows,
             sortRecords,
             renderCards
         };
@@ -472,7 +538,9 @@
     const validateChip = (chip, where) => {
         if (!isObj(chip) || !CHIP_KINDS.includes(chip.kind)) return `${where}: tipo de chip inválido`;
         switch (chip.kind) {
-            case 'field': return typeof chip.key === 'string' && chip.key ? null : `${where}: campo sin clave`;
+            case 'field':
+                if (typeof chip.key !== 'string' || !chip.key || chip.key.length > LIMITS.name) return `${where}: campo sin clave`;
+                return chip.as === undefined || chip.as === 'value' || chip.as === 'label' ? null : `${where}: modo de campo inválido`;
             case 'text': return typeof chip.value === 'string' && chip.value.length <= LIMITS.text ? null : `${where}: texto inválido`;
             case 'number': return isNum(chip.value) ? null : `${where}: número inválido`;
             case 'op': return OPERATORS.includes(chip.op) ? null : `${where}: operador inválido`;
@@ -495,21 +563,34 @@
         if (t.type !== 'cards') errors.push(t.type === 'table' ? 'Las plantillas tipo tabla aún no están disponibles' : 'Tipo de plantilla inválido');
         if (typeof t.name !== 'string' || t.name.length > LIMITS.name) errors.push('Nombre inválido');
 
-        if (!Array.isArray(t.lines) || t.lines.length > LIMITS.lines) {
-            errors.push('Líneas inválidas');
+        const columnsOk = Array.isArray(t.columns) && t.columns.length >= 1 && t.columns.length <= LIMITS.columns
+            && t.columns.every((/** @type {unknown} */ w) => isNum(w) && /** @type {number} */ (w) > 0);
+        if (!columnsOk) errors.push('Columnas inválidas');
+
+        if (!Array.isArray(t.rows) || t.rows.length > LIMITS.rows) {
+            errors.push('Filas inválidas');
         } else {
-            t.lines.forEach((/** @type {any} */ line, /** @type {number} */ i) => {
-                const where = `Línea ${i + 1}`;
-                if (!isObj(line) || (line.mode !== 'text' && line.mode !== 'number')) return errors.push(`${where}: modo inválido`);
-                if (!Array.isArray(line.chips) || line.chips.length > LIMITS.chips) return errors.push(`${where}: chips inválidos`);
-                if (line.total !== undefined && !['auto', 'set', 'apply', 'ignore'].includes(line.total)) errors.push(`${where}: total inválido`);
-                if (line.show !== undefined && !['result', 'expression', 'both'].includes(line.show)) errors.push(`${where}: modo de vista inválido`);
-                if (line.align !== undefined && !['left', 'center', 'right'].includes(line.align)) errors.push(`${where}: alineación inválida`);
-                if (line.size !== undefined && !(isNum(line.size) && line.size > 0 && line.size <= 72)) errors.push(`${where}: tamaño inválido`);
-                line.chips.forEach((/** @type {any} */ chip, /** @type {number} */ j) => {
-                    const err = validateChip(chip, `${where}, chip ${j + 1}`);
-                    if (err) errors.push(err);
+            t.rows.forEach((/** @type {any} */ row, /** @type {number} */ i) => {
+                const rowWhere = `Fila ${i + 1}`;
+                if (!isObj(row) || !Array.isArray(row.cells)) return errors.push(`${rowWhere}: celdas inválidas`);
+                if (row.whenEmpty !== undefined && !['show', 'dash', 'hide'].includes(row.whenEmpty)) errors.push(`${rowWhere}: opción de fila vacía inválida`);
+                let spanSum = 0;
+                row.cells.forEach((/** @type {any} */ cell, /** @type {number} */ k) => {
+                    const where = `${rowWhere}, celda ${k + 1}`;
+                    if (!isObj(cell) || (cell.mode !== 'text' && cell.mode !== 'number')) return errors.push(`${where}: modo inválido`);
+                    if (!Array.isArray(cell.chips) || cell.chips.length > LIMITS.chips) return errors.push(`${where}: chips inválidos`);
+                    if (cell.span !== undefined && !(Number.isInteger(cell.span) && cell.span >= 1)) errors.push(`${where}: span inválido`);
+                    spanSum += Number.isInteger(cell.span) ? cell.span : 1;
+                    if (cell.total !== undefined && !['auto', 'set', 'apply', 'ignore'].includes(cell.total)) errors.push(`${where}: total inválido`);
+                    if (cell.show !== undefined && !['result', 'expression', 'both'].includes(cell.show)) errors.push(`${where}: modo de vista inválido`);
+                    if (cell.align !== undefined && !['left', 'center', 'right'].includes(cell.align)) errors.push(`${where}: alineación inválida`);
+                    if (cell.size !== undefined && !(isNum(cell.size) && cell.size > 0 && cell.size <= 72)) errors.push(`${where}: tamaño inválido`);
+                    cell.chips.forEach((/** @type {any} */ chip, /** @type {number} */ j) => {
+                        const err = validateChip(chip, `${where}, chip ${j + 1}`);
+                        if (err) errors.push(err);
+                    });
                 });
+                if (columnsOk && spanSum > t.columns.length) errors.push(`${rowWhere}: ocupa más columnas de las que tiene la tarjeta`);
             });
         }
 
