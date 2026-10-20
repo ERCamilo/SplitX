@@ -2574,6 +2574,13 @@
             // Extra import data (employee number, work days, concepts…) used by printable sheets.
             const sheetFields = typeof SplitXSheetFields !== 'undefined' ? SplitXSheetFields : null;
 
+            // Accepts a plain list [...] or { exportContext, employees: [...] } (sa-splitx-payroll/v1).
+            const unwrapJsonImport = (parsed) => {
+                if (sheetFields) return sheetFields.unwrapImportPayload(parsed);
+                if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
+                return { items: parsed, context: null };
+            };
+
             const normalizeImportedEmployee = (item, idx) => {
                 const name = item.nombre || item.name;
                 if (!name) throw new Error(`Elemento #${idx + 1}: Falta nombre.`);
@@ -3918,15 +3925,14 @@
                         employees = result.employees;
                         if (result.errors.length > 0 && employees.length === 0) throw new Error(result.errors[0]);
                     } else {
-                        const parsed = JSON.parse(rawText);
-                        if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
-                        employees = parsed.map((item, idx) => normalizeImportedEmployee(item, idx));
+                        const { items } = unwrapJsonImport(JSON.parse(rawText));
+                        employees = items.map((item, idx) => normalizeImportedEmployee(item, idx));
                     }
 
                     if (employees.length > 0) {
                         previewCount.innerText = employees.length;
                         previewList.innerHTML = employees.slice(0, 8).map(e =>
-                            `<div class="flex justify-between"><span>${escapeHTML(e.name)}</span><span class="font-bold">${fmt(e.amount)}</span></div>`
+                            `<div class="flex justify-between"><span>${escapeHTML(e.employeeNumber ? `${e.employeeNumber} · ${e.employeeName || e.name}` : e.name)}</span><span class="font-bold">${fmt(e.amount)}</span></div>`
                         ).join('') + (employees.length > 8 ? `<div class="text-green-600 italic">... y ${employees.length - 8} más</div>` : '');
                         previewEl.classList.remove('hidden');
                         renderImportValidation(employees);
@@ -3967,6 +3973,7 @@
                 
                 try {
                     let newEmps = [];
+                    let importContext = null;
 
                     if (importMode === 'excel') {
                         const result = parseExcelText(rawText);
@@ -3980,9 +3987,9 @@
                             paid: false
                         }));
                     } else {
-                        const parsed = JSON.parse(rawText);
-                        if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
-                        newEmps = parsed.map((item, idx) => normalizeImportedEmployee(item, idx));
+                        const unwrapped = unwrapJsonImport(JSON.parse(rawText));
+                        importContext = unwrapped.context;
+                        newEmps = unwrapped.items.map((item, idx) => normalizeImportedEmployee(item, idx));
                     }
 
                     if (newEmps.length > 0) {
@@ -4026,6 +4033,8 @@
                         }
 
                         if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
+                        const importCurrency = String(importContext?.currency || '').toUpperCase();
+                        if (CURRENCY_PRESETS[importCurrency] && state.currency !== importCurrency) setCurrencyPreset(importCurrency);
                         state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
                         saveData();
                         closeImportModal();
@@ -4785,6 +4794,14 @@
                     const netBeforeLoan = (p.afterDiscounts !== undefined && p.afterDiscounts !== null) 
                         ? p.afterDiscounts 
                         : (grossVal + bonuses - discounts);
+                    // Per-concept detail from the import (only when it still matches the totals).
+                    const concepts = sheetFields ? sheetFields.conceptLines(emp) : { bonuses: [], deductions: [], loans: [] };
+                    const conceptRows = (lines, colorCls) => lines.map(l => `
+                        <span class="text-[10px] text-slate-500 dark:text-slate-400 pl-2 truncate" title="${escapeHTML(l.label)}">↳ ${escapeHTML(l.label)}</span>
+                        <span class="text-right text-[10px] ${colorCls} font-mono">${fmtNum(l.amount)}${l.balanceAfter !== undefined ? ` <span class="text-slate-400 dark:text-slate-500">(saldo ${fmtNum(l.balanceAfter)})</span>` : ''}</span>`).join('');
+                    const bonusConceptRows = conceptRows(concepts.bonuses, 'text-emerald-600 dark:text-emerald-400');
+                    const discountConceptRows = conceptRows(concepts.deductions, 'text-rose-600 dark:text-rose-400');
+                    const loanConceptRows = conceptRows(concepts.loans, 'text-amber-600 dark:text-amber-400');
 
                     if (isNormalView) {
                         const netAdj = bonuses - discounts;
@@ -4799,8 +4816,10 @@
                                         <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
                                         <span>Bonificación:</span>
                                         <span class="text-right text-emerald-600 dark:text-emerald-400 font-semibold">+ ${fmtNum(bonuses)}</span>
+                                        ${bonusConceptRows}
                                         <span>Descuento:</span>
                                         <span class="text-right text-rose-600 dark:text-rose-400 font-semibold">- ${fmtNum(discounts)}</span>
+                                        ${discountConceptRows}
                                     </div>
                                     <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
                                     <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight mt-0.5 items-baseline">
@@ -4839,8 +4858,10 @@
                                         <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(grossVal)}</span>
                                         <span>Bonificación:</span>
                                         <span class="text-right text-emerald-600 dark:text-emerald-400 font-semibold">+ ${fmtNum(bonuses)}</span>
+                                        ${bonusConceptRows}
                                         <span>Descuento:</span>
                                         <span class="text-right text-rose-600 dark:text-rose-400 font-semibold">- ${fmtNum(discounts)}</span>
+                                        ${discountConceptRows}
                                     </div>
                                     <div class="border-t border-slate-300 dark:border-slate-600 my-1"></div>
                                     <div class="grid grid-cols-[auto_1fr] gap-x-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400">
@@ -4848,6 +4869,7 @@
                                         <span class="text-right text-slate-700 dark:text-slate-200 font-bold">${fmtNum(netBeforeLoan)}</span>
                                         <span>Préstamo:</span>
                                         <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(loans)}</span>
+                                        ${loanConceptRows}
                                         ${(loans > 0 && (loanInterest > 0 || loanPrincipal > 0)) ? `
                                             <span class="text-[10px] text-slate-500 dark:text-slate-400 pl-2">↳ Capital:</span>
                                             <span class="text-right text-[10px] text-slate-600 dark:text-slate-300 font-mono">${fmtNum(loanPrincipal)}</span>

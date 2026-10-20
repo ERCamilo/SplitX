@@ -273,6 +273,62 @@
         return gross > 0 && total > 0 ? gross / total : null;
     };
 
+    /**
+     * Acepta una lista de empleados [...] o un objeto { exportContext, employees: [...] }.
+     * El contexto general se copia a los empleados que no traen el suyo.
+     * @param {unknown} parsed
+     * @returns {{ items: any[], context: ExportContext | null }}
+     */
+    const unwrapImportPayload = (parsed) => {
+        /** @type {any[]} */
+        let items;
+        /** @type {any} */
+        let rawContext = null;
+        if (Array.isArray(parsed)) {
+            items = parsed;
+        } else if (isObj(parsed) && Array.isArray(/** @type {any} */ (parsed).employees ?? /** @type {any} */ (parsed).empleados)) {
+            const obj = /** @type {any} */ (parsed);
+            items = obj.employees ?? obj.empleados;
+            rawContext = isObj(obj.exportContext) ? obj.exportContext : null;
+        } else {
+            throw new Error('El JSON debe ser una lista [...] de empleados o un objeto con "employees": [...].');
+        }
+        if (items.length === 0) throw new Error('La lista de empleados está vacía.');
+        if (rawContext) {
+            items = items.map((it) => (isObj(it) && !isObj(it.exportContext) ? { ...it, exportContext: rawContext } : it));
+        }
+        const first = items.find((it) => isObj(it) && isObj(it.exportContext));
+        return { items, context: pickContext(rawContext ?? (first ? first.exportContext : null)) ?? null };
+    };
+
+    /**
+     * Detalle por concepto para mostrar en la tarjeta del empleado. Un grupo sale vacío
+     * si su detalle ya no cuadra con el total (p. ej. el total se editó a mano).
+     * @param {any} emp
+     */
+    const conceptLines = (emp) => {
+        const p = emp?.payroll || {};
+        /** @param {{ concept: string, amount: number }[] | undefined} list @param {unknown} total */
+        const lines = (list, total) => {
+            if (!Array.isArray(list) || !list.length) return [];
+            const sum = list.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+            return Math.abs(sum - (Number(total) || 0)) <= 0.01 ? list : null;
+        };
+        const bonuses = lines(emp?.bonusDetails, p.bonuses);
+        const deductions = lines(emp?.deductionDetails, p.discounts);
+        const loans = lines(emp?.loanItems, p.loans);
+        return {
+            bonuses: (bonuses || []).map((d) => ({ label: d.concept, amount: d.amount })),
+            deductions: (deductions || []).map((d) => ({ label: d.concept, amount: d.amount })),
+            loans: (loans || []).map((/** @type {any} */ d) => {
+                /** @type {{ label: string, amount: number, balanceAfter?: number }} */
+                const line = { label: d.concept, amount: d.amount };
+                if (typeof d.balanceAfter === 'number') line.balanceAfter = d.balanceAfter;
+                return line;
+            })
+        };
+    };
+
     /** "2026-10-01" → "01/10/2026" */
     const formatDate = (/** @type {string | undefined} */ iso) => {
         if (!iso) return '';
@@ -372,5 +428,5 @@
         return { fields, resolveField, listConcepts };
     };
 
-    return { pickImportExtras, sumDetailAmounts, sumLoanAmounts, createFieldSet, slugify };
+    return { pickImportExtras, sumDetailAmounts, sumLoanAmounts, unwrapImportPayload, conceptLines, createFieldSet, slugify };
 });

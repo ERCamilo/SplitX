@@ -253,3 +253,57 @@ describe('Export v1 loans and position rates', () => {
         assert.ok(flagged.includes('loanBalanceBefore') && flagged.includes('loanBalanceAfter'));
     });
 });
+
+describe('unwrapImportPayload', () => {
+    test('accepts a plain list', () => {
+        const { items, context } = SF.unwrapImportPayload([{ nombre: 'A' }]);
+        assert.equal(items.length, 1);
+        assert.equal(context, null);
+    });
+
+    test('accepts { exportContext, employees } and copies the context to items without one', () => {
+        const { items, context } = SF.unwrapImportPayload({
+            exportContext: { currency: 'DOP', companyName: 'X' },
+            employees: [{ nombre: 'A' }, { nombre: 'B', exportContext: { currency: 'USD' } }]
+        });
+        assert.equal(context.currency, 'DOP');
+        assert.equal(items[0].exportContext.companyName, 'X');
+        assert.equal(items[1].exportContext.currency, 'USD');
+    });
+
+    test('takes the context from the first item of a plain list', () => {
+        const { context } = SF.unwrapImportPayload([{ nombre: 'A', exportContext: { currency: 'USD' } }]);
+        assert.equal(context.currency, 'USD');
+    });
+
+    test('rejects anything else with a clear message', () => {
+        assert.throws(() => SF.unwrapImportPayload({ foo: 1 }), /lista/);
+        assert.throws(() => SF.unwrapImportPayload([]), /vacía/);
+    });
+});
+
+describe('conceptLines', () => {
+    const emp = {
+        payroll: { bonuses: 500, discounts: 800, loans: 500 },
+        bonusDetails: [{ id: 'asistencia', concept: 'Bono de asistencia', amount: 500 }],
+        deductionDetails: [{ id: 'ley', concept: 'Descuento de ley', amount: 300 }, { id: 'equipo', concept: 'Reparación de equipo', amount: 500 }],
+        loanItems: [{ id: 'L1', conceptId: 'adelanto', concept: 'Adelanto de salario', amount: 500, balanceAfter: 2500 }]
+    };
+
+    test('lists each concept when the details match the totals', () => {
+        const lines = SF.conceptLines(emp);
+        assert.deepEqual(lines.bonuses, [{ label: 'Bono de asistencia', amount: 500 }]);
+        assert.deepEqual(lines.deductions.map((l) => l.label), ['Descuento de ley', 'Reparación de equipo']);
+        assert.deepEqual(lines.loans, [{ label: 'Adelanto de salario', amount: 500, balanceAfter: 2500 }]);
+    });
+
+    test('hides a group whose details no longer match its total (edited by hand)', () => {
+        const edited = { ...emp, payroll: { ...emp.payroll, discounts: 1000 } };
+        assert.deepEqual(SF.conceptLines(edited).deductions, []);
+        assert.equal(SF.conceptLines(edited).bonuses.length, 1);
+    });
+
+    test('returns empty groups for legacy employees', () => {
+        assert.deepEqual(SF.conceptLines({ payroll: { bonuses: 10 } }), { bonuses: [], deductions: [], loans: [] });
+    });
+});
