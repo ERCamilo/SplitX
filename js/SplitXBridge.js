@@ -113,17 +113,16 @@
             }
 
             try {
-                const { employees: rawEmployees, currency, period } = event.data;
-                if (!Array.isArray(rawEmployees) || rawEmployees.length === 0) {
+                const { employees: payloadEmployees, period, exportContext } = event.data;
+                if (!Array.isArray(payloadEmployees) || payloadEmployees.length === 0) {
                     throw new Error('No se recibieron colaboradores en el payload.');
                 }
-
-                if (currency && typeof currency === 'string') {
-                    const code = currency.toUpperCase();
-                    if (['DOP', 'USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'BRL', 'GBP', 'CHF', 'JPY', 'INR', 'PHP', 'RUB'].includes(code)) {
-                        setCurrencyPreset(code);
-                    }
-                }
+                // Contexto general del export (empresa, período, moneda…): se copia a cada empleado que no trae el suyo.
+                const hasContext = exportContext && typeof exportContext === 'object' && !Array.isArray(exportContext);
+                const rawEmployees = hasContext
+                    ? payloadEmployees.map(item => (item && typeof item === 'object' && !item.exportContext ? { ...item, exportContext } : item))
+                    : payloadEmployees;
+                const currency = event.data.currency || (hasContext ? exportContext.currency : undefined);
 
                 const newEmps = rawEmployees.map((item, idx) => normalizeEmployee(item, idx));
                 const state = getState();
@@ -174,6 +173,14 @@
                     }
                 } else {
                     state.employees = newEmps;
+                }
+
+                // La moneda solo cambia cuando el usuario confirma (no al cancelar)
+                if (currency && typeof currency === 'string') {
+                    const code = currency.toUpperCase();
+                    if (['DOP', 'USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'BRL', 'GBP', 'CHF', 'JPY', 'INR', 'PHP', 'RUB'].includes(code)) {
+                        setCurrencyPreset(code);
+                    }
                 }
 
                 if (state.employees.some(e => e.payroll)) {

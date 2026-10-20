@@ -164,6 +164,40 @@ describe('SplitXBridge Production Security Contract', () => {
         assert.equal(postedMessages[0].msg.transferId, 'tx_prod_1');
     });
 
+    test('copies a payload-level exportContext to each employee and uses its currency', async () => {
+        const received = [];
+        const ctxBridge = createSplitXBridge({
+            getState: () => mockState,
+            setState: (newState) => { mockState = newState; },
+            saveData: () => {},
+            setCurrencyPreset: (code) => { mockState.currency = code; },
+            normalizeEmployee: (item) => { received.push(item); return { name: item.nombre, amount: item.monto }; },
+            showCustomChoice: async () => 'replace',
+            showToast: () => {},
+            windowRef: mockWindow
+        });
+        const result = await ctxBridge.handleMessage({
+            origin: 'https://asistencia.erlin.do',
+            source: mockOpener,
+            data: {
+                type: 'SPLITX_IMPORT_PAYROLL',
+                source: 'Sistema-de-Asistencia',
+                version: '1.0',
+                transferId: 'tx_ctx_1',
+                exportContext: { schema: 'sa-splitx-payroll/v1', currency: 'EUR', companyName: 'Constructora Ejemplo' },
+                employees: [
+                    { nombre: 'Ana', monto: 100 },
+                    { nombre: 'Luis', monto: 200, exportContext: { currency: 'USD', companyName: 'Otra' } }
+                ]
+            }
+        });
+
+        assert.equal(result.success, true);
+        assert.equal(received[0].exportContext.companyName, 'Constructora Ejemplo');
+        assert.equal(received[1].exportContext.companyName, 'Otra');
+        assert.equal(mockState.currency, 'EUR');
+    });
+
     test('rejects incompatible protocol versions with SPLITX_IMPORT_ERROR', async () => {
         const result = await bridge.handleMessage({
             origin: 'http://127.0.0.1:8080',

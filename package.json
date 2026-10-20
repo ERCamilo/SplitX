@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "SplitX — Distribución y Denominación de Efectivo de Nómina",
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "typecheck": "npx -y -p typescript@6.0.2 tsc -p jsconfig.json"
   },
   "keywords": [
     "payroll",

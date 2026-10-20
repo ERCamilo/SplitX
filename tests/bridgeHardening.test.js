@@ -115,3 +115,31 @@ describe('transferId is only consumed by a completed import', () => {
         void posted;
     });
 });
+
+describe('currency is applied only after the user confirms the import', () => {
+    const run = async (choice) => {
+        const currencies = [];
+        const opener = { postMessage() {} };
+        let state = { employees: [{ id: 1, name: 'Existente', amount: 1 }] };
+        const bridge = createSplitXBridge({
+            getState: () => state,
+            setState: (s) => { state = s; },
+            setCurrencyPreset: (code) => currencies.push(code),
+            normalizeEmployee: (item) => ({ id: 2, name: item.nombre, amount: item.monto }),
+            showCustomChoice: async () => choice,
+            windowRef: { opener, document: { referrer: '' }, addEventListener() {}, removeEventListener() {} }
+        });
+        const msg = importMsg(opener, `tx_cur_${choice}`);
+        msg.data.currency = 'EUR';
+        await bridge.handleMessage(msg);
+        return currencies;
+    };
+
+    test('cancel leaves the current currency untouched', async () => {
+        assert.deepEqual(await run('cancel'), []);
+    });
+
+    test('replace switches the currency', async () => {
+        assert.deepEqual(await run('replace'), ['EUR']);
+    });
+});
