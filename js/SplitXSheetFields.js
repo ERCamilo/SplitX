@@ -35,7 +35,7 @@
      * @property {ConceptDetail[]} [deductionDetails]
      * @property {ExportContext} [exportContext]
      *
-     * @typedef {{ key: string, label: string, type: 'text' | 'number', decimals?: number | 'auto', get: (record: any, ctx: { index: number }) => unknown }} FieldDef
+     * @typedef {{ key: string, label: string, type: 'text' | 'number', decimals?: number | 'auto', noTotal?: boolean, get: (record: any, ctx: { index: number }) => unknown }} FieldDef
      */
 
     const MAX_ITEMS = 100;
@@ -210,13 +210,13 @@
             { key: 'loanPrincipal', label: 'Capital del préstamo', type: 'number', get: payroll((p) => p.loanDetails?.principal) },
             { key: 'loanInterest', label: 'Interés del préstamo', type: 'number', get: payroll((p) => p.loanDetails?.interestAmount) },
             { key: 'loanBalance', label: 'Saldo pendiente', type: 'number', get: payroll((p) => p.loanDetails?.remainingBalance) },
-            { key: 'days', label: 'Días trabajados', type: 'number', decimals: 'auto', get: days('total') },
-            { key: 'daysRegular', label: 'Días regulares', type: 'number', decimals: 'auto', get: days('regular') },
-            { key: 'daysOvertime', label: 'Días extra', type: 'number', decimals: 'auto', get: days('overtime') },
-            { key: 'daysHoliday', label: 'Días feriados', type: 'number', decimals: 'auto', get: days('holiday') },
-            { key: 'daysRest', label: 'Días de descanso', type: 'number', decimals: 'auto', get: days('restDay') },
+            { key: 'days', label: 'Días trabajados', type: 'number', decimals: 'auto', noTotal: true, get: days('total') },
+            { key: 'daysRegular', label: 'Días regulares', type: 'number', decimals: 'auto', noTotal: true, get: days('regular') },
+            { key: 'daysOvertime', label: 'Días extra', type: 'number', decimals: 'auto', noTotal: true, get: days('overtime') },
+            { key: 'daysHoliday', label: 'Días feriados', type: 'number', decimals: 'auto', noTotal: true, get: days('holiday') },
+            { key: 'daysRest', label: 'Días de descanso', type: 'number', decimals: 'auto', noTotal: true, get: days('restDay') },
             {
-                key: 'dailyRate', label: 'Sueldo por día', type: 'number',
+                key: 'dailyRate', label: 'Sueldo por día', type: 'number', noTotal: true,
                 get: (r) => {
                     const gross = r.payroll?.gross;
                     const total = r.workDays?.total;

@@ -43,6 +43,7 @@
      * @property {Cell[]} cells
      * @property {'show' | 'dash' | 'hide'} [whenEmpty] Qué hacer si todos sus campos-valor están vacíos o en 0.
      * @property {boolean} [hidden] Se calcula pero no se imprime.
+     * @property {boolean} [lineAbove] Línea separadora encima de la fila.
      *
      * @typedef {Object} CellResult
      * @property {string} text
@@ -65,6 +66,7 @@
      * @property {string} label
      * @property {'text' | 'number'} type
      * @property {number | 'auto'} [decimals] 'auto' = sin decimales si es entero, hasta 2 si no.
+     * @property {boolean} [noTotal] No es dinero (p. ej. días): no inicia el total acumulado.
      * @property {(record: any, ctx: RenderContext) => unknown} get
      *
      * @typedef {'letter' | 'a4' | 'legal' | 'half-letter'} PaperName
@@ -380,9 +382,13 @@
                     resultText = `${OP_SYMBOLS[leadingOp]} ${formatNumber(value)}`;
                 } else {
                     value = evaluateTokens(tokenize(core, record, ctx, running));
-                    const sets = mode === 'set' || (mode === 'auto' && running === null);
+                    const coreFields = core.filter(isValueField);
+                    const onlyNoTotal = coreFields.length > 0 && coreFields.every((c) => requireField(c.key).noTotal);
+                    const sets = mode === 'set' || (mode === 'auto' && running === null && !onlyNoTotal);
                     newTotal = sets ? value : running;
-                    resultText = formatNumber(value);
+                    // Una celda con un solo campo respeta los decimales de ese campo (días: 10.5).
+                    const single = core.length === 1 && isValueField(core[0]) ? requireField(core[0].key) : null;
+                    resultText = formatNumber(value, single?.decimals);
                 }
 
                 const show = cell.show || 'result';
@@ -576,6 +582,7 @@
                 const rowWhere = `Fila ${i + 1}`;
                 if (!isObj(row) || !Array.isArray(row.cells)) return errors.push(`${rowWhere}: celdas inválidas`);
                 if (row.whenEmpty !== undefined && !['show', 'dash', 'hide'].includes(row.whenEmpty)) errors.push(`${rowWhere}: opción de fila vacía inválida`);
+                if (row.lineAbove !== undefined && typeof row.lineAbove !== 'boolean') errors.push(`${rowWhere}: línea superior inválida`);
                 let spanSum = 0;
                 row.cells.forEach((/** @type {any} */ cell, /** @type {number} */ k) => {
                     const where = `${rowWhere}, celda ${k + 1}`;

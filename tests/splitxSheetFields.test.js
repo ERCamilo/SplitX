@@ -165,3 +165,11 @@ describe('Field set', () => {
         ]);
     });
 });
+
+describe('Non-monetary fields', () => {
+    test('day fields are flagged noTotal so they never start the running total', () => {
+        const { fields } = SF.createFieldSet();
+        const flagged = fields.filter((f) => f.noTotal).map((f) => f.key);
+        assert.deepEqual(flagged, ['days', 'daysRegular', 'daysOvertime', 'daysHoliday', 'daysRest', 'dailyRate']);
+    });
+});

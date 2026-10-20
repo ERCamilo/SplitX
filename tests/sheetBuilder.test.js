@@ -386,3 +386,50 @@ describe('Auto decimals', () => {
         assert.equal(show(2.125), '2.13');
     });
 });
+
+describe('Non-monetary fields and single-field formatting', () => {
+    const e = SB.createEngine({
+        locale: 'en-US',
+        fields: [
+            { key: 'days', label: 'Días', type: 'number', decimals: 'auto', noTotal: true, get: (r) => r.days },
+            { key: 'gross', label: 'Bruto', type: 'number', get: (r) => r.gross }
+        ]
+    });
+    const rec = { days: 10.5, gross: 10000 };
+    const cell = (chips, extra) => ({ mode: 'number', chips, ...extra });
+    const fd = (key) => ({ kind: 'field', key });
+
+    test('a number cell holding a single field uses that field decimals', () => {
+        assert.equal(e.evaluateCell(cell([fd('days')]), rec, { index: 0 }, null).text, '10.5');
+    });
+
+    test('noTotal fields never start the running total', () => {
+        const out = e.evaluateRows([
+            { cells: [cell([fd('days')])] },
+            { cells: [cell([fd('gross')])] },
+            { cells: [cell([{ kind: 'running' }])] }
+        ], rec, { index: 0 });
+        assert.equal(out[2].cells[0].value, 10000);
+    });
+
+    test('total=set still forces a noTotal cell to set the total', () => {
+        const out = e.evaluateRows([
+            { cells: [cell([fd('days')], { total: 'set' })] },
+            { cells: [cell([{ kind: 'running' }])] }
+        ], rec, { index: 0 });
+        assert.equal(out[1].cells[0].value, 10.5);
+    });
+});
+
+describe('Row line above', () => {
+    test('lineAbove must be boolean', () => {
+        const t = {
+            version: 1, type: 'cards', name: 't', columns: [1],
+            rows: [{ lineAbove: 'yes', cells: [{ mode: 'text', chips: [] }] }],
+            layout: { paper: 'letter', orientation: 'portrait', margin: 10, gap: 4, mode: 'grid', cols: 2, rows: 4 }
+        };
+        assert.equal(SB.validateTemplate(t).errors.length, 1);
+        t.rows[0].lineAbove = true;
+        assert.deepEqual(SB.validateTemplate(t).errors, []);
+    });
+});
