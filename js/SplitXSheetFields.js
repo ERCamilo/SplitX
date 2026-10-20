@@ -20,7 +20,7 @@
 
     /**
      * @typedef {{ id: string, concept: string, type: string, value: number, amount: number }} ConceptDetail
-     * @typedef {{ id: string, concept: string, amount: number, status?: string, principal?: number, interest?: number, balanceBefore?: number, balanceAfter?: number }} LoanItem
+     * @typedef {{ id: string, conceptId: string, concept: string, amount: number, status?: string, principal?: number, interest?: number, balanceBefore?: number, balanceAfter?: number }} LoanItem
      * @typedef {{ balanceBefore?: number, amount?: number, balanceAfter?: number, totalOutstanding?: number, totalOutstandingAfter?: number }} LoanSummary
      * @typedef {{ unit?: string, regular?: number, overtime?: number, holiday?: number, restDay?: number, total?: number }} WorkDays
      * @typedef {{ start?: string, end?: string }} Period
@@ -154,7 +154,8 @@
             const amount = num(l.deductionAmount) ?? num(l.amount);
             if (!id || amount === undefined) continue;
             /** @type {LoanItem} */
-            const item = { id, concept: concept ?? id, amount };
+            // conceptId agrupa préstamos del mismo tipo: un chip "Adelanto de salario" sirve para todos.
+            const item = { id, conceptId: slugify(concept ?? id), concept: concept ?? id, amount };
             const status = str(l.status);
             if (status) item.status = status;
             /** @type {[keyof LoanItem, unknown][]} */
@@ -338,7 +339,7 @@
         for (const record of options.records || []) {
             for (const [prefix, prop] of CONCEPT_GROUPS) {
                 for (const d of record?.[prop] || []) {
-                    const key = `${prefix}:${d.id}`;
+                    const key = `${prefix}:${prefix === 'loan' ? d.conceptId : d.id}`;
                     if (!catalog.has(key)) catalog.set(key, d.concept || d.id);
                 }
             }
@@ -360,8 +361,8 @@
                 label: catalog.get(key) || id,
                 type: 'number',
                 get: (r) => {
-                    const matches = (r?.[prop] || []).filter((/** @type {ConceptDetail} */ d) => d.id === id);
-                    return matches.length ? matches.reduce((/** @type {number} */ s, /** @type {ConceptDetail} */ d) => s + d.amount, 0) : null;
+                    const matches = (r?.[prop] || []).filter((/** @type {any} */ d) => (prefix === 'loan' ? d.conceptId : d.id) === id);
+                    return matches.length ? matches.reduce((/** @type {number} */ s, /** @type {{ amount: number }} */ d) => s + d.amount, 0) : null;
                 }
             };
         };

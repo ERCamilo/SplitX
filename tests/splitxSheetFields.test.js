@@ -197,7 +197,7 @@ describe('Export v1 loans and position rates', () => {
         const x = SF.pickImportExtras(loanItem());
         assert.deepEqual(x.positions, [{ id: 'PUESTO-DEMO', name: 'Albañil', days: 10, dailyRate: 1000 }]);
         assert.deepEqual(x.loanItems, [{
-            id: 'PRESTAMO-DEMO', concept: 'Adelanto de salario', status: 'proposed', amount: 500,
+            id: 'PRESTAMO-DEMO', conceptId: 'adelanto_de_salario', concept: 'Adelanto de salario', status: 'proposed', amount: 500,
             principal: 500, interest: 0, balanceBefore: 3000, balanceAfter: 2500
         }]);
         assert.deepEqual(x.loanSummary, { balanceBefore: 3000, amount: 500, balanceAfter: 2500, totalOutstanding: 3000, totalOutstandingAfter: 2500 });
@@ -234,10 +234,18 @@ describe('Export v1 loans and position rates', () => {
         assert.equal(value('loanBalanceAfter'), '2,500.00');
     });
 
-    test('each loan becomes a dynamic loan:<id> field labelled with its concept', () => {
-        assert.equal(label('loan:PRESTAMO-DEMO'), 'Adelanto de salario');
-        assert.equal(value('loan:PRESTAMO-DEMO'), '500.00');
-        assert.ok(set.listConcepts().some((c) => c.key === 'loan:PRESTAMO-DEMO'));
+    test('loans become dynamic loan:<concept> fields so one chip serves every employee', () => {
+        assert.equal(label('loan:adelanto_de_salario'), 'Adelanto de salario');
+        assert.equal(value('loan:adelanto_de_salario'), '500.00');
+        assert.ok(set.listConcepts().some((c) => c.key === 'loan:adelanto_de_salario'));
+    });
+
+    test('two loans with the same concept add up', () => {
+        const two = toLoanEmployee({ ...loanItem(), loanBreakdown: [
+            { loanId: 'L1', concept: 'Adelanto de salario', deductionAmount: 500 },
+            { loanId: 'L2', concept: 'Adelanto de Salario', deductionAmount: 250 }
+        ] });
+        assert.equal(value('loan:adelanto_de_salario', two), '750.00');
     });
 
     test('loan balance fields are not monetary totals', () => {
