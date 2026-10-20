@@ -59,7 +59,7 @@
             { header: 'Monto entregado', width: 1.3, border: 'all', sum: true, cell: cN([F('afterDiscounts')], { bold: true }) },
             { header: 'Firma', width: 2.4, border: 'sign', sum: false, cell: cT([]) }
         ],
-        options: { totals: true, signatures: true, rowHeight: 11 },
+        options: { totals: true, signatures: 'all', signLabels: ['Entregado por', 'Revisado por'], signLine: 'low', rowHeight: 11 },
         layout: { paper: 'letter', orientation: 'landscape', margin: 12 },
         sortBy: { field: 'no', dir: 'asc' }
     });
@@ -73,6 +73,7 @@
         if (!Array.isArray(t.title)) errors.push('Falta el encabezado (title)');
         if (!t.layout || !SB.PAPER_SIZES[t.layout.paper]) errors.push('Papel inválido');
         if (!t.options || !(typeof t.options.rowHeight === 'number' && t.options.rowHeight > 0)) errors.push('Alto de fila inválido');
+        else if (![true, false, undefined, ...FOOTER_PAGES].includes(t.options.signatures)) errors.push('Pie de firmas inválido');
         if (errors.length) return errors;
         t.columns.forEach((c, i) => {
             if (!c || typeof c.header !== 'string') errors.push(`Columna ${i + 1}: encabezado inválido`);
@@ -86,7 +87,30 @@
         return errors.concat(SB.validateTemplate(asCards).errors);
     };
 
-    /** Medidas de la hoja de firmas y cuántas filas caben por página (mm). */
+    const FOOTER_PAGES = ['all', 'first', 'last', 'none'];
+    const SIGN_LINES = ['low', 'middle', 'divider'];
+    const TOTALS_MM = 8;
+    const FOOTER_MM = 18;
+
+    /** Opciones de la hoja de firmas con valores por defecto (acepta el formato anterior con booleanos). */
+    const tableOptions = (o) => {
+        const src = o || {};
+        const sig = src.signatures === true ? 'all' : src.signatures === false ? 'none' : src.signatures;
+        const labels = Array.isArray(src.signLabels) ? src.signLabels.map((x) => String(x || '').trim()).filter(Boolean) : null;
+        return {
+            totals: !!src.totals,
+            signatures: FOOTER_PAGES.includes(sig) ? sig : 'all',
+            signLabels: labels || ['Entregado por', 'Revisado por'],
+            signLine: SIGN_LINES.includes(src.signLine) ? src.signLine : 'low',
+            rowHeight: typeof src.rowHeight === 'number' && src.rowHeight > 0 ? src.rowHeight : 11
+        };
+    };
+
+    /** ¿Lleva esta página el pie "Entregado por / Revisado por"? */
+    const footerOnPage = (mode, page, pageCount) =>
+        mode === 'all' || (mode === 'first' && page === 0) || (mode === 'last' && page === pageCount - 1);
+
+    /** Medidas de la hoja de firmas y cuántas filas caben por página sin pie ni totales (mm). */
     const tablePageGeometry = (t, hasLogo) => {
         const [w, h] = SB.PAPER_SIZES[t.layout.paper] || SB.PAPER_SIZES.letter;
         const landscape = t.layout.orientation === 'landscape';
@@ -95,9 +119,44 @@
         const margin = t.layout.margin || 0;
         const titleH = t.title.reduce((s, c) => s + (c.size || 10) * PT_MM * 1.45, 0);
         const headerH = Math.max(titleH, hasLogo ? 18 : 0) + 6;
-        const avail = pageHeight - 2 * margin - headerH - 8 - (t.options.totals ? 8 : 0) - (t.options.signatures ? 18 : 0);
-        const rowsPerPage = Math.max(1, Math.floor(avail / (t.options.rowHeight || 11)));
-        return { pageWidth, pageHeight, margin, rowsPerPage };
+        const bodyH = pageHeight - 2 * margin - headerH - 8;
+        const rowsPerPage = Math.max(1, Math.floor(bodyH / tableOptions(t.options).rowHeight));
+        return { pageWidth, pageHeight, margin, bodyH, rowsPerPage };
+    };
+
+    /**
+     * Filas por página. Los totales van solo en la última; el pie de firmas en las páginas elegidas,
+     * así las demás aprovechan todo el alto.
+     */
+    const tablePageSizes = (t, hasLogo, count) => {
+        const o = tableOptions(t.options);
+        const { bodyH } = tablePageGeometry(t, hasLogo);
+        const cap = (page, isLast) => {
+            let h = bodyH;
+            if (isLast && o.totals) h -= TOTALS_MM;
+            if (o.signatures === 'all' || (o.signatures === 'first' && page === 0) || (o.signatures === 'last' && isLast)) h -= FOOTER_MM;
+            return Math.max(1, Math.floor(h / o.rowHeight));
+        };
+        const sizes = [];
+        let left = count;
+        while (left > 0) {
+            const page = sizes.length;
+            if (left <= cap(page, true)) { sizes.push(left); break; }
+            const take = Math.max(1, Math.min(cap(page, false), left - 1));
+            sizes.push(take);
+            left -= take;
+        }
+        return sizes.length ? sizes : [0];
+    };
+
+    /** Pasa ancho de la columna i a la i+1 (o al revés) sin bajar de 0.2. */
+    const resizeColumns = (widths, i, delta) => {
+        const out = widths.slice();
+        const pairW = out[i] + out[i + 1];
+        const a = Math.min(pairW - 0.2, Math.max(0.2, out[i] + delta));
+        out[i] = Math.round(a * 100) / 100;
+        out[i + 1] = Math.round((pairW - a) * 100) / 100;
+        return out;
     };
 
     /** Suma por columna (null en las que no suman). items = engine.sortRecords(...). */
@@ -404,6 +463,18 @@ table.ss-sig th { background:#f1f5f9; color:var(--ink-strong); font-weight:700; 
 table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .b-all { border:1px solid #334155; } .b-none { border:0; } .b-sign { border:0; vertical-align:bottom !important; }
 .b-sign .sline { border-bottom:1px solid #0f172a; height:1px; margin:0 .6em .45em; }
+.b-sign.sl-middle { vertical-align:middle !important; } .b-sign.sl-middle .sline { margin:0 .6em; }
+.b-sign.sl-divider { border-bottom:1px solid #334155; } .b-sign.sl-divider .sline { display:none; }
+/* Asas para cambiar tamaños en la vista previa */
+.ss-card { position:relative; }
+.ss-grips { position:absolute; inset:0; pointer-events:none; }
+.ss-rz { position:absolute; top:0; right:-4px; width:8px; height:100%; cursor:col-resize; z-index:2; pointer-events:auto; border-radius:3px; }
+.ss-rz.v { right:auto; transform:translateX(-4px); }
+.ss-rz:hover, .ss-rz.on { background:rgba(37,99,235,.35); }
+.ss-rz.corner { top:auto; right:0; bottom:0; width:14px; height:14px; cursor:nwse-resize; background:linear-gradient(135deg, transparent 50%, rgba(37,99,235,.6) 50%); border-radius:0 0 3px 0; }
+.ss-resizing, .ss-resizing * { cursor:inherit !important; user-select:none; }
+.ss-colsum { display:flex; flex-direction:column; gap:2px; }
+.ss-colsum label { display:flex; gap:8px; align-items:center; font-size:13px; padding:3px 6px; border-radius:6px; }
 .ss-sig-head { display:flex; gap:1em; align-items:center; border-bottom:2px solid var(--ink-strong); padding-bottom:.6em; margin-bottom:.8em; }
 .ss-sig-head img { object-fit:contain; }
 .ss-sig-foot { display:flex; gap:3em; margin-top:auto; }
@@ -550,15 +621,30 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             `<div class="ss-crow${r.row.lineAbove ? ' line' : ''}" style="grid-template-columns:${gridCols(cols)}">${r.cells.map((c) => outHTML(c, c.cell, k)).join('')}</div>`).join('');
         const cardStyle = (w, h, k) => `width:${w * k}px;height:${h * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px;`;
 
-        const tableHTML = (t, items, k, withTotals, total) => {
+        /** Asas sobre la primera tarjeta: bordes entre columnas y esquina para el tamaño. */
+        const cardGrips = (k) => {
+            const cols = tpl().columns;
+            const sumW = cols.reduce((a, b) => a + b, 0);
+            let acc = 0;
+            const lines = cols.slice(0, -1).map((w, i) => {
+                acc += w;
+                return `<span class="ss-rz v" data-resize="ccol:${i}" style="left:calc(${3 * k}px + (100% - ${6 * k}px) * ${acc / sumW})" title="Arrastra para cambiar el ancho de la columna"></span>`;
+            }).join('');
+            return `<div class="ss-grips">${lines}<span class="ss-rz corner" data-resize="card" title="Arrastra para cambiar el tamaño de la tarjeta"></span></div>`;
+        };
+
+        const tableHTML = (t, items, k, withTotals, total, page) => {
             const sumW = t.columns.reduce((s, c) => s + (c.width || 1), 0);
-            const rowH = (t.options.rowHeight || 11) * k;
+            const o = tableOptions(t.options);
+            const rowH = o.rowHeight * k;
             const cells = t.columns.map((c) => c.cell);
-            const head = `<thead><tr>${t.columns.map((c) => `<th class="${c.border === 'none' ? 'b-none' : 'b-all'}" style="text-align:${c.cell.align || (c.cell.mode === 'number' ? 'right' : 'left')}">${esc(c.header)}</th>`).join('')}</tr></thead>`;
+            // En la vista previa, la primera página trae asas para cambiar el ancho de las columnas.
+            const grip = (i) => (page === 0 && i < t.columns.length - 1 ? `<span class="ss-rz" data-resize="tcol:${i}" title="Arrastra para cambiar el ancho"></span>` : '');
+            const head = `<thead><tr>${t.columns.map((c, i) => `<th class="${c.border === 'none' ? 'b-none' : 'b-all'}" style="text-align:${c.cell.align || (c.cell.mode === 'number' ? 'right' : 'left')}">${esc(c.header)}${grip(i)}</th>`).join('')}</tr></thead>`;
             const body = items.map(({ record, ctx }) => {
                 const res = engine.evaluateRows([{ cells }], record, ctx)[0].cells;
                 return `<tr style="height:${rowH}px">${t.columns.map((c, i) => (c.border === 'sign'
-                    ? `<td class="b-sign">${c.cell.chips.length ? outHTML(res[i], c.cell, k) : ''}<div class="sline"></div></td>`
+                    ? `<td class="b-sign sl-${o.signLine}">${c.cell.chips.length ? outHTML(res[i], c.cell, k) : ''}<div class="sline"></div></td>`
                     : `<td class="${c.border === 'none' ? 'b-none' : 'b-all'}">${outHTML(res[i], c.cell, k)}</td>`)).join('')}</tr>`;
             }).join('');
             let foot = '';
@@ -591,14 +677,15 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 return out.pages.map((cards, p) => `
                     <div class="ss-page" style="width:${lay.pageWidth * k}px;height:${lay.pageHeight * k}px;padding:${lay.margin * k}px">
                       <div class="ss-cards" style="grid-template-columns:repeat(${lay.cols}, ${lay.cardWidth * k}px);grid-auto-rows:${lay.cardHeight * k}px;gap:${lay.gap * k}px">
-                        ${cards.map((rows) => `<div class="ss-card${tpl().layout.cutMarks ? ' cut' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${cardStyle(lay.cardWidth, lay.cardHeight, k)}">${cardInner(rows, tpl().columns, k)}</div>`).join('')}
+                        ${cards.map((rows, i) => `<div class="ss-card${tpl().layout.cutMarks ? ' cut' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${cardStyle(lay.cardWidth, lay.cardHeight, k)}">${cardInner(rows, tpl().columns, k)}${!forPrint && p === 0 && i === 0 ? cardGrips(k) : ''}</div>`).join('')}
                       </div></div>${forPrint ? '' : `<div class="ss-page-no">Hoja ${p + 1} de ${out.pages.length}</div>`}`).join('');
             }
             const t = tpl();
             const g = tablePageGeometry(t, !!state.store.logo);
+            const o = tableOptions(t.options);
             const items = sorted(list, t.sortBy);
-            const pages = SB.paginate(items, g.rowsPerPage);
-            if (!pages.length) pages.push([]);
+            let from = 0;
+            const pages = tablePageSizes(t, !!state.store.logo, items.length).map((n) => { const rows = items.slice(from, from + n); from += n; return rows; });
             const first = items[0];
             const titleRes = first ? engine.evaluateRows(t.title.map((c) => ({ cells: [c] })), first.record, first.ctx) : [];
             return pages.map((rows, p) => `
@@ -608,8 +695,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     <div style="flex:1;display:flex;flex-direction:column;gap:${0.6 * k}px">${titleRes.map((r) => `<div style="display:grid">${outHTML(r.cells[0], r.cells[0].cell, k)}</div>`).join('')}</div>
                     <div style="color:#64748b;text-align:right">Hoja ${p + 1} de ${pages.length}</div>
                   </div>
-                  ${tableHTML(t, rows, k, t.options.totals && p === pages.length - 1 ? items : null, items.length)}
-                  ${t.options.signatures ? `<div class="ss-sig-foot" style="padding-top:${10 * k}px"><div>Entregado por</div><div>Revisado por</div></div>` : ''}
+                  ${tableHTML(t, rows, k, o.totals && p === pages.length - 1 ? items : null, items.length, forPrint ? null : p)}
+                  ${footerOnPage(o.signatures, p, pages.length) && o.signLabels.length ? `<div class="ss-sig-foot" style="padding-top:${10 * k}px">${o.signLabels.map((l) => `<div>${esc(l)}</div>`).join('')}</div>` : ''}
                 </div>${forPrint ? '' : `<div class="ss-page-no">Hoja ${p + 1} de ${pages.length}</div>`}`).join('');
         };
 
@@ -767,7 +854,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const body = sample.map(({ record, ctx: cx }, ri) => {
                     const res = engine.evaluateRows([{ cells }], record, cx)[0].cells;
                     return `<tr style="height:${(t.options.rowHeight || 11) * k}px">${t.columns.map((c, i) => {
-                        const cls = `${c.border === 'sign' ? 'b-sign' : c.border === 'none' ? 'b-none' : 'b-all'}${colSel === i ? ' col-sel' : ''}`;
+                        const cls = `${c.border === 'sign' ? `b-sign sl-${tableOptions(t.options).signLine}` : c.border === 'none' ? 'b-none' : 'b-all'}${colSel === i ? ' col-sel' : ''}`;
                         const zone = `B:col:${i}`;
                         const content = ri === 0 || state.formulas ? cellHTML(zone, c.cell, res[i], k) : `<div data-colpick="${zone}" style="cursor:pointer">${c.cell.chips.length ? outHTML(res[i], c.cell, k) : '&nbsp;'}</div>`;
                         return `<td class="${cls}">${content}${c.border === 'sign' ? '<div class="sline"></div>' : ''}</td>`;
@@ -792,6 +879,20 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         const cardSection = () => `<div class="ss-sec"><h3 class="ss-lbl">Tarjeta</h3>
             <div class="ss-field">Columnas ${segHTML('card.cols', tpl().columns.length, [[1, '1'], [2, '2'], [3, '3']])}</div>
             <div class="ss-grid2">${tpl().columns.map((w, i) => `<label class="ss-field">Ancho col. ${i + 1}<input id="ssColW${i}" class="ss-inp ss-num" type="number" min="0.2" max="10" step="0.1" data-bind="card.w${i}" data-type="number" value="${esc(w)}"></label>`).join('')}</div></div>`;
+
+        /** Totales, firmas y pie de la hoja de firmas (inspector y paso de impresión). */
+        const tableSettingsHTML = () => {
+            const t = tpl();
+            const o = tableOptions(t.options);
+            const numeric = t.columns.map((c, i) => [c, i]).filter(([c]) => c.cell.mode === 'number');
+            return `<div class="ss-sec"><h3 class="ss-lbl">Totales</h3>
+                <label class="ss-check"><input id="ssTotals" type="checkbox" data-bind="opt.totals" ${o.totals ? 'checked' : ''}> Fila de totales al final</label>
+                ${o.totals && numeric.length ? `<div class="ss-colsum">${numeric.map(([c, i]) => `<label><input type="checkbox" data-bind="colsum.${i}" ${c.sum ? 'checked' : ''}> Σ ${esc(c.header || `Columna ${i + 1}`)}</label>`).join('')}</div>` : ''}</div>
+              <div class="ss-sec"><h3 class="ss-lbl">Firmas</h3>
+                <div class="ss-field">Línea de firma ${segHTML('opt.signLine', o.signLine, [['low', 'Abajo'], ['middle', 'En medio'], ['divider', 'Sobre la división']])}</div>
+                <div class="ss-field">Pie “${esc(o.signLabels.join(' / '))}” ${segHTML('opt.signatures', o.signatures, [['none', 'No'], ['all', 'Todas'], ['first', 'Primera'], ['last', 'Última']])}</div>
+                ${o.signatures !== 'none' ? `<label class="ss-field">Quién firma al pie (separa con comas)<input id="ssSignLabels" class="ss-inp" data-bind="opt.signLabels" value="${esc(o.signLabels.join(', '))}" maxlength="120"></label>` : ''}</div>`;
+        };
 
         const chipStripHTML = (zone, cell) => `<div class="ss-field">Chips de la celda
             <div class="ss-cell chipview" data-zone="${zone}" style="min-height:40px;border:1.5px dashed var(--border-strong);border-radius:8px;padding:6px;outline:0">${cell.chips.map((c, i) => chipHTML(c, zone, i)).join('') || '<span class="ss-hint">Suelta o toca chips para agregarlos</span>'}</div></div>`;
@@ -824,9 +925,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                         <p class="ss-hint">• Arrastra un campo a la franja de la derecha de la tabla para crear una columna, o sobre un encabezado para insertarla antes.</p>
                         <p class="ss-hint">• Haz clic en un encabezado o una celda para editar esa columna.</p>
                         <p class="ss-hint">• Arrastra los encabezados para reordenar columnas.</p></div>
-                       <div class="ss-sec"><h3 class="ss-lbl">Tabla</h3>
-                        <label class="ss-check"><input id="ssTotals" type="checkbox" data-bind="opt.totals" ${tpl().options.totals ? 'checked' : ''}> Fila de totales al final</label>
-                        <label class="ss-check"><input id="ssSigs" type="checkbox" data-bind="opt.signatures" ${tpl().options.signatures ? 'checked' : ''}> “Entregado por / Revisado por” al pie</label></div>`;
+                       ${tableSettingsHTML()}`;
                 return;
             }
             const zone = state.sel.zone;
@@ -963,6 +1062,19 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
 
         // ─── Paso de impresión ─────────────────────────────────────────────
+        /** Resumen "N tarjetas → M hojas" del paso de impresión. */
+        const printSummary = (list) => {
+            let summary;
+            if (state.sheet === 'A') {
+                const lay = SB.computeLayout(tpl().layout);
+                const pages = Math.ceil(list.length / lay.perPage);
+                summary = `${list.length} tarjeta${list.length === 1 ? '' : 's'} · ${lay.perPage} por hoja → <strong>${pages} hoja${pages === 1 ? '' : 's'}</strong>`;
+            } else {
+                const pages = tablePageSizes(tpl(), !!state.store.logo, list.length).length;
+                summary = `${list.length} empleado${list.length === 1 ? '' : 's'} → <strong>${pages} hoja${pages === 1 ? '' : 's'}</strong>`;
+            }
+            return summary;
+        };
         const renderPrintStep = () => {
             const el = $('#ssPrint');
             if (!el) return;
@@ -970,32 +1082,37 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const count = (mode) => selectEmployees(employees, { mode, ids: o.ids }).length;
             const radio = (mode, label) => `<label class="ss-radio${o.mode === mode ? ' on' : ''}"><input type="radio" name="ssWho" data-bind="print.mode" value="${mode}" ${o.mode === mode ? 'checked' : ''}> ${label}<span class="n">${count(mode)}</span></label>`;
             const list = printList();
-            let summary;
-            if (state.sheet === 'A') {
-                const lay = SB.computeLayout(tpl().layout);
-                const pages = Math.ceil(list.length / lay.perPage);
-                summary = `${list.length} tarjeta${list.length === 1 ? '' : 's'} · ${lay.perPage} por hoja → <strong>${pages} hoja${pages === 1 ? '' : 's'}</strong>`;
-            } else {
-                const pages = Math.max(1, Math.ceil(list.length / tablePageGeometry(tpl(), !!state.store.logo).rowsPerPage));
-                summary = `${list.length} empleado${list.length === 1 ? '' : 's'} → <strong>${pages} hoja${pages === 1 ? '' : 's'}</strong>`;
-            }
+            const keepScroll = el.querySelector('.ss-printside') ? el.querySelector('.ss-printside').scrollTop : 0;
             el.innerHTML = `<aside class="ss-printside">
                 <div class="ss-sec"><h3 class="ss-lbl">¿A quién?</h3>
                   ${radio('all', 'Todos los empleados')}${radio('unpaid', 'Solo los no pagados')}${radio('loan', 'Solo con préstamo o adelanto')}${radio('custom', 'Elegir…')}
                   ${o.mode === 'custom' ? `<div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="pick-all">Todos</button><button class="ss-btn sm" type="button" data-act="pick-none">Ninguno</button></div>
                     <div class="ss-emplist">${employees.map((e) => `<label><input type="checkbox" data-pick="${esc(e.id)}" ${o.ids.includes(e.id) ? 'checked' : ''}> ${esc(e.employeeNumber || '')} ${esc(e.employeeName || e.name)}</label>`).join('')}</div>` : ''}</div>
                 ${state.sheet === 'A' ? `<div class="ss-sec"><h3 class="ss-lbl">Copias</h3><div class="ss-field">Tarjetas por empleado ${segHTML('print.copies', o.copies, [[1, '1'], [2, '2'], [3, '3']])}</div></div>` : ''}
-                <div class="ss-sec"><h3 class="ss-lbl">Hoja</h3><p class="ss-hint">${esc(pageSummary(tpl()))}</p><p class="ss-hint">${summary}</p></div>
+                <div class="ss-sec"><p class="ss-hint">${esc(pageSummary(tpl()))}</p><p class="ss-hint" id="ssPrintSummary"></p></div>
+                <div class="ss-sec">${popPage()}
+                  <p class="ss-hint">${state.sheet === 'A'
+                    ? 'En la vista previa, arrastra la esquina azul de la primera tarjeta para cambiar su tamaño, o las líneas entre columnas para su ancho.'
+                    : 'En la vista previa, arrastra los bordes de los encabezados de la primera hoja para cambiar el ancho de las columnas.'}</p></div>
+                ${state.sheet === 'B' ? tableSettingsHTML() : ''}
                 <button class="ss-btn primary ss-big" type="button" data-act="print" ${list.length ? '' : 'disabled'}>🖨 Imprimir</button>
                 <p class="ss-hint">Se abre el diálogo de impresión: elige tu impresora o “Guardar como PDF”, con márgenes “Ninguno” y escala 100%.</p>
               </aside>
               <section class="ss-printpages" id="ssPrintPages"><div class="ss-desk" id="ssDesk"></div></section>`;
+            el.querySelector('.ss-printside').scrollTop = keepScroll;
+            renderPrintDesk();
+        };
+        const renderPrintDesk = () => {
             const desk = $('#ssDesk');
+            if (!desk) return;
+            const list = printList();
             const L = tpl().layout;
             const [w, h] = SB.PAPER_SIZES[L.paper] || SB.PAPER_SIZES.letter;
             const pw = L.orientation === 'landscape' ? h : w;
             const avail = Math.max(280, ($('#ssPrintPages').clientWidth || 800) - 60);
             desk.innerHTML = list.length ? pagesHTML(Math.min(2.4, avail / pw), false) : '<p class="ss-hint">No hay empleados seleccionados.</p>';
+            const sum = $('#ssPrintSummary');
+            if (sum) sum.innerHTML = printSummary(list);
         };
 
         // ─── Cambios de estado ─────────────────────────────────────────────
@@ -1008,7 +1125,11 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (p.includes('palette')) renderPalette();
             if (p.includes('canvas')) renderCanvas();
             if (p.includes('insp')) renderInspector();
-            if (p.includes('print')) renderPrintStep();
+            if (state.printing) {
+                // En el paso de impresión los cambios de plantilla se ven en la vista previa.
+                if (p.includes('print') || /canvas|pagebar|insp/.test(p)) renderPrintStep();
+                else if (p.includes('desk')) renderPrintDesk();
+            }
             if (p.includes('layer')) renderLayer();
         };
         const EDIT = 'bar canvas insp layer pagebar';
@@ -1119,8 +1240,13 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 }
                 case 'opt':
                     commit(`opt:${key}`);
-                    t.options[key] = key === 'rowHeight' ? Math.max(6, value || 11) : value;
-                    return 'bar canvas pagebar';
+                    if (key === 'signLabels') t.options.signLabels = String(value).split(',').map((x) => x.trim()).filter(Boolean);
+                    else t.options[key] = key === 'rowHeight' ? Math.max(6, value || 11) : value;
+                    return 'bar canvas pagebar' + (key === 'totals' || key === 'signatures' ? ' insp' : '');
+                case 'colsum':
+                    commit(`colsum:${key}`);
+                    t.columns[+key].sum = !!value;
+                    return 'bar canvas';
                 case 'card': {
                     const cols = t.columns;
                     commit(`card:${key}`);
@@ -1328,6 +1454,51 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 if (state.pop) { state.pop = null; renderLayer(); }
                 if (t.closest('#ssCanvas') && !t.closest('.ss-paper') && state.sel) { state.sel = null; touch('canvas insp'); }
             });
+            // Asas de la vista previa: ancho de columnas y tamaño de la tarjeta.
+            rootEl.addEventListener('pointerdown', (e) => {
+                const h = e.target.closest && e.target.closest('[data-resize]');
+                if (!h || e.button !== 0) return;
+                e.preventDefault();
+                const [kind, idx] = h.dataset.resize.split(':');
+                const t = tpl();
+                const host = kind === 'tcol' ? h.closest('table') : h.closest('.ss-card');
+                if (!host) return;
+                commit();
+                const boxW = host.getBoundingClientRect().width;
+                const lay = SB.computeLayout(t.layout);
+                const k = boxW / lay.cardWidth;
+                const start = { x: e.clientX, y: e.clientY, widths: kind === 'tcol' ? t.columns.map((c) => c.width || 1) : t.columns.slice(), w: lay.cardWidth, h: lay.cardHeight };
+                const sumW = start.widths.reduce((a, b) => a + b, 0);
+                const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(v)));
+                let raf = 0;
+                const move = (ev) => {
+                    const dx = ev.clientX - start.x;
+                    const dy = ev.clientY - start.y;
+                    if (kind === 'tcol') {
+                        const w = resizeColumns(start.widths, +idx, (dx / boxW) * sumW);
+                        t.columns.forEach((c, i) => { c.width = w[i]; });
+                    } else if (kind === 'ccol') {
+                        t.columns = resizeColumns(start.widths, +idx, (dx / Math.max(1, boxW - 6 * k)) * sumW);
+                    } else {
+                        t.layout.mode = 'size';
+                        t.layout.cardWidth = clamp(start.w + dx / k, 20, 300);
+                        t.layout.cardHeight = clamp(start.h + dy / k, 15, 300);
+                    }
+                    if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderPrintDesk(); });
+                };
+                const up = () => {
+                    document.removeEventListener('pointermove', move);
+                    document.removeEventListener('pointerup', up);
+                    rootEl.classList.remove('ss-resizing');
+                    rootEl.style.cursor = '';
+                    cancelAnimationFrame(raf);
+                    touch('bar print');
+                };
+                rootEl.classList.add('ss-resizing');
+                rootEl.style.cursor = getComputedStyle(h).cursor;
+                document.addEventListener('pointermove', move);
+                document.addEventListener('pointerup', up);
+            });
             // En el documento: al redibujar, el foco puede quedar fuera del editor.
             document.addEventListener('keydown', (e) => {
                 if (rootEl.hidden) return;
@@ -1350,6 +1521,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const v = readInput(el);
                 if (el.dataset.bind === 'chip.value' && el.dataset.type === 'number' && !Number.isFinite(v)) return;
                 const parts = setByBind(el.dataset.bind, v);
+                if (el.closest('.ss-printside')) return touch(parts ? 'bar desk' : '');
                 // El panel que contiene el campo no se vuelve a dibujar, para no perder el foco.
                 const holder = el.closest('#ssPop') ? 'layer' : el.closest('#ssInspector') ? 'insp' : el.closest('#ssPalette') ? 'palette' : '';
                 touch(parts.split(' ').filter((p) => p !== holder).join(' '));
@@ -1502,6 +1674,10 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         defaultTableTemplate,
         validateTableTemplate,
         tablePageGeometry,
+        tablePageSizes,
+        tableOptions,
+        footerOnPage,
+        resizeColumns,
         columnTotals,
         printPageRule,
         catOf,

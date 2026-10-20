@@ -76,6 +76,103 @@ describe('tablePageGeometry', () => {
     });
 });
 
+describe('tableOptions', () => {
+    test('old boolean signatures map to "all" / "none"', () => {
+        assert.equal(SS.tableOptions({ signatures: true }).signatures, 'all');
+        assert.equal(SS.tableOptions({ signatures: false }).signatures, 'none');
+    });
+
+    test('fills defaults for the footer labels and the signature line', () => {
+        const o = SS.tableOptions({ rowHeight: 9 });
+        assert.deepEqual(o.signLabels, ['Entregado por', 'Revisado por']);
+        assert.equal(o.signLine, 'low');
+        assert.equal(o.rowHeight, 9);
+        assert.equal(o.totals, false);
+    });
+
+    test('keeps valid choices and drops unknown ones', () => {
+        const o = SS.tableOptions({ signatures: 'last', signLine: 'divider', signLabels: ['Pagado por', ''] });
+        assert.equal(o.signatures, 'last');
+        assert.equal(o.signLine, 'divider');
+        assert.deepEqual(o.signLabels, ['Pagado por']);
+        assert.equal(SS.tableOptions({ signLine: 'diagonal' }).signLine, 'low');
+    });
+
+    test('the default template validates with the new options', () => {
+        const t = SS.defaultTableTemplate();
+        t.options.signatures = 'first';
+        t.options.signLine = 'middle';
+        assert.deepEqual(SS.validateTableTemplate(t), []);
+        t.options.signatures = 'sometimes';
+        assert.equal(SS.validateTableTemplate(t).length, 1);
+    });
+});
+
+describe('tablePageSizes', () => {
+    const fit = (over) => {
+        const t = SS.defaultTableTemplate();
+        Object.assign(t.options, over);
+        return t;
+    };
+
+    test('no rows still prints one page', () => {
+        assert.deepEqual(SS.tablePageSizes(fit({}), false, 0), [0]);
+    });
+
+    test('every page holds the same rows when nothing is reserved', () => {
+        const t = fit({ totals: false, signatures: 'none' });
+        const cap = SS.tablePageGeometry(t, false).rowsPerPage;
+        assert.deepEqual(SS.tablePageSizes(t, false, cap * 2 + 1), [cap, cap, 1]);
+    });
+
+    test('footer only on the last page leaves full earlier pages', () => {
+        const none = SS.tablePageSizes(fit({ totals: false, signatures: 'none' }), false, 40);
+        const last = SS.tablePageSizes(fit({ totals: false, signatures: 'last' }), false, 40);
+        const all = SS.tablePageSizes(fit({ totals: false, signatures: 'all' }), false, 40);
+        assert.equal(last[0], none[0]);
+        assert.ok(all[0] < none[0]);
+        for (const sizes of [none, last, all]) assert.equal(sizes.reduce((a, b) => a + b, 0), 40);
+    });
+
+    test('footer only on the first page shortens just that page', () => {
+        const t = fit({ totals: false, signatures: 'first' });
+        const sizes = SS.tablePageSizes(t, false, 40);
+        const cap = SS.tablePageGeometry(t, false).rowsPerPage;
+        assert.ok(sizes[0] < cap);
+        assert.equal(sizes[1], Math.min(cap, 40 - sizes[0]));
+    });
+
+    test('the last page keeps room for the totals and the footer', () => {
+        const t = fit({ totals: true, signatures: 'last' });
+        const cap = SS.tablePageGeometry(t, false).rowsPerPage;
+        const sizes = SS.tablePageSizes(t, false, cap);
+        assert.ok(sizes.length === 2 && sizes[1] >= 1, `sizes=${sizes}`);
+        assert.equal(sizes[0] + sizes[1], cap);
+    });
+
+    test('footerOnPage follows the chosen pages', () => {
+        assert.equal(SS.footerOnPage('all', 1, 3), true);
+        assert.equal(SS.footerOnPage('first', 0, 3), true);
+        assert.equal(SS.footerOnPage('first', 2, 3), false);
+        assert.equal(SS.footerOnPage('last', 2, 3), true);
+        assert.equal(SS.footerOnPage('last', 0, 3), false);
+        assert.equal(SS.footerOnPage('none', 0, 1), false);
+    });
+});
+
+describe('resizeColumns', () => {
+    test('moves width between two neighbours and keeps the total', () => {
+        const w = SS.resizeColumns([1, 2, 1], 0, 0.5);
+        assert.deepEqual(w, [1.5, 1.5, 1]);
+    });
+
+    test('never shrinks a column below the minimum', () => {
+        const w = SS.resizeColumns([1, 1], 0, 5);
+        assert.deepEqual(w, [1.8, 0.2]);
+        assert.deepEqual(SS.resizeColumns([1, 1], 0, -5), [0.2, 1.8]);
+    });
+});
+
 describe('columnTotals', () => {
     test('sums only the columns marked to sum', () => {
         const t = SS.defaultTableTemplate();
