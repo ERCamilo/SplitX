@@ -37,7 +37,8 @@
             { whenEmpty: 'hide', cells: [cT([F('discounts', 'label')]), cN([O('-'), F('discounts')])] },
             { whenEmpty: 'hide', cells: [cT([F('loans', 'label')]), cN([O('-'), F('loans')])] },
             { lineAbove: true, cells: [cT([T('Total a recibir')], { bold: true }), cN([RUN()], { bold: true })] },
-            { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] }
+            { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] },
+            { cells: [cT([T('Folio'), F('folio')], { size: 6.5 }), cT([])] }
         ],
         layout: { paper: 'letter', orientation: 'portrait', margin: 10, gap: 4, mode: 'grid', cols: 2, rows: 4, cutMarks: true },
         sortBy: { field: 'no', dir: 'asc' }
@@ -51,6 +52,7 @@
             cT([T('Período:'), F('period')], { size: 10 })
         ],
         columns: [
+            { header: 'Folio', width: 1, border: 'all', sum: false, cell: cT([F('folio')]) },
             { header: 'No.', width: 0.6, border: 'all', sum: false, cell: cT([F('no')]) },
             { header: 'Nombre', width: 2.2, border: 'all', sum: false, cell: cT([F('name')]) },
             { header: 'Días', width: 0.7, border: 'all', sum: true, cell: cN([F('days')]) },
@@ -224,6 +226,136 @@
         };
     };
 
+    // ─── Plantillas de inicio ──────────────────────────────────────────────
+    const nameRow = () => ({ cells: [cT([F('no'), T('-'), F('firstName')], { bold: true, size: 10 }), cT([F('days'), T('días')], { align: 'right' })] });
+    const folioRow = () => ({ cells: [cT([T('Folio'), F('folio')], { size: 6.5 }), cT([])] });
+    const totalRow = () => ({ lineAbove: true, cells: [cT([T('Total a recibir')], { bold: true }), cN([RUN()], { bold: true })] });
+    const cardBase = (name, rows) => ({
+        version: 1, type: 'cards', name, columns: [2, 1], rows,
+        layout: { paper: 'letter', orientation: 'portrait', margin: 10, gap: 4, mode: 'grid', cols: 2, rows: 4, cutMarks: true },
+        sortBy: { field: 'no', dir: 'asc' }
+    });
+    const tableBase = (name, columns, orientation) => Object.assign(defaultTableTemplate(), { name, columns, layout: { paper: 'letter', orientation, margin: 12 } });
+    const col = (header, width, cell, sum) => ({ header, width, border: 'all', sum: !!sum, cell });
+    const signCol = () => ({ header: 'Firma', width: 2.4, border: 'sign', sum: false, cell: cT([]) });
+
+    /** Plantillas listas para empezar. build(conceptKeys) recibe los conceptos importados (para el desglose). */
+    const starterTemplates = () => [
+        { id: 'card-standard', type: 'cards', name: 'Sobre estándar', hint: 'Bruto, bonos, descuentos, préstamo y total', build: () => defaultCardTemplate() },
+        {
+            id: 'card-min', type: 'cards', name: 'Sobre mínimo', hint: 'Nombre y monto a recibir',
+            build: () => cardBase('Sobre mínimo', [nameRow(), { lineAbove: true, cells: [cT([T('Total a recibir')], { bold: true, size: 11 }), cN([F('net')], { bold: true, size: 11 })] }, folioRow()])
+        },
+        {
+            id: 'card-detail', type: 'cards', name: 'Sobre detallado', hint: 'Una fila por cada bono, descuento y préstamo importado',
+            build: (concepts) => {
+                const keys = (concepts || []).filter((k) => /^(bonus|deduction|loan):/.test(k));
+                const detail = keys.length
+                    ? keys.map((k) => smartRowFor(k, { type: 'number' }, 2))
+                    : ['bonuses', 'discounts', 'loans'].map((k) => smartRowFor(k, { type: 'number' }, 2));
+                return cardBase('Sobre detallado', [nameRow(), { cells: [cT([F('gross', 'label')]), cN([F('gross')])] }, ...detail, totalRow(),
+                    { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] }, folioRow()]);
+            }
+        },
+        { id: 'table-standard', type: 'table', name: 'Firma estándar', hint: 'Días, sueldo por día, bruto y monto entregado', build: () => defaultTableTemplate() },
+        {
+            id: 'table-simple', type: 'table', name: 'Firma simple', hint: 'No., nombre, monto y firma (vertical)',
+            build: () => tableBase('Firma simple', [
+                col('No.', 0.6, cT([F('no')])), col('Nombre', 2.6, cT([F('name')])),
+                col('Monto entregado', 1.4, cN([F('afterDiscounts')], { bold: true }), true), signCol()
+            ], 'portrait')
+        },
+        {
+            id: 'table-detail', type: 'table', name: 'Firma con desglose', hint: 'Bruto, bonos, descuentos y préstamo por empleado',
+            build: () => tableBase('Firma con desglose', [
+                col('Folio', 1, cT([F('folio')])), col('Nombre', 2, cT([F('name')])), col('Días', 0.6, cN([F('days')]), true),
+                col('Bruto', 1.1, cN([F('gross')]), true), col('Bonos', 1, cN([F('bonuses')]), true), col('Descuentos', 1, cN([F('discounts')]), true),
+                col('Préstamo/Adelanto', 1.1, cN([F('loans')]), true), col('Monto entregado', 1.2, cN([F('afterDiscounts')], { bold: true }), true), signCol()
+            ], 'landscape')
+        }
+    ];
+
+    // ─── Tamaño de letra de la tarjeta ─────────────────────────────────────
+    const BASE_PT = 8.5;
+    const cardFontPt = (t) => (t.layout && typeof t.layout.fontSize === 'number' && t.layout.fontSize > 0 ? t.layout.fontSize : BASE_PT);
+    /** Las celdas con letra propia crecen o se achican junto con la letra base. */
+    const cellFontPt = (cell, base) => (cell.size ? Math.round(cell.size * (base / BASE_PT) * 100) / 100 : null);
+    /** Mayor tamaño (de max hacia min, en pasos de step) para el que fits(pt) es verdadero. */
+    const fitFontSize = (fits, { max, min, step }) => {
+        for (let n = Math.round(max / step); n >= Math.round(min / step); n--) {
+            const pt = Math.round(n * step * 100) / 100;
+            if (fits(pt)) return pt;
+        }
+        return min;
+    };
+
+    // ─── Verificaciones de dinero (puras, probadas) ────────────────────────
+    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    const valueKeys = (cells) => cells.filter((c) => c && c.mode === 'number')
+        .flatMap((c) => c.chips.filter((ch) => ch.kind === 'field' && ch.as !== 'label').map((ch) => ch.key));
+    const templateCells = (t) => (t.type === 'table' ? t.columns.map((c) => c.cell) : t.rows.flatMap((r) => r.cells));
+
+    /**
+     * Total de cada tarjeta (la última celda con "total hasta ahora") frente al neto de SplitX.
+     * null si la tarjeta no tiene total que comparar.
+     */
+    const cardTotals = (engine, t, items, getNet) => {
+        let at = null;
+        t.rows.forEach((row, r) => row.cells.forEach((cell, c) => { if (cell.chips.some((ch) => ch.kind === 'running')) at = [r, c]; }));
+        if (!at) {
+            // Sin "total hasta ahora", vale la última celda que muestra el monto neto.
+            t.rows.forEach((row, r) => row.cells.forEach((cell, c) => { if (cell.mode === 'number' && valueKeys([cell]).includes('net')) at = [r, c]; }));
+        }
+        if (!at) return null;
+        return items.map(({ record, ctx }) => {
+            const res = engine.evaluateRows(t.rows, record, ctx);
+            const card = round2(res[at[0]].cells[at[1]].value);
+            const net = round2(getNet(record));
+            const diff = round2(card - net);
+            return { record, card, net, diff, ok: Math.abs(diff) < 0.005 };
+        });
+    };
+
+    const TOTAL_PREFIX = { bonuses: 'bonus', discounts: 'deduction', loans: 'loan' };
+    /** Un total (Descuentos) junto a uno de sus conceptos (Descuento de ley) cuenta el mismo dinero dos veces. */
+    const doubleCounted = (t) => {
+        const keys = valueKeys(templateCells(t));
+        return Object.entries(TOTAL_PREFIX)
+            .filter(([total]) => keys.includes(total))
+            .map(([total, prefix]) => ({ total, concepts: [...new Set(keys.filter((k) => k.startsWith(prefix + ':')))] }))
+            .filter((x) => x.concepts.length);
+    };
+
+    /** Cambia la fila del total por una fila por concepto (sin repetir los que ya están). */
+    const breakDownRow = (t, total, conceptKeys, fieldDef) => {
+        const out = clone(t);
+        const at = out.rows.findIndex((r) => valueKeys(r.cells).includes(total));
+        if (at < 0) return out;
+        const present = new Set(valueKeys(templateCells(out)));
+        const rows = conceptKeys.filter((k) => !present.has(k)).map((k) => smartRowFor(k, fieldDef(k), out.columns.length));
+        out.rows.splice(at, 1, ...rows);
+        return out;
+    };
+
+    /** Huella de lo impreso por empleado: el texto de cada celda visible. */
+    const printSignatures = (engine, t, items, idOf) => {
+        const rows = t.type === 'table' ? [{ cells: t.columns.map((c) => c.cell) }] : t.rows;
+        const out = {};
+        for (const { record, ctx } of items) {
+            const sig = engine.evaluateRows(rows, record, ctx).filter((r) => !r.hidden).map((r) => r.cells.map((c) => c.text).join('\u241F')).join('\u241E');
+            out[idOf(record)] = { name: record.employeeName || record.name || '', sig };
+        }
+        return out;
+    };
+    const snapshotDiff = (before, now) => {
+        const changed = []; const missing = [];
+        for (const [id, b] of Object.entries(before)) {
+            if (!now[id]) missing.push(b.name);
+            else if (now[id].sig !== b.sig) changed.push(b.name);
+        }
+        return { changed, missing };
+    };
+
     const PAPER_NAMES = { letter: 'Carta', a4: 'A4', legal: 'Legal', 'half-letter': 'Media carta' };
     /** Resumen corto de la hoja para la barra de página. */
     const pageSummary = (t) => {
@@ -294,8 +426,28 @@
         if (typeof d.colors === 'boolean') out.colors = d.colors;
         if (typeof d.logo === 'string' && d.logo.startsWith('data:image/')) out.logo = d.logo;
         if (Array.isArray(d.recent)) out.recent = d.recent.filter((r) => typeof r === 'string').slice(0, 8);
+        const po = d.printOpts || {};
+        out.printOpts = {
+            mode: ['all', 'unpaid', 'loan', 'custom'].includes(po.mode) ? po.mode : 'all',
+            copies: [1, 2, 3].includes(po.copies) ? po.copies : 1,
+            ids: Array.isArray(po.ids) ? po.ids.slice(0, 2000) : []
+        };
+        out.printed = {};
+        for (const k of ['A', 'B']) {
+            const p = d.printed && d.printed[k];
+            if (p && typeof p === 'object' && typeof p.at === 'string' && p.template && p.sigs && typeof p.sigs === 'object') out.printed[k] = p;
+        }
+        out.tourDone = d.tourDone === true;
+        out.ready = { A: !!(d.ready && d.ready.A === true), B: !!(d.ready && d.ready.B === true) };
+        out.sheet = d.sheet === 'B' ? 'B' : 'A';
         return out;
     };
+
+    /**
+     * Colores de dinero: los mismos tonos de SplitX (verde, rojo, ámbar) un poco más oscuros
+     * para que el texto blanco de los chips y los montos sobre papel blanco se lean bien (≥ 4.5:1).
+     */
+    const MONEY_COLORS = { bonus: '#047857', deduction: '#e11d48', loan: '#b45309' };
 
     // ─── Estilos (se inyectan una vez) ─────────────────────────────────────
     const CSS = `
@@ -311,7 +463,7 @@ html.dark .ss { --bg:#0b1120; --surface:#0f172a; --surface-2:#1e293b; --fg:#e2e8
   --field-bg:#172554; --field-fg:#bfdbfe; --field-bd:#1e40af; --text-bg:#1e293b; --text-fg:#e2e8f0; --text-bd:#64748b;
   --numchip-bg:#451a03; --numchip-fg:#fde68a; --numchip-bd:#92400e; --run-bg:#052e16; --run-fg:#bbf7d0; --run-bd:#166534;
   --sel:#60a5fa; --warn-bg:#451a03; --warn-fg:#fde68a; --warn-bd:#92400e; --err:#fb7185; --desk:#020617; color-scheme:dark; }
-.ss, #ss-print { --bonus:#059669; --deduction:#e11d48; --loan:#d97706; --solid-fg:#fff; --paper:#fff; --ink:#334155; --ink-strong:#0f172a; --paper-line:#94a3b8; }
+.ss, #ss-print { --bonus:${MONEY_COLORS.bonus}; --deduction:${MONEY_COLORS.deduction}; --loan:${MONEY_COLORS.loan}; --solid-fg:#fff; --paper:#fff; --ink:#334155; --ink-strong:#0f172a; --paper-line:#94a3b8; }
 .ss[hidden] { display:none !important; }
 .ss *, #ss-print * { box-sizing:border-box; }
 .ss button, .ss input, .ss select, .ss textarea { font:inherit; color:inherit; }
@@ -351,6 +503,10 @@ html.dark .ss { --bg:#0b1120; --surface:#0f172a; --surface-2:#1e293b; --fg:#e2e8
 .ss-check input { width:16px; height:16px; accent-color:var(--accent); }
 .ss-sec { display:flex; flex-direction:column; gap:10px; padding-top:12px; border-top:1px solid var(--border); }
 .ss-sec:first-child { border-top:0; padding-top:0; }
+.ss-sec > h3.ss-lbl[data-fold] { cursor:pointer; display:flex; align-items:center; gap:6px; user-select:none; }
+.ss-sec > h3.ss-lbl[data-fold]::before { content:'▾'; font-size:10px; transition:transform .12s; }
+.ss-sec.collapsed > h3.ss-lbl[data-fold]::before { transform:rotate(-90deg); }
+.ss-sec.collapsed > :not(h3) { display:none !important; }
 .ss-row-btns { display:flex; flex-wrap:wrap; gap:6px; }
 /* Paleta */
 .ss-search { position:sticky; top:-12px; background:var(--surface); padding:0 0 6px; z-index:1; }
@@ -378,7 +534,7 @@ html.dark .ss { --bg:#0b1120; --surface:#0f172a; --surface-2:#1e293b; --fg:#e2e8
 .ss-tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; width:100%; max-width:900px; }
 .ss-emp { display:flex; align-items:center; gap:4px; }
 .ss-emp select { max-width:220px; }
-.ss-stage { position:relative; padding:8px 44px 8px 40px; }
+.ss-stage { position:relative; padding:26px 44px 8px 40px; }
 .ss-paper { position:relative; background:var(--paper); color:var(--ink); box-shadow:var(--shadow); border-radius:2px; }
 .ss-cardedit { display:flex; flex-direction:column; }
 .ss-limit { position:absolute; left:-12px; right:-12px; border-top:2px dashed var(--err); pointer-events:none; }
@@ -478,7 +634,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .ss-rz:hover, .ss-rz.on { background:rgba(37,99,235,.35); }
 .ss-rz.corner { top:auto; right:0; bottom:0; width:14px; height:14px; cursor:nwse-resize; background:linear-gradient(135deg, transparent 50%, rgba(37,99,235,.6) 50%); border-radius:0 0 3px 0; }
 .ss-resizing, .ss-resizing * { cursor:inherit !important; user-select:none; }
-.ss-ruler { position:relative; display:flex; height:14px; margin-bottom:2px; border-bottom:1px solid var(--paper-line); font-size:9px; color:#94a3b8; font-family:Inter,system-ui,sans-serif; }
+.ss-cardedit .ss-insert { margin:0; }
+.ss-cardedit:not(.formulas) .ss-cell { min-height:0; }
+.ss-ruler { position:absolute; top:-20px; display:flex; height:14px; border-bottom:1px solid var(--paper-line); font-size:9px; color:#94a3b8; font-family:Inter,system-ui,sans-serif; }
 .ss-ruler span:not(.ss-rz) { text-align:center; line-height:13px; border-right:1px dotted var(--paper-line); }
 .ss-ruler .ss-rz { height:100%; background:rgba(37,99,235,.25); width:6px; transform:translateX(-3px); }
 .ss-ruler .ss-rz:hover { background:rgba(37,99,235,.6); }
@@ -492,6 +650,31 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .ss-sheetedit .ss-cell .ss-chip { white-space:normal; overflow-wrap:anywhere; max-width:100%; min-width:0; }
 .ss-titlewrap { display:flex; gap:12px; align-items:center; } .ss-titlewrap > div { flex:1; min-width:0; } .ss-titlewrap img { object-fit:contain; flex:none; }
 .ss-logoprev { display:flex; gap:10px; align-items:center; } .ss-logoprev img { width:48px; height:48px; object-fit:contain; border:1px solid var(--border); border-radius:6px; background:#fff; }
+.ss-alert { border-radius:8px; padding:8px 10px; font-size:12.5px; line-height:1.45; display:flex; flex-direction:column; gap:4px; border:1px solid; }
+.ss-hint.ss-bad { color:var(--err); font-weight:700; }
+.ss-starters { display:flex; flex-direction:column; gap:6px; }
+.ss-starters button { text-align:left; border:1px solid var(--border); background:var(--surface); color:var(--fg); border-radius:9px; padding:8px 10px; display:flex; flex-direction:column; gap:2px; cursor:pointer; }
+.ss-starters button:hover { border-color:var(--accent); background:var(--accent-soft); }
+.ss-starters span { font-size:12px; color:var(--muted); }
+.ss-thumb { position:sticky; bottom:12px; margin:16px 0 0 auto; display:flex; flex-direction:column; align-items:center; gap:4px; border:1px solid var(--border); border-radius:10px; background:var(--surface); padding:8px; cursor:pointer; box-shadow:0 6px 18px rgba(15,23,42,.15); z-index:3; }
+.ss-thumb:hover { border-color:var(--accent); }
+.ss-thumb span { font-size:11px; color:var(--muted); }
+.ss-thumb-page { pointer-events:none; overflow:hidden; }
+.ss-thumb-page .ss-page { box-shadow:0 1px 4px rgba(15,23,42,.25); }
+.ss-tour { position:fixed; z-index:85; width:300px; background:var(--strong); color:var(--bg); border-radius:12px; padding:12px 14px; box-shadow:0 16px 40px rgba(15,23,42,.35); font-size:13px; display:flex; flex-direction:column; gap:6px; }
+.ss-tour p { margin:0; line-height:1.45; }
+.ss-tour .ss-kbd { color:inherit; opacity:.7; }
+.ss-tour .ss-btn.ghost { color:inherit; }
+.ss-tour-focus { outline:3px solid var(--accent) !important; outline-offset:3px; border-radius:8px; }
+.ss-quick { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.ss-quick .ss-chip { cursor:pointer; }
+.ss-alert ul { margin:2px 0 0 16px; padding:0; }
+.ss-alert.ok { background:rgba(5,150,105,.08); border-color:rgba(5,150,105,.35); color:var(--fg); }
+.ss-alert.warn { background:rgba(217,119,6,.10); border-color:rgba(217,119,6,.45); color:var(--fg); }
+.ss-alert.err { background:rgba(225,29,72,.08); border-color:rgba(225,29,72,.45); color:var(--fg); }
+.ss-alert + .ss-alert { margin-top:6px; }
+.ss-status.ok { color:#047857; border-color:rgba(5,150,105,.45); }
+.ss-status.warn { color:#b45309; border-color:rgba(217,119,6,.6); background:rgba(217,119,6,.08); font-weight:700; }
 .ss-colsum { display:flex; flex-direction:column; gap:2px; }
 .ss-colsum label { display:flex; gap:8px; align-items:center; font-size:13px; padding:3px 6px; border-radius:6px; }
 .ss-sig-head { display:flex; gap:1em; align-items:center; border-bottom:2px solid var(--ink-strong); padding-bottom:.6em; margin-bottom:.8em; }
@@ -519,7 +702,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
     const GROUPS = [
         ['Montos', ['gross', 'bonuses', 'discounts', 'afterDiscounts', 'net', 'dailyRate']],
         ['Préstamos y adelantos', ['loans', 'loanPrincipal', 'loanInterest', 'loanBalanceBefore', 'loanBalanceAfter']],
-        ['Empleado', ['no', 'name', 'firstName', 'position', 'leader']],
+        ['Empleado', ['no', 'folio', 'name', 'firstName', 'position', 'leader']],
         ['Días', ['days', 'daysRegular', 'daysOvertime', 'daysHoliday', 'daysRest']],
         ['Encabezado', ['company', 'payrollName', 'project', 'period', 'currency']]
     ];
@@ -547,7 +730,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
         const state = {
             store: migrateStore(null), sheet: 'A', formulas: false, preview: 0, sel: null, pop: null, drawer: null,
-            printing: false, printOpts: { mode: 'all', ids: [], copies: 1 }, query: '', open: Object.assign({}, DEFAULT_OPEN), confirmDelete: false
+            printing: false, printOpts: { mode: 'all', ids: [], copies: 1 }, folded: {}, query: '', open: Object.assign({}, DEFAULT_OPEN), confirmDelete: false
         };
         const histories = new Map();
         let employees = []; let engine; let fieldSet; let palette = []; let drag = null; let rz = false; let bound = false; let lastCommit = { key: '', at: 0 };
@@ -564,6 +747,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             try { raw = JSON.parse(storage.get(STORE_KEY) || 'null'); } catch (e) { raw = null; }
             if (!raw) { try { raw = JSON.parse(storage.get(LEGACY_STORE_KEY) || 'null'); } catch (e) { raw = null; } }
             state.store = migrateStore(raw);
+            // La última selección de impresión y la hoja abierta se recuerdan entre sesiones.
+            state.printOpts = state.store.printOpts;
+            state.sheet = state.store.sheet;
         };
         const history = () => {
             const id = state.store.active[state.sheet];
@@ -591,6 +777,113 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
 
         const fieldDef = (key) => { try { return engine.requireField(key); } catch (e) { return null; } };
+
+        /** Mayor letra base con la que cada tarjeta (los empleados con más filas) cabe en su tamaño. */
+        const autoFitFont = () => {
+            const t = tpl();
+            const lay = SB.computeLayout(t.layout);
+            const probe = document.createElement('div');
+            probe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;';
+            rootEl.appendChild(probe);
+            const samples = sorted(employees, t.sortBy)
+                .map(({ record, ctx }) => engine.evaluateRows(t.rows, record, ctx))
+                .sort((a, b) => b.filter((r) => !r.hidden).length - a.filter((r) => !r.hidden).length)
+                .slice(0, 8);
+            const pt = fitFontSize((size) => samples.every((rows) => cardFits(rows, size, probe)), { max: 14, min: 5, step: 0.25 });
+            probe.remove();
+            return pt;
+        };
+        /** ¿Cabe esta tarjeta a tamaño real? Se mide igual que se imprime. */
+        const cardFits = (rows, pt, host) => {
+            const t = tpl();
+            const lay = SB.computeLayout(t.layout);
+            const own = !host;
+            const probe = host || document.createElement('div');
+            if (own) { probe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;'; rootEl.appendChild(probe); }
+            probe.innerHTML = `<div class="ss-card" style="${cardStyle(lay.cardWidth, lay.cardHeight, PRINT_K, pt)}">${cardInner(rows, t.columns, PRINT_K, pt)}</div>`;
+            const card = probe.firstElementChild;
+            const ok = card.scrollHeight <= card.clientHeight + 1;
+            if (own) probe.remove();
+            return ok;
+        };
+
+        // ─── Guía de primera vez ───────────────────────────────────────────
+        const TOUR = [
+            { at: '#ssPalette', title: '1 · Arrastra un dato', text: 'Arrastra un campo, por ejemplo “Bonificaciones”, sobre la tarjeta: se crea la fila con su nombre, su monto y el signo según su color.' },
+            { at: '#ssCanvas .ss-paper', title: '2 · Revisa con datos reales', text: 'La tarjeta muestra un empleado de verdad. Cámbialo con ‹ ›, usa “Ver fórmulas” para ver los chips y haz clic en una celda para editarla.' },
+            { at: '[data-act="print-step"]', title: '3 · Imprime', text: 'En “Imprimir…” eliges a quién, compruebas que cada sobre cuadre con SplitX y ajustas tamaños arrastrando en la vista previa.' }
+        ];
+        const renderTour = () => {
+            const host = $('#ssTour');
+            rootEl.querySelectorAll('.ss-tour-focus').forEach((x) => x.classList.remove('ss-tour-focus'));
+            if (!host) return;
+            const step = state.tour != null && !state.printing ? TOUR[state.tour] : null;
+            const anchor = step && $(step.at);
+            if (!anchor) { host.innerHTML = ''; return; }
+            anchor.classList.add('ss-tour-focus');
+            const last = state.tour === TOUR.length - 1;
+            host.innerHTML = `<div class="ss-tour" role="dialog" aria-label="Guía rápida"><strong>${esc(step.title)}</strong><p>${esc(step.text)}</p>
+                <div class="ss-row-btns"><span class="ss-kbd">${state.tour + 1} de ${TOUR.length}</span><div class="ss-grow"></div>
+                <button class="ss-btn sm ghost" type="button" data-act="tour-end">Saltar</button>
+                <button class="ss-btn sm primary" type="button" data-act="${last ? 'tour-end' : 'tour-next'}">${last ? 'Listo' : 'Siguiente →'}</button></div></div>`;
+            const box = host.firstElementChild;
+            const a = anchor.getBoundingClientRect();
+            const bw = box.offsetWidth; const bh = box.offsetHeight;
+            const vw = window.innerWidth; const vh = window.innerHeight;
+            let left = a.right + 12; let top = a.top + 12;
+            if (left + bw > vw - 8) { left = Math.max(8, Math.min(a.left, vw - bw - 8)); top = a.bottom + 10; }
+            if (top + bh > vh - 8) top = Math.max(8, a.top - bh - 10);
+            box.style.left = `${left}px`;
+            box.style.top = `${top}px`;
+        };
+
+        // ─── Verificaciones de dinero ──────────────────────────────────────
+        const netOf = (r) => (opts.getNetAmount ? opts.getNetAmount(r) : r.amount);
+        const uniqueById = (list) => list.filter((e, i) => list.findIndex((x) => x.id === e.id) === i);
+        const TOTAL_LABEL = { bonuses: 'Bonificaciones', discounts: 'Descuentos', loans: 'Préstamo/Adelanto' };
+        const fmt = (n) => engine.formatNumber(n, 2);
+        const moneyChecks = (list) => {
+            const t = tpl();
+            const out = { totals: null, bad: [], double: doubleCounted(t), drift: null };
+            if (state.sheet === 'A') {
+                out.totals = cardTotals(engine, t, sorted(uniqueById(list || employees), t.sortBy), netOf);
+                out.bad = out.totals ? out.totals.filter((x) => !x.ok) : [];
+            }
+            const snap = state.store.printed[state.sheet];
+            if (snap) {
+                try {
+                    const d = snapshotDiff(snap.sigs, printSignatures(engine, snap.template, sorted(employees, snap.template.sortBy), (e) => e.id));
+                    if (d.changed.length || d.missing.length) out.drift = Object.assign({ at: snap.at }, d);
+                } catch (e) { out.drift = null; }
+            }
+            out.warnings = out.bad.length + out.double.length + (out.drift ? 1 : 0);
+            return out;
+        };
+        const names = (list) => (list.length > 4 ? `${list.slice(0, 4).map(esc).join(', ')} y ${list.length - 4} más` : list.map(esc).join(', '));
+        const checksHTML = (c) => {
+            let html = '';
+            if (c.drift) {
+                const when = new Date(c.drift.at);
+                html += `<div class="ss-alert warn"><strong>Lo impreso el ${esc(when.toLocaleDateString())} a las ${esc(when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))} ya no coincide.</strong>
+                  ${c.drift.changed.length ? `<div>Cambió: ${names(c.drift.changed)}</div>` : ''}${c.drift.missing.length ? `<div>Ya no está: ${names(c.drift.missing)}</div>` : ''}
+                  <div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="drift-ok">Entendido</button></div></div>`;
+            }
+            for (const d of c.double) {
+                const concepts = d.concepts.map((k) => (fieldDef(k) || { label: k }).label);
+                html += `<div class="ss-alert warn"><strong>${esc(TOTAL_LABEL[d.total])} ya incluye ${names(concepts)}.</strong> Ese dinero se cuenta dos veces.
+                  ${state.sheet === 'A' ? `<div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="breakdown" data-v="${d.total}">Desglosar ${esc(TOTAL_LABEL[d.total])} por concepto</button></div>` : ''}</div>`;
+            }
+            if (state.sheet === 'A') {
+                if (!c.totals) html += '<p class="ss-hint">La tarjeta no tiene “Total hasta ahora”, así que no se puede comparar con SplitX.</p>';
+                else if (!c.bad.length) html += `<div class="ss-alert ok">✓ ${c.totals.length === 1 ? 'La tarjeta cuadra' : `Las ${c.totals.length} tarjetas cuadran`} con el monto que SplitX pone en el sobre.</div>`;
+                else {
+                    html += `<div class="ss-alert err"><strong>${c.bad.length} tarjeta${c.bad.length === 1 ? ' no cuadra' : 's no cuadran'} con SplitX:</strong>
+                      <ul>${c.bad.slice(0, 6).map((x) => `<li>${esc(x.record.employeeName || x.record.name)} — tarjeta ${esc(fmt(x.card))} · SplitX ${esc(fmt(x.net))}</li>`).join('')}</ul>
+                      ${c.bad.length > 6 ? `<div>y ${c.bad.length - 6} más</div>` : ''}</div>`;
+                }
+            }
+            return html;
+        };
         const chipClass = (chip) => (chip.kind === 'field' ? 'k-' + catOf(chip.key)
             : { op: 'k-op', paren: 'k-op', text: 'k-text', number: 'k-number', running: 'k-running' }[chip.kind]);
         const chipLabel = (chip) => {
@@ -627,18 +920,19 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 
         // ─── Papel ─────────────────────────────────────────────────────────
         const cellCat = (cell) => { const f = cell.chips.find((c) => c.kind === 'field' && c.as !== 'label'); return f ? catOf(f.key) : null; };
-        const outHTML = (res, cell, k) => {
+        // base: letra base de la tarjeta (pt); las celdas con tamaño propio escalan con ella.
+        const outHTML = (res, cell, k, base) => {
             const cat = cellCat(cell);
             const align = cell.align || (cell.mode === 'number' ? 'right' : 'left');
-            const style = `text-align:${align};font-weight:${cell.bold ? 700 : 400};${cell.size ? `font-size:${cell.size * PT_MM * k}px;` : ''}`;
+            const style = `text-align:${align};font-weight:${cell.bold ? 700 : 400};${cell.size ? `font-size:${(base ? cellFontPt(cell, base) : cell.size) * PT_MM * k}px;` : ''}`;
             if (res.error) return `<span class="ss-out err" title="${esc(res.error)}" style="${style}">—</span>`;
             const cls = ['ss-out', cell.mode === 'number' ? 'n' : '', cat && cat !== 'field' ? 'c-' + cat : ''].join(' ');
             return `<span class="${cls}" style="${style}">${esc(res.text)}</span>`;
         };
         const gridCols = (cols) => cols.map((w) => `${w}fr`).join(' ');
-        const cardInner = (rowResults, cols, k) => rowResults.filter((r) => !r.hidden).map((r) =>
-            `<div class="ss-crow${r.row.lineAbove ? ' line' : ''}" style="grid-template-columns:${gridCols(cols)}">${r.cells.map((c) => outHTML(c, c.cell, k)).join('')}</div>`).join('');
-        const cardStyle = (w, h, k) => `width:${w * k}px;height:${h * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px;`;
+        const cardInner = (rowResults, cols, k, base) => rowResults.filter((r) => !r.hidden).map((r) =>
+            `<div class="ss-crow${r.row.lineAbove ? ' line' : ''}" style="grid-template-columns:${gridCols(cols)}">${r.cells.map((c) => outHTML(c, c.cell, k, base)).join('')}</div>`).join('');
+        const cardStyle = (w, h, k, base) => `width:${w * k}px;height:${h * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${base * PT_MM * k}px;gap:${0.6 * k}px;`;
 
         /** Asas entre columnas de la tarjeta, sobre un contenedor del ancho del contenido. */
         const colGrips = (cols) => {
@@ -650,8 +944,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             }).join('');
         };
         /** Regla sobre la tarjeta del editor: muestra las columnas y deja cambiar su ancho. */
-        const rulerHTML = (cols) => (cols.length > 1
-            ? `<div class="ss-ruler ss-rzhost">${cols.map((w) => `<span style="flex:${w}">${Math.round((w / cols.reduce((a, b) => a + b, 0)) * 100)}%</span>`).join('')}${colGrips(cols)}</div>`
+        const rulerHTML = (cols, k) => (cols.length > 1
+            ? `<div class="ss-ruler ss-rzhost" style="left:${3 * k}px;right:${3 * k}px">${cols.map((w) => `<span style="flex:${w}">${Math.round((w / cols.reduce((a, b) => a + b, 0)) * 100)}%</span>`).join('')}${colGrips(cols)}</div>`
             : '');
         /** Asas sobre la primera tarjeta de la vista previa: columnas y esquina para el tamaño. */
         const cardGrips = (k) => `<div class="ss-grips"><div class="ss-rzhost" style="position:absolute;top:0;bottom:0;left:${3 * k}px;right:${3 * k}px">${colGrips(tpl().columns)}</div>
@@ -701,7 +995,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 return out.pages.map((cards, p) => `
                     <div class="ss-page" style="width:${lay.pageWidth * k}px;height:${lay.pageHeight * k}px;padding:${lay.margin * k}px">
                       <div class="ss-cards" style="grid-template-columns:repeat(${lay.cols}, ${lay.cardWidth * k}px);grid-auto-rows:${lay.cardHeight * k}px;gap:${lay.gap * k}px">
-                        ${cards.map((rows, i) => `<div class="ss-card${tpl().layout.cutMarks ? ' cut' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${cardStyle(lay.cardWidth, lay.cardHeight, k)}">${cardInner(rows, tpl().columns, k)}${!forPrint && p === 0 && i === 0 ? cardGrips(k) : ''}</div>`).join('')}
+                        ${cards.map((rows, i) => `<div class="ss-card${tpl().layout.cutMarks ? ' cut' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${cardStyle(lay.cardWidth, lay.cardHeight, k, cardFontPt(tpl()))}">${cardInner(rows, tpl().columns, k, cardFontPt(tpl()))}${!forPrint && p === 0 && i === 0 ? cardGrips(k) : ''}</div>`).join('')}
                       </div></div>${forPrint ? '' : `<div class="ss-page-no">Hoja ${p + 1} de ${out.pages.length}</div>`}`).join('');
             }
             const t = tpl();
@@ -739,12 +1033,13 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 <main class="ss-col" id="ssCanvasCol"><div class="ss-canvas" id="ssCanvas"></div></main>
                 <aside class="ss-col ss-inspector" id="ssInspector" aria-label="Propiedades"></aside>
               </div>`}
-              <div id="ssLayer"></div><div id="ssDrawer"></div><div id="ssToast"></div>
+              <div id="ssLayer"></div><div id="ssDrawer"></div><div id="ssToast"></div><div id="ssTour"></div>
               <div class="ss-trash" aria-hidden="true">Suelta para quitar el chip</div>`;
             renderBar();
             if (state.printing) renderPrintStep();
             else { renderPageBar(); renderPalette(); renderCanvas(); renderInspector(); }
             renderLayer();
+            renderTour();
         };
 
         const renderBar = () => {
@@ -752,7 +1047,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (!el) return;
             const h = history();
             el.innerHTML = state.printing
-                ? `<button class="ss-btn" type="button" data-act="print-back">← Volver a editar</button>
+                ? `<button class="ss-btn" type="button" data-act="print-back">← Editar plantilla</button>
                    <span class="ss-title">Imprimir · ${esc(activeEntry().name)}</span><div class="ss-grow"></div>
                    <button class="ss-btn ghost" type="button" data-act="close">Cerrar ✕</button>`
                 : `<span class="ss-title">Hojas imprimibles</span>
@@ -764,6 +1059,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                    <div class="ss-grow"></div>
                    <button class="ss-btn ghost" type="button" data-act="undo" ${h.canUndo() ? '' : 'disabled'} title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
                    <button class="ss-btn ghost" type="button" data-act="redo" ${h.canRedo() ? '' : 'disabled'} title="Rehacer (Ctrl+Y)">↷ Rehacer</button>
+                   <button class="ss-btn ghost" type="button" data-act="tour" title="Guía rápida" aria-label="Guía rápida">?</button>
                    <button class="ss-btn primary" type="button" data-act="print-step">Imprimir…</button>
                    <button class="ss-btn ghost" type="button" data-act="close" aria-label="Cerrar hojas imprimibles">Cerrar ✕</button>`;
         };
@@ -773,6 +1069,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (!el) return;
             el.innerHTML = `<span>Hoja:</span><button class="ss-btn sm" type="button" data-pop="page" id="ssPageBtn">${esc(pageSummary(tpl()))} ▾</button>
               <label class="ss-check" style="font-size:12px"><input id="ssColors" type="checkbox" data-bind="colors" ${state.store.colors ? 'checked' : ''}> Montos a color</label>
+              ${(() => { const c = moneyChecks(); return employees.length ? `<button class="ss-btn sm ss-status ${c.warnings ? 'warn' : 'ok'}" type="button" data-pop="checks" id="ssChecksBtn">${c.warnings ? `⚠ ${c.warnings} aviso${c.warnings === 1 ? '' : 's'}` : state.sheet === 'A' && c.totals ? '✓ Cuadra con SplitX' : '✓ Sin avisos'}</button>` : ''; })()}
               <div class="ss-grow"></div><span class="ss-kbd">Ctrl+Z deshacer · Supr quita el chip seleccionado · Esc cierra</span>`;
         };
 
@@ -811,14 +1108,40 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const empty = inTable && !state.formulas ? '&nbsp;' : '<span class="empty">vacía</span>';
             const inner = showChips
                 ? (cell.chips.map((c, i) => chipHTML(c, zone, i)).join('') || '<span class="empty">vacía</span>')
-                : (cell.chips.length ? outHTML(res, cell, k) : empty);
+                : (cell.chips.length ? outHTML(res, cell, k, zone.startsWith('A:') ? cardFontPt(tpl()) : undefined) : empty);
             // En la vista de fórmulas los chips siguen la alineación de la celda, como el resultado impreso.
             const align = cell.align || (cell.mode === 'number' ? 'right' : 'left');
             const justify = showChips ? `justify-content:${{ left: 'flex-start', center: 'center', right: 'flex-end' }[align]}` : '';
             return `<div class="ss-cell${isSel && state.sel.ci == null ? ' sel' : ''}${showChips ? ' chipview' : ''}" data-zone="${zone}" tabindex="0" role="button" aria-label="Celda" style="${justify}">${inner}</div>`;
         };
 
+        /** Miniatura de la primera hoja en la esquina del lienzo: un clic lleva a Imprimir. */
+        const renderThumb = () => {
+            const el = $('#ssCanvas');
+            if (!el || !employees.length) return;
+            const L = tpl().layout;
+            const [w, h] = SB.PAPER_SIZES[L.paper] || SB.PAPER_SIZES.letter;
+            const [pw, ph] = L.orientation === 'landscape' ? [h, w] : [w, h];
+            // Se dibuja a buen tamaño y se reduce con transform: el navegador no achica bien letras diminutas.
+            const k = PRINT_K;
+            const scale = 150 / (pw * k);
+            const box = document.createElement('div');
+            box.innerHTML = pagesHTML(k, true);
+            const pages = box.querySelectorAll('.ss-page');
+            pages.forEach((pg, i) => { if (i) pg.remove(); });
+            const thumb = document.createElement('button');
+            thumb.type = 'button';
+            thumb.className = 'ss-thumb';
+            thumb.dataset.act = 'print-step';
+            thumb.title = 'Ver la hoja completa e imprimir';
+            thumb.innerHTML = `<div class="ss-thumb-page" style="width:${pw * k * scale}px;height:${ph * k * scale}px"><div style="transform:scale(${scale});transform-origin:0 0">${box.innerHTML}</div></div><span>Hoja 1 de ${pages.length} · ${esc(pageSummary(tpl()).split(' · ').slice(-1)[0])}</span>`;
+            el.appendChild(thumb);
+        };
         const renderCanvas = () => {
+            renderCanvasBody();
+            renderThumb();
+        };
+        const renderCanvasBody = () => {
             const el = $('#ssCanvas');
             if (!el) return;
             const tools = `<div class="ss-tools">
@@ -837,7 +1160,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const res = engine.evaluateRows(t.rows, rec, ctx);
                 const rowSel = state.sel && state.sel.zone.startsWith('A:') ? zoneIndex(state.sel.zone, 1) : -1;
                 const rows = t.rows.map((row, r) => `
-                    <div class="ss-insert" data-insert="${r}"></div>
+                    <div class="ss-insert" data-insert="${r}" style="height:${r ? 0.6 * k : 0}px"></div>
                     <div class="ss-erow${row.lineAbove ? ' line' : ''}${r % 2 ? ' alt' : ''}${res[r].hidden && !state.formulas ? ' ghost' : ''}${rowSel === r ? ' row-sel' : ''}" data-row="${r}" style="grid-template-columns:${gridCols(t.columns)}">
                       <span class="ss-handle" draggable="true" data-rowdrag="${r}" title="Arrastra para mover la fila" aria-hidden="true">⋮⋮</span>
                       ${row.cells.map((cell, c) => cellHTML(`A:${r}:${c}`, cell, res[r].cells[c], k)).join('')}
@@ -846,9 +1169,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     </div>`).join('');
                 el.innerHTML = `${tools}
                   <div class="ss-stage" data-stage="end">
-                    <div class="ss-paper ss-cardedit${state.formulas ? ' formulas' : ''}${state.store.colors ? '' : ' mono-ink'}" id="ssCardEdit" style="width:${state.formulas ? Math.max(lay.cardWidth * k, Math.min(avail, 760)) : lay.cardWidth * k}px;min-height:${state.formulas ? 0 : lay.cardHeight * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px">
-                      ${rulerHTML(t.columns)}
-                      ${rows}<div class="ss-insert" data-insert="${t.rows.length}"></div>
+                    <div class="ss-paper ss-cardedit${state.formulas ? ' formulas' : ''}${state.store.colors ? '' : ' mono-ink'}" id="ssCardEdit" style="width:${state.formulas ? Math.max(lay.cardWidth * k, Math.min(avail, 760)) : lay.cardWidth * k}px;min-height:${state.formulas ? 0 : lay.cardHeight * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${cardFontPt(t) * PT_MM * k}px">
+                      ${rulerHTML(t.columns, k)}
+                      ${rows}<div class="ss-insert" data-insert="${t.rows.length}" style="height:${0.6 * k}px"></div>
                       ${state.formulas ? '' : `<div class="ss-limit" style="top:${lay.cardHeight * k}px"><span>límite de la tarjeta</span></div>`}
                     </div>
                     <div class="ss-dropzone" data-insert="end">
@@ -857,13 +1180,16 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     </div>
                   </div><div id="ssCanvasWarn"></div>`;
                 const info = $('#ssCanvasInfo');
-                if (info) info.textContent = `Tarjeta de ${Math.round(lay.cardWidth)} × ${Math.round(lay.cardHeight)} mm`;
+                if (info) {
+                    const one = cardTotals(engine, t, [{ record: rec, ctx }], netOf);
+                    const check = !one ? '' : one[0].ok ? ' · ✓ cuadra con SplitX' : ` · ⚠ tarjeta ${fmt(one[0].card)} · SplitX ${fmt(one[0].net)}`;
+                    info.textContent = `Tarjeta de ${Math.round(lay.cardWidth)} × ${Math.round(lay.cardHeight)} mm${check}`;
+                    info.classList.toggle('ss-bad', !!one && !one[0].ok);
+                }
                 requestAnimationFrame(() => {
                     const card = $('#ssCardEdit'); const warn = $('#ssCanvasWarn');
-                    const rowEls = card ? card.querySelectorAll('.ss-erow:not(.ghost)') : [];
-                    const last = rowEls[rowEls.length - 1];
-                    const overflow = !state.formulas && !!last && last.offsetTop + last.offsetHeight > (lay.cardHeight - 2.5) * k + 1;
-                    if (card && warn) warn.innerHTML = overflow ? '<p class="ss-warn">El contenido pasa del límite de la tarjeta: quita filas, reduce la letra o agranda la tarjeta en la barra “Hoja”.</p>' : '';
+                    const overflow = !!card && !cardFits(res, cardFontPt(t));
+                    if (card && warn) warn.innerHTML = overflow ? '<p class="ss-warn">El contenido pasa del límite de la tarjeta. <button class="ss-btn sm" type="button" data-act="font-fit">Ajustar al tamaño</button> o agranda la tarjeta en la barra “Hoja”.</p>' : '';
                 });
             } else {
                 const t = tpl();
@@ -923,6 +1249,10 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 ${o.signatures !== 'none' ? `<label class="ss-field">Quién firma al pie (separa con comas)<input id="ssSignLabels" class="ss-inp" data-bind="opt.signLabels" value="${esc(o.signLabels.join(', '))}" maxlength="120"></label>` : ''}</div>`;
         };
 
+        /** Operadores, texto y números a mano junto a la celda seleccionada. */
+        const quickToolsHTML = () => `<div class="ss-quick" role="toolbar" aria-label="Agregar a la celda">${TOOLS.map((tool, i) =>
+            `<button type="button" class="ss-chip ${chipClass(tool.chip)}" data-act="quick-chip" data-v="${i}" title="Agregar ${esc(tool.label)} a la celda">${esc(tool.label)}</button>`).join('')}</div>`;
+
         const chipStripHTML = (zone, cell) => `<div class="ss-field">Chips de la celda
             <div class="ss-cell chipview" data-zone="${zone}" style="min-height:40px;border:1.5px dashed var(--border-strong);border-radius:8px;padding:6px;outline:0">${cell.chips.map((c, i) => chipHTML(c, zone, i)).join('') || '<span class="ss-hint">Suelta o toca chips para agregarlos</span>'}</div></div>`;
 
@@ -939,7 +1269,24 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             return html;
         };
 
+        /** Secciones plegables: un clic en el título las oculta; se recuerda por tipo de sección. */
+        const foldSections = (el) => {
+            if (!el) return;
+            el.querySelectorAll(':scope > .ss-sec > h3.ss-lbl:first-child').forEach((h) => {
+                const key = h.textContent.replace(/\d+/g, '#').trim();
+                h.dataset.fold = key;
+                h.tabIndex = 0;
+                h.setAttribute('role', 'button');
+                const closed = !!state.folded[key];
+                h.setAttribute('aria-expanded', String(!closed));
+                h.parentElement.classList.toggle('collapsed', closed);
+            });
+        };
         const renderInspector = () => {
+            renderInspectorBody();
+            foldSections($('#ssInspector'));
+        };
+        const renderInspectorBody = () => {
             const el = $('#ssInspector');
             if (!el) return;
             const cell = selCell();
@@ -964,18 +1311,18 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const r = zoneIndex(zone, 1);
                 const c = zoneIndex(zone, 2);
                 const row = tpl().rows[r];
-                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${cellProps(cell, false)}</div>
+                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cellProps(cell, false)}</div>
                   <div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1}</h3>
                     <div class="ss-field">Si sus montos están vacíos o en 0 ${segHTML('row.whenEmpty', row.whenEmpty || 'show', [['show', 'Mostrar'], ['dash', 'Guion “-”'], ['hide', 'Ocultar fila']])}</div>
                     <label class="ss-check"><input id="ssLine" type="checkbox" data-bind="row.lineAbove" ${row.lineAbove ? 'checked' : ''}> Línea separadora encima</label></div>${cardSection()}`;
             } else if (isTitle) {
-                html += `<div class="ss-sec"><h3 class="ss-lbl">Línea ${zoneIndex(zone, 2) + 1} del encabezado</h3>${chipStripHTML(zone, cell)}${cellProps(cell, true)}</div>`;
+                html += `<div class="ss-sec"><h3 class="ss-lbl">Línea ${zoneIndex(zone, 2) + 1} del encabezado</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cellProps(cell, true)}</div>`;
             } else {
                 const i = zoneIndex(zone, 2);
                 const col = tpl().columns[i];
                 html += `<div class="ss-sec"><h3 class="ss-lbl">Columna ${i + 1}</h3>
                     <label class="ss-field">Encabezado<input id="ssHeader" class="ss-inp" data-bind="col.header" value="${esc(col.header)}" maxlength="60"></label>
-                    ${chipStripHTML(zone, cell)}
+                    ${chipStripHTML(zone, cell)}${quickToolsHTML()}
                     <div class="ss-grid2"><label class="ss-field">Ancho relativo<input id="ssWidth" class="ss-inp ss-num" type="number" min="0.2" max="10" step="0.1" data-bind="col.width" data-type="number" value="${esc(col.width)}"></label>
                     <label class="ss-check" style="align-self:end;min-height:34px"><input id="ssSum" type="checkbox" data-bind="col.sum" ${col.sum ? 'checked' : ''}> Sumar al pie</label></div>
                     <div class="ss-field">Bordes ${segHTML('col.border', col.border, [['all', 'Todos'], ['sign', 'Línea de firma'], ['none', 'Sin bordes']])}</div>
@@ -1026,6 +1373,13 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const type = typeOf(state.sheet);
             const list = state.store.templates.filter((t) => t.template.type === type);
             const cur = activeEntry();
+            if (state.showStarters) {
+                const type = typeOf(state.sheet);
+                return `<h3 class="ss-lbl">Nueva plantilla: elige un punto de partida</h3>
+                  <div class="ss-starters">${starterTemplates().filter((st) => st.type === type).map((st) =>
+                    `<button type="button" data-act="tpl-starter" data-v="${st.id}"><strong>${esc(st.name)}</strong><span>${esc(st.hint)}</span></button>`).join('')}</div>
+                  <div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="tpl-starter-cancel">Cancelar</button></div>`;
+            }
             return `<h3 class="ss-lbl">Plantillas · ${state.sheet === 'A' ? 'tarjeta del sobre' : 'hoja de firmas'}</h3>
               <div class="ss-menu">${list.map((t) => `<button type="button" data-act="tpl-use" data-v="${t.id}" class="${t.id === cur.id ? 'active' : ''}">${esc(t.name)}${t.id === cur.id ? ' <span>✓</span>' : ''}</button>`).join('')}</div>
               <label class="ss-field">Nombre de esta plantilla<input id="ssTplName" class="ss-inp" data-bind="tplname" value="${esc(cur.name)}" maxlength="80"></label>
@@ -1053,7 +1407,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                        <label class="ss-field">Alto (mm)<input id="ssCH" class="ss-inp ss-num" type="number" min="15" max="300" data-bind="lay.cardHeight" data-type="number" value="${esc(L.cardHeight || 55)}"></label>`}
                     <label class="ss-field">Margen (mm)<input id="ssMargin" class="ss-inp ss-num" type="number" min="0" max="40" data-bind="lay.margin" data-type="number" value="${esc(L.margin)}"></label>
                     <label class="ss-field">Separación (mm)<input id="ssGap" class="ss-inp ss-num" type="number" min="0" max="20" data-bind="lay.gap" data-type="number" value="${esc(L.gap)}"></label></div>
-                  <label class="ss-check"><input id="ssCut" type="checkbox" data-bind="lay.cutMarks" ${L.cutMarks ? 'checked' : ''}> Líneas de corte punteadas</label>`;
+                  <label class="ss-check"><input id="ssCut" type="checkbox" data-bind="lay.cutMarks" ${L.cutMarks ? 'checked' : ''}> Líneas de corte punteadas</label>
+                  <div class="ss-grid2"><label class="ss-field">Letra base (pt)<input id="ssFont" class="ss-inp ss-num" type="number" min="5" max="14" step="0.25" data-bind="lay.fontSize" data-type="number" value="${esc(cardFontPt(t))}"></label>
+                    <button class="ss-btn sm" type="button" data-act="font-fit" style="align-self:end;min-height:34px" title="Busca la letra más grande con la que todo cabe en cada tarjeta">Ajustar al tamaño</button></div>`;
             } else {
                 html += `<div class="ss-grid2"><label class="ss-field">Margen (mm)<input id="ssMargin" class="ss-inp ss-num" type="number" min="0" max="40" data-bind="lay.margin" data-type="number" value="${esc(L.margin)}"></label>
                   <label class="ss-field">Alto de fila (mm)<input id="ssRowH" class="ss-inp ss-num" type="number" min="6" max="30" step="0.5" data-bind="opt.rowHeight" data-type="number" value="${esc(t.options.rowHeight)}"></label></div>
@@ -1079,6 +1435,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             else if (p.type === 'title') { body = popTitle(p.v); anchor = $(`#ssTitleMenu${p.v}`); }
             else if (p.type === 'tpl') { body = popTpl(); anchor = $('#ssTplBtn'); }
             else if (p.type === 'page') { body = popPage(); anchor = $('#ssPageBtn'); }
+            else if (p.type === 'checks') { body = `<h3 class="ss-lbl">Verificación</h3>${checksHTML(moneyChecks())}`; anchor = $('#ssChecksBtn'); }
             if (!body || !anchor) { state.pop = null; host.innerHTML = ''; return; }
             host.innerHTML = `<div class="ss-pop" id="ssPop" role="dialog">${body}</div>`;
             const pop = $('#ssPop');
@@ -1114,7 +1471,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const radio = (mode, label) => `<label class="ss-radio${o.mode === mode ? ' on' : ''}"><input type="radio" name="ssWho" data-bind="print.mode" value="${mode}" ${o.mode === mode ? 'checked' : ''}> ${label}<span class="n">${count(mode)}</span></label>`;
             const list = printList();
             const keepScroll = el.querySelector('.ss-printside') ? el.querySelector('.ss-printside').scrollTop : 0;
+            const checks = checksHTML(moneyChecks(list));
             el.innerHTML = `<aside class="ss-printside">
+                ${checks ? `<div class="ss-sec"><h3 class="ss-lbl">Verificación</h3>${checks}</div>` : ''}
                 <div class="ss-sec"><h3 class="ss-lbl">¿A quién?</h3>
                   ${radio('all', 'Todos los empleados')}${radio('unpaid', 'Solo los no pagados')}${radio('loan', 'Solo con préstamo o adelanto')}${radio('custom', 'Elegir…')}
                   ${o.mode === 'custom' ? `<div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="pick-all">Todos</button><button class="ss-btn sm" type="button" data-act="pick-none">Ninguno</button></div>
@@ -1130,6 +1489,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 <p class="ss-hint">Se abre el diálogo de impresión: elige tu impresora o “Guardar como PDF”, con márgenes “Ninguno” y escala 100%.</p>
               </aside>
               <section class="ss-printpages" id="ssPrintPages"><div class="ss-desk" id="ssDesk"></div></section>`;
+            foldSections(el.querySelector('.ss-printside'));
             el.querySelector('.ss-printside').scrollTop = keepScroll;
             renderPrintDesk();
         };
@@ -1155,6 +1515,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (p.includes('pagebar')) renderPageBar();
             if (p.includes('palette')) renderPalette();
             if (p.includes('canvas')) renderCanvas();
+            if (state.tour != null && p.includes('canvas')) renderTour();
             if (p.includes('insp')) renderInspector();
             if (state.printing) {
                 // En el paso de impresión los cambios de plantilla se ven en la vista previa.
@@ -1317,7 +1678,12 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (!rule) { rule = document.createElement('style'); rule.id = 'ss-page-rule'; document.head.appendChild(rule); }
             const L = tpl().layout;
             rule.textContent = `@media print { ${printPageRule(L.paper, L.orientation)} }`;
-            const done = () => { document.body.classList.remove('ss-printing'); host.innerHTML = ''; window.removeEventListener('afterprint', done); };
+            // Copia de lo impreso: si luego cambian los datos, se avisa que el papel ya no coincide.
+            const t = tpl();
+            state.store.printed[state.sheet] = { at: new Date().toISOString(), template: clone(t), sigs: printSignatures(engine, t, sorted(uniqueById(printList()), t.sortBy), (e) => e.id) };
+            state.store.ready[state.sheet] = true;
+            save();
+            const done = () => { document.body.classList.remove('ss-printing'); host.innerHTML = ''; window.removeEventListener('afterprint', done); touch(); };
             window.addEventListener('afterprint', done);
             document.body.classList.add('ss-printing');
             window.print();
@@ -1333,12 +1699,37 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
 
         const actions = {
-            sheet: (v) => { state.sheet = v; state.sel = null; state.pop = null; touch(); },
+            sheet: (v) => { state.sheet = v; state.store.sheet = v; state.sel = null; state.pop = null; touch(); },
             close: () => api.close(),
             undo: () => doUndo(-1),
             redo: () => doUndo(1),
             'print-step': () => { state.printing = true; state.pop = null; touch(); },
             'print-back': () => { state.printing = false; touch(); },
+            'quick-chip': (v) => {
+                if (!state.sel || !state.sel.zone) return toast('Primero haz clic en una celda');
+                insertChip(state.sel.zone, TOOLS[+v].chip, state.sel.ci != null ? state.sel.ci + 1 : null);
+                touch(EDIT + ' palette');
+            },
+            'font-fit': () => {
+                const pt = autoFitFont();
+                commit();
+                tpl().layout.fontSize = pt;
+                touch();
+                toast(`Letra ajustada a ${pt} pt para que todo quepa`, true);
+            },
+            tour: () => { state.tour = 0; state.pop = null; if (state.printing) { state.printing = false; touch(); } else renderTour(); renderLayer(); },
+            'tour-next': () => { state.tour += 1; renderTour(); },
+            'tour-end': () => { state.tour = null; state.store.tourDone = true; save(); renderTour(); },
+            'drift-ok': () => { delete state.store.printed[state.sheet]; state.pop = null; touch(); },
+            breakdown: (total) => {
+                const prefix = TOTAL_PREFIX[total];
+                const concepts = fieldSet.listConcepts().map((c) => c.key).filter((k) => k.startsWith(prefix + ':'));
+                commit();
+                activeEntry().template = breakDownRow(tpl(), total, concepts, fieldDef);
+                state.sel = null; state.pop = null;
+                touch();
+                toast(`${TOTAL_LABEL[total]} desglosado por concepto`, true);
+            },
             print,
             'pick-all': () => { state.printOpts.ids = employees.map((e) => e.id); touch('print'); },
             'pick-none': () => { state.printOpts.ids = []; touch('print'); },
@@ -1358,8 +1749,14 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             'chip-del': () => { commit(); const [gone] = selCell().chips.splice(state.sel.ci, 1); state.sel.ci = null; state.pop = null; touch(EDIT); toast(`Se quitó “${chipLabel(gone)}”`, true); },
             'logo-del': () => { state.store.logo = null; touch('canvas layer'); },
             'tpl-use': (v) => { state.store.active[state.sheet] = v; state.sel = null; state.pop = null; state.confirmDelete = false; touch(); },
-            'tpl-new': () => {
-                const entry = { id: newId(), name: state.sheet === 'A' ? 'Nueva tarjeta' : 'Nueva hoja de firmas', template: state.sheet === 'A' ? defaultCardTemplate() : defaultTableTemplate() };
+            'tpl-new': () => { state.showStarters = true; touch('layer'); },
+            'tpl-starter-cancel': () => { state.showStarters = false; touch('layer'); },
+            'tpl-starter': (id) => {
+                const st = starterTemplates().find((x) => x.id === id);
+                if (!st) return;
+                const template = st.build(fieldSet.listConcepts().map((c) => c.key));
+                const entry = { id: newId(), name: st.name, template };
+                state.showStarters = false;
                 state.store.templates.push(entry); state.store.active[state.sheet] = entry.id; state.sel = null; state.pop = { type: 'tpl' }; touch();
                 const inp = $('#ssTplName'); if (inp) { inp.focus(); inp.select(); }
             },
@@ -1455,9 +1852,18 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     const same = state.pop && state.pop.type === type && state.pop.v === v;
                     state.confirmDelete = false;
                     state.pop = same ? null : { type, v };
+                    state.showStarters = false;
                     if (type === 'row' && !same) select(`A:${v}:0`);
                     if (type === 'title' && !same) select(`B:title:${v}`);
                     return touch(type === 'row' || type === 'title' ? 'canvas insp layer' : 'layer');
+                }
+                const fold = t.closest('[data-fold]');
+                if (fold) {
+                    const key = fold.dataset.fold;
+                    state.folded[key] = !state.folded[key];
+                    fold.parentElement.classList.toggle('collapsed', state.folded[key]);
+                    fold.setAttribute('aria-expanded', String(!state.folded[key]));
+                    return;
                 }
                 const act = t.closest('[data-act]');
                 if (act && act.tagName !== 'INPUT') { const fn = actions[act.dataset.act]; if (fn && !act.disabled) { e.preventDefault(); fn(act.dataset.v); } return; }
@@ -1540,7 +1946,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 if ((e.ctrlKey || e.metaKey) && !typing && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); return doUndo(e.shiftKey ? 1 : -1); }
                 if ((e.ctrlKey || e.metaKey) && !typing && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); return doUndo(1); }
                 if (!typing && (e.key === 'Delete' || e.key === 'Backspace') && selChip()) { e.preventDefault(); return actions['chip-del'](); }
-                if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-pi],[data-ci],[data-zone]')) { e.preventDefault(); e.target.click(); }
+                if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-pi],[data-ci],[data-zone],[data-fold]')) { e.preventDefault(); e.target.click(); }
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     if (state.drawer) actions['close-drawer']();
@@ -1688,6 +2094,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 bindEvents();
                 rootEl.hidden = false;
                 document.body.style.overflow = 'hidden';
+                // Si esta hoja ya se imprimió antes, la plantilla está lista: se abre en "Imprimir".
+                state.printing = !!state.store.ready[state.sheet];
+                state.tour = !state.store.tourDone && !state.printing ? 0 : null;
                 renderShell();
                 const first = rootEl.querySelector('[data-act="close"]');
                 if (first) first.focus();
@@ -1715,7 +2124,17 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         footerOnPage,
         resizeColumns,
         columnTotals,
+        cardTotals,
+        starterTemplates,
+        cardFontPt,
+        cellFontPt,
+        fitFontSize,
+        doubleCounted,
+        breakDownRow,
+        printSignatures,
+        snapshotDiff,
         printPageRule,
+        MONEY_COLORS,
         catOf,
         smartRowFor,
         smartColumnFor,

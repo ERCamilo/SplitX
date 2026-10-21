@@ -17,3 +17,6 @@ imagenes/splitx_icon_exact.png
 .idea/
 .DS_Store
 Thumbs.db
+
+# Dependencies (UI tests install Playwright on demand)
+node_modules/
