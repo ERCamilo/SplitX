@@ -281,6 +281,46 @@ describe('migrateStore keeps the new per-user settings', () => {
     });
 });
 
+describe('card font size', () => {
+    test('base size defaults to 8.5 pt and scales explicit cell sizes', () => {
+        const t = SS.defaultCardTemplate();
+        assert.equal(SS.cardFontPt(t), 8.5);
+        t.layout.fontSize = 10.2;
+        assert.equal(SS.cardFontPt(t), 10.2);
+        assert.equal(SS.cellFontPt({ size: 8.5 }, 10.2), 10.2);
+        assert.equal(SS.cellFontPt({}, 10.2), null);
+    });
+
+    test('fitFontSize returns the largest size that fits', () => {
+        assert.equal(SS.fitFontSize((pt) => pt <= 7.3, { max: 12, min: 5, step: 0.25 }), 7.25);
+        assert.equal(SS.fitFontSize(() => true, { max: 12, min: 5, step: 0.25 }), 12);
+        assert.equal(SS.fitFontSize(() => false, { max: 12, min: 5, step: 0.25 }), 5);
+    });
+});
+
+describe('starter templates', () => {
+    test('every starter builds a valid template of its type', () => {
+        const list = SS.starterTemplates();
+        assert.ok(list.filter((x) => x.type === 'cards').length >= 2);
+        assert.ok(list.filter((x) => x.type === 'table').length >= 2);
+        for (const st of list) {
+            const t = st.build();
+            assert.equal(t.type, st.type, st.name);
+            const errors = st.type === 'cards' ? SB.validateTemplate(t).errors : SS.validateTableTemplate(t);
+            assert.deepEqual(errors, [], st.name);
+        }
+    });
+
+    test('the detailed envelope lists one row per imported concept', () => {
+        const st = SS.starterTemplates().find((x) => x.id === 'card-detail');
+        const t = st.build(['bonus:asistencia', 'deduction:ley']);
+        const keys = t.rows.flatMap((r) => r.cells.flatMap((c) => c.chips.map((ch) => ch.key))).filter(Boolean);
+        assert.ok(keys.includes('bonus:asistencia') && keys.includes('deduction:ley'));
+        assert.ok(!keys.includes('bonuses') && !keys.includes('discounts'));
+        assert.deepEqual(SS.doubleCounted(t), []);
+    });
+});
+
 describe('columnTotals', () => {
     test('sums only the columns marked to sum', () => {
         const t = SS.defaultTableTemplate();

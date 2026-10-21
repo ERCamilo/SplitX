@@ -226,6 +226,69 @@
         };
     };
 
+    // ─── Plantillas de inicio ──────────────────────────────────────────────
+    const nameRow = () => ({ cells: [cT([F('no'), T('-'), F('firstName')], { bold: true, size: 10 }), cT([F('days'), T('días')], { align: 'right' })] });
+    const folioRow = () => ({ cells: [cT([T('Folio'), F('folio')], { size: 6.5 }), cT([])] });
+    const totalRow = () => ({ lineAbove: true, cells: [cT([T('Total a recibir')], { bold: true }), cN([RUN()], { bold: true })] });
+    const cardBase = (name, rows) => ({
+        version: 1, type: 'cards', name, columns: [2, 1], rows,
+        layout: { paper: 'letter', orientation: 'portrait', margin: 10, gap: 4, mode: 'grid', cols: 2, rows: 4, cutMarks: true },
+        sortBy: { field: 'no', dir: 'asc' }
+    });
+    const tableBase = (name, columns, orientation) => Object.assign(defaultTableTemplate(), { name, columns, layout: { paper: 'letter', orientation, margin: 12 } });
+    const col = (header, width, cell, sum) => ({ header, width, border: 'all', sum: !!sum, cell });
+    const signCol = () => ({ header: 'Firma', width: 2.4, border: 'sign', sum: false, cell: cT([]) });
+
+    /** Plantillas listas para empezar. build(conceptKeys) recibe los conceptos importados (para el desglose). */
+    const starterTemplates = () => [
+        { id: 'card-standard', type: 'cards', name: 'Sobre estándar', hint: 'Bruto, bonos, descuentos, préstamo y total', build: () => defaultCardTemplate() },
+        {
+            id: 'card-min', type: 'cards', name: 'Sobre mínimo', hint: 'Nombre y monto a recibir',
+            build: () => cardBase('Sobre mínimo', [nameRow(), { lineAbove: true, cells: [cT([T('Total a recibir')], { bold: true, size: 11 }), cN([F('net')], { bold: true, size: 11 })] }, folioRow()])
+        },
+        {
+            id: 'card-detail', type: 'cards', name: 'Sobre detallado', hint: 'Una fila por cada bono, descuento y préstamo importado',
+            build: (concepts) => {
+                const keys = (concepts || []).filter((k) => /^(bonus|deduction|loan):/.test(k));
+                const detail = keys.length
+                    ? keys.map((k) => smartRowFor(k, { type: 'number' }, 2))
+                    : ['bonuses', 'discounts', 'loans'].map((k) => smartRowFor(k, { type: 'number' }, 2));
+                return cardBase('Sobre detallado', [nameRow(), { cells: [cT([F('gross', 'label')]), cN([F('gross')])] }, ...detail, totalRow(),
+                    { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] }, folioRow()]);
+            }
+        },
+        { id: 'table-standard', type: 'table', name: 'Firma estándar', hint: 'Días, sueldo por día, bruto y monto entregado', build: () => defaultTableTemplate() },
+        {
+            id: 'table-simple', type: 'table', name: 'Firma simple', hint: 'No., nombre, monto y firma (vertical)',
+            build: () => tableBase('Firma simple', [
+                col('No.', 0.6, cT([F('no')])), col('Nombre', 2.6, cT([F('name')])),
+                col('Monto entregado', 1.4, cN([F('afterDiscounts')], { bold: true }), true), signCol()
+            ], 'portrait')
+        },
+        {
+            id: 'table-detail', type: 'table', name: 'Firma con desglose', hint: 'Bruto, bonos, descuentos y préstamo por empleado',
+            build: () => tableBase('Firma con desglose', [
+                col('Folio', 1, cT([F('folio')])), col('Nombre', 2, cT([F('name')])), col('Días', 0.6, cN([F('days')]), true),
+                col('Bruto', 1.1, cN([F('gross')]), true), col('Bonos', 1, cN([F('bonuses')]), true), col('Descuentos', 1, cN([F('discounts')]), true),
+                col('Préstamo/Adelanto', 1.1, cN([F('loans')]), true), col('Monto entregado', 1.2, cN([F('afterDiscounts')], { bold: true }), true), signCol()
+            ], 'landscape')
+        }
+    ];
+
+    // ─── Tamaño de letra de la tarjeta ─────────────────────────────────────
+    const BASE_PT = 8.5;
+    const cardFontPt = (t) => (t.layout && typeof t.layout.fontSize === 'number' && t.layout.fontSize > 0 ? t.layout.fontSize : BASE_PT);
+    /** Las celdas con letra propia crecen o se achican junto con la letra base. */
+    const cellFontPt = (cell, base) => (cell.size ? Math.round(cell.size * (base / BASE_PT) * 100) / 100 : null);
+    /** Mayor tamaño (de max hacia min, en pasos de step) para el que fits(pt) es verdadero. */
+    const fitFontSize = (fits, { max, min, step }) => {
+        for (let n = Math.round(max / step); n >= Math.round(min / step); n--) {
+            const pt = Math.round(n * step * 100) / 100;
+            if (fits(pt)) return pt;
+        }
+        return min;
+    };
+
     // ─── Verificaciones de dinero (puras, probadas) ────────────────────────
     const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
     const valueKeys = (cells) => cells.filter((c) => c && c.mode === 'number')
@@ -239,6 +302,10 @@
     const cardTotals = (engine, t, items, getNet) => {
         let at = null;
         t.rows.forEach((row, r) => row.cells.forEach((cell, c) => { if (cell.chips.some((ch) => ch.kind === 'running')) at = [r, c]; }));
+        if (!at) {
+            // Sin "total hasta ahora", vale la última celda que muestra el monto neto.
+            t.rows.forEach((row, r) => row.cells.forEach((cell, c) => { if (cell.mode === 'number' && valueKeys([cell]).includes('net')) at = [r, c]; }));
+        }
         if (!at) return null;
         return items.map(({ record, ctx }) => {
             const res = engine.evaluateRows(t.rows, record, ctx);
@@ -457,7 +524,7 @@ html.dark .ss { --bg:#0b1120; --surface:#0f172a; --surface-2:#1e293b; --fg:#e2e8
 .ss-tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; width:100%; max-width:900px; }
 .ss-emp { display:flex; align-items:center; gap:4px; }
 .ss-emp select { max-width:220px; }
-.ss-stage { position:relative; padding:8px 44px 8px 40px; }
+.ss-stage { position:relative; padding:26px 44px 8px 40px; }
 .ss-paper { position:relative; background:var(--paper); color:var(--ink); box-shadow:var(--shadow); border-radius:2px; }
 .ss-cardedit { display:flex; flex-direction:column; }
 .ss-limit { position:absolute; left:-12px; right:-12px; border-top:2px dashed var(--err); pointer-events:none; }
@@ -557,7 +624,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .ss-rz:hover, .ss-rz.on { background:rgba(37,99,235,.35); }
 .ss-rz.corner { top:auto; right:0; bottom:0; width:14px; height:14px; cursor:nwse-resize; background:linear-gradient(135deg, transparent 50%, rgba(37,99,235,.6) 50%); border-radius:0 0 3px 0; }
 .ss-resizing, .ss-resizing * { cursor:inherit !important; user-select:none; }
-.ss-ruler { position:relative; display:flex; height:14px; margin-bottom:2px; border-bottom:1px solid var(--paper-line); font-size:9px; color:#94a3b8; font-family:Inter,system-ui,sans-serif; }
+.ss-cardedit .ss-insert { margin:0; }
+.ss-cardedit:not(.formulas) .ss-cell { min-height:0; }
+.ss-ruler { position:absolute; top:-20px; display:flex; height:14px; border-bottom:1px solid var(--paper-line); font-size:9px; color:#94a3b8; font-family:Inter,system-ui,sans-serif; }
 .ss-ruler span:not(.ss-rz) { text-align:center; line-height:13px; border-right:1px dotted var(--paper-line); }
 .ss-ruler .ss-rz { height:100%; background:rgba(37,99,235,.25); width:6px; transform:translateX(-3px); }
 .ss-ruler .ss-rz:hover { background:rgba(37,99,235,.6); }
@@ -573,6 +642,12 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .ss-logoprev { display:flex; gap:10px; align-items:center; } .ss-logoprev img { width:48px; height:48px; object-fit:contain; border:1px solid var(--border); border-radius:6px; background:#fff; }
 .ss-alert { border-radius:8px; padding:8px 10px; font-size:12.5px; line-height:1.45; display:flex; flex-direction:column; gap:4px; border:1px solid; }
 .ss-hint.ss-bad { color:var(--err); font-weight:700; }
+.ss-starters { display:flex; flex-direction:column; gap:6px; }
+.ss-starters button { text-align:left; border:1px solid var(--border); background:var(--surface); color:var(--fg); border-radius:9px; padding:8px 10px; display:flex; flex-direction:column; gap:2px; cursor:pointer; }
+.ss-starters button:hover { border-color:var(--accent); background:var(--accent-soft); }
+.ss-starters span { font-size:12px; color:var(--muted); }
+.ss-quick { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.ss-quick .ss-chip { cursor:pointer; }
 .ss-alert ul { margin:2px 0 0 16px; padding:0; }
 .ss-alert.ok { background:rgba(5,150,105,.08); border-color:rgba(5,150,105,.35); color:var(--fg); }
 .ss-alert.warn { background:rgba(217,119,6,.10); border-color:rgba(217,119,6,.45); color:var(--fg); }
@@ -683,6 +758,35 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 
         const fieldDef = (key) => { try { return engine.requireField(key); } catch (e) { return null; } };
 
+        /** Mayor letra base con la que cada tarjeta (los empleados con más filas) cabe en su tamaño. */
+        const autoFitFont = () => {
+            const t = tpl();
+            const lay = SB.computeLayout(t.layout);
+            const probe = document.createElement('div');
+            probe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;';
+            rootEl.appendChild(probe);
+            const samples = sorted(employees, t.sortBy)
+                .map(({ record, ctx }) => engine.evaluateRows(t.rows, record, ctx))
+                .sort((a, b) => b.filter((r) => !r.hidden).length - a.filter((r) => !r.hidden).length)
+                .slice(0, 8);
+            const pt = fitFontSize((size) => samples.every((rows) => cardFits(rows, size, probe)), { max: 14, min: 5, step: 0.25 });
+            probe.remove();
+            return pt;
+        };
+        /** ¿Cabe esta tarjeta a tamaño real? Se mide igual que se imprime. */
+        const cardFits = (rows, pt, host) => {
+            const t = tpl();
+            const lay = SB.computeLayout(t.layout);
+            const own = !host;
+            const probe = host || document.createElement('div');
+            if (own) { probe.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;'; rootEl.appendChild(probe); }
+            probe.innerHTML = `<div class="ss-card" style="${cardStyle(lay.cardWidth, lay.cardHeight, PRINT_K, pt)}">${cardInner(rows, t.columns, PRINT_K, pt)}</div>`;
+            const card = probe.firstElementChild;
+            const ok = card.scrollHeight <= card.clientHeight + 1;
+            if (own) probe.remove();
+            return ok;
+        };
+
         // ─── Verificaciones de dinero ──────────────────────────────────────
         const netOf = (r) => (opts.getNetAmount ? opts.getNetAmount(r) : r.amount);
         const uniqueById = (list) => list.filter((e, i) => list.findIndex((x) => x.id === e.id) === i);
@@ -766,18 +870,19 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 
         // ─── Papel ─────────────────────────────────────────────────────────
         const cellCat = (cell) => { const f = cell.chips.find((c) => c.kind === 'field' && c.as !== 'label'); return f ? catOf(f.key) : null; };
-        const outHTML = (res, cell, k) => {
+        // base: letra base de la tarjeta (pt); las celdas con tamaño propio escalan con ella.
+        const outHTML = (res, cell, k, base) => {
             const cat = cellCat(cell);
             const align = cell.align || (cell.mode === 'number' ? 'right' : 'left');
-            const style = `text-align:${align};font-weight:${cell.bold ? 700 : 400};${cell.size ? `font-size:${cell.size * PT_MM * k}px;` : ''}`;
+            const style = `text-align:${align};font-weight:${cell.bold ? 700 : 400};${cell.size ? `font-size:${(base ? cellFontPt(cell, base) : cell.size) * PT_MM * k}px;` : ''}`;
             if (res.error) return `<span class="ss-out err" title="${esc(res.error)}" style="${style}">—</span>`;
             const cls = ['ss-out', cell.mode === 'number' ? 'n' : '', cat && cat !== 'field' ? 'c-' + cat : ''].join(' ');
             return `<span class="${cls}" style="${style}">${esc(res.text)}</span>`;
         };
         const gridCols = (cols) => cols.map((w) => `${w}fr`).join(' ');
-        const cardInner = (rowResults, cols, k) => rowResults.filter((r) => !r.hidden).map((r) =>
-            `<div class="ss-crow${r.row.lineAbove ? ' line' : ''}" style="grid-template-columns:${gridCols(cols)}">${r.cells.map((c) => outHTML(c, c.cell, k)).join('')}</div>`).join('');
-        const cardStyle = (w, h, k) => `width:${w * k}px;height:${h * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px;`;
+        const cardInner = (rowResults, cols, k, base) => rowResults.filter((r) => !r.hidden).map((r) =>
+            `<div class="ss-crow${r.row.lineAbove ? ' line' : ''}" style="grid-template-columns:${gridCols(cols)}">${r.cells.map((c) => outHTML(c, c.cell, k, base)).join('')}</div>`).join('');
+        const cardStyle = (w, h, k, base) => `width:${w * k}px;height:${h * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${base * PT_MM * k}px;gap:${0.6 * k}px;`;
 
         /** Asas entre columnas de la tarjeta, sobre un contenedor del ancho del contenido. */
         const colGrips = (cols) => {
@@ -789,8 +894,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             }).join('');
         };
         /** Regla sobre la tarjeta del editor: muestra las columnas y deja cambiar su ancho. */
-        const rulerHTML = (cols) => (cols.length > 1
-            ? `<div class="ss-ruler ss-rzhost">${cols.map((w) => `<span style="flex:${w}">${Math.round((w / cols.reduce((a, b) => a + b, 0)) * 100)}%</span>`).join('')}${colGrips(cols)}</div>`
+        const rulerHTML = (cols, k) => (cols.length > 1
+            ? `<div class="ss-ruler ss-rzhost" style="left:${3 * k}px;right:${3 * k}px">${cols.map((w) => `<span style="flex:${w}">${Math.round((w / cols.reduce((a, b) => a + b, 0)) * 100)}%</span>`).join('')}${colGrips(cols)}</div>`
             : '');
         /** Asas sobre la primera tarjeta de la vista previa: columnas y esquina para el tamaño. */
         const cardGrips = (k) => `<div class="ss-grips"><div class="ss-rzhost" style="position:absolute;top:0;bottom:0;left:${3 * k}px;right:${3 * k}px">${colGrips(tpl().columns)}</div>
@@ -840,7 +945,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 return out.pages.map((cards, p) => `
                     <div class="ss-page" style="width:${lay.pageWidth * k}px;height:${lay.pageHeight * k}px;padding:${lay.margin * k}px">
                       <div class="ss-cards" style="grid-template-columns:repeat(${lay.cols}, ${lay.cardWidth * k}px);grid-auto-rows:${lay.cardHeight * k}px;gap:${lay.gap * k}px">
-                        ${cards.map((rows, i) => `<div class="ss-card${tpl().layout.cutMarks ? ' cut' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${cardStyle(lay.cardWidth, lay.cardHeight, k)}">${cardInner(rows, tpl().columns, k)}${!forPrint && p === 0 && i === 0 ? cardGrips(k) : ''}</div>`).join('')}
+                        ${cards.map((rows, i) => `<div class="ss-card${tpl().layout.cutMarks ? ' cut' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${cardStyle(lay.cardWidth, lay.cardHeight, k, cardFontPt(tpl()))}">${cardInner(rows, tpl().columns, k, cardFontPt(tpl()))}${!forPrint && p === 0 && i === 0 ? cardGrips(k) : ''}</div>`).join('')}
                       </div></div>${forPrint ? '' : `<div class="ss-page-no">Hoja ${p + 1} de ${out.pages.length}</div>`}`).join('');
             }
             const t = tpl();
@@ -951,7 +1056,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const empty = inTable && !state.formulas ? '&nbsp;' : '<span class="empty">vacía</span>';
             const inner = showChips
                 ? (cell.chips.map((c, i) => chipHTML(c, zone, i)).join('') || '<span class="empty">vacía</span>')
-                : (cell.chips.length ? outHTML(res, cell, k) : empty);
+                : (cell.chips.length ? outHTML(res, cell, k, zone.startsWith('A:') ? cardFontPt(tpl()) : undefined) : empty);
             // En la vista de fórmulas los chips siguen la alineación de la celda, como el resultado impreso.
             const align = cell.align || (cell.mode === 'number' ? 'right' : 'left');
             const justify = showChips ? `justify-content:${{ left: 'flex-start', center: 'center', right: 'flex-end' }[align]}` : '';
@@ -977,7 +1082,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const res = engine.evaluateRows(t.rows, rec, ctx);
                 const rowSel = state.sel && state.sel.zone.startsWith('A:') ? zoneIndex(state.sel.zone, 1) : -1;
                 const rows = t.rows.map((row, r) => `
-                    <div class="ss-insert" data-insert="${r}"></div>
+                    <div class="ss-insert" data-insert="${r}" style="height:${r ? 0.6 * k : 0}px"></div>
                     <div class="ss-erow${row.lineAbove ? ' line' : ''}${r % 2 ? ' alt' : ''}${res[r].hidden && !state.formulas ? ' ghost' : ''}${rowSel === r ? ' row-sel' : ''}" data-row="${r}" style="grid-template-columns:${gridCols(t.columns)}">
                       <span class="ss-handle" draggable="true" data-rowdrag="${r}" title="Arrastra para mover la fila" aria-hidden="true">⋮⋮</span>
                       ${row.cells.map((cell, c) => cellHTML(`A:${r}:${c}`, cell, res[r].cells[c], k)).join('')}
@@ -986,9 +1091,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     </div>`).join('');
                 el.innerHTML = `${tools}
                   <div class="ss-stage" data-stage="end">
-                    <div class="ss-paper ss-cardedit${state.formulas ? ' formulas' : ''}${state.store.colors ? '' : ' mono-ink'}" id="ssCardEdit" style="width:${state.formulas ? Math.max(lay.cardWidth * k, Math.min(avail, 760)) : lay.cardWidth * k}px;min-height:${state.formulas ? 0 : lay.cardHeight * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px">
-                      ${rulerHTML(t.columns)}
-                      ${rows}<div class="ss-insert" data-insert="${t.rows.length}"></div>
+                    <div class="ss-paper ss-cardedit${state.formulas ? ' formulas' : ''}${state.store.colors ? '' : ' mono-ink'}" id="ssCardEdit" style="width:${state.formulas ? Math.max(lay.cardWidth * k, Math.min(avail, 760)) : lay.cardWidth * k}px;min-height:${state.formulas ? 0 : lay.cardHeight * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${cardFontPt(t) * PT_MM * k}px">
+                      ${rulerHTML(t.columns, k)}
+                      ${rows}<div class="ss-insert" data-insert="${t.rows.length}" style="height:${0.6 * k}px"></div>
                       ${state.formulas ? '' : `<div class="ss-limit" style="top:${lay.cardHeight * k}px"><span>límite de la tarjeta</span></div>`}
                     </div>
                     <div class="ss-dropzone" data-insert="end">
@@ -1005,10 +1110,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 }
                 requestAnimationFrame(() => {
                     const card = $('#ssCardEdit'); const warn = $('#ssCanvasWarn');
-                    const rowEls = card ? card.querySelectorAll('.ss-erow:not(.ghost)') : [];
-                    const last = rowEls[rowEls.length - 1];
-                    const overflow = !state.formulas && !!last && last.offsetTop + last.offsetHeight > (lay.cardHeight - 2.5) * k + 1;
-                    if (card && warn) warn.innerHTML = overflow ? '<p class="ss-warn">El contenido pasa del límite de la tarjeta: quita filas, reduce la letra o agranda la tarjeta en la barra “Hoja”.</p>' : '';
+                    const overflow = !!card && !cardFits(res, cardFontPt(t));
+                    if (card && warn) warn.innerHTML = overflow ? '<p class="ss-warn">El contenido pasa del límite de la tarjeta. <button class="ss-btn sm" type="button" data-act="font-fit">Ajustar al tamaño</button> o agranda la tarjeta en la barra “Hoja”.</p>' : '';
                 });
             } else {
                 const t = tpl();
@@ -1068,6 +1171,10 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 ${o.signatures !== 'none' ? `<label class="ss-field">Quién firma al pie (separa con comas)<input id="ssSignLabels" class="ss-inp" data-bind="opt.signLabels" value="${esc(o.signLabels.join(', '))}" maxlength="120"></label>` : ''}</div>`;
         };
 
+        /** Operadores, texto y números a mano junto a la celda seleccionada. */
+        const quickToolsHTML = () => `<div class="ss-quick" role="toolbar" aria-label="Agregar a la celda">${TOOLS.map((tool, i) =>
+            `<button type="button" class="ss-chip ${chipClass(tool.chip)}" data-act="quick-chip" data-v="${i}" title="Agregar ${esc(tool.label)} a la celda">${esc(tool.label)}</button>`).join('')}</div>`;
+
         const chipStripHTML = (zone, cell) => `<div class="ss-field">Chips de la celda
             <div class="ss-cell chipview" data-zone="${zone}" style="min-height:40px;border:1.5px dashed var(--border-strong);border-radius:8px;padding:6px;outline:0">${cell.chips.map((c, i) => chipHTML(c, zone, i)).join('') || '<span class="ss-hint">Suelta o toca chips para agregarlos</span>'}</div></div>`;
 
@@ -1109,18 +1216,18 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const r = zoneIndex(zone, 1);
                 const c = zoneIndex(zone, 2);
                 const row = tpl().rows[r];
-                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${cellProps(cell, false)}</div>
+                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cellProps(cell, false)}</div>
                   <div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1}</h3>
                     <div class="ss-field">Si sus montos están vacíos o en 0 ${segHTML('row.whenEmpty', row.whenEmpty || 'show', [['show', 'Mostrar'], ['dash', 'Guion “-”'], ['hide', 'Ocultar fila']])}</div>
                     <label class="ss-check"><input id="ssLine" type="checkbox" data-bind="row.lineAbove" ${row.lineAbove ? 'checked' : ''}> Línea separadora encima</label></div>${cardSection()}`;
             } else if (isTitle) {
-                html += `<div class="ss-sec"><h3 class="ss-lbl">Línea ${zoneIndex(zone, 2) + 1} del encabezado</h3>${chipStripHTML(zone, cell)}${cellProps(cell, true)}</div>`;
+                html += `<div class="ss-sec"><h3 class="ss-lbl">Línea ${zoneIndex(zone, 2) + 1} del encabezado</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cellProps(cell, true)}</div>`;
             } else {
                 const i = zoneIndex(zone, 2);
                 const col = tpl().columns[i];
                 html += `<div class="ss-sec"><h3 class="ss-lbl">Columna ${i + 1}</h3>
                     <label class="ss-field">Encabezado<input id="ssHeader" class="ss-inp" data-bind="col.header" value="${esc(col.header)}" maxlength="60"></label>
-                    ${chipStripHTML(zone, cell)}
+                    ${chipStripHTML(zone, cell)}${quickToolsHTML()}
                     <div class="ss-grid2"><label class="ss-field">Ancho relativo<input id="ssWidth" class="ss-inp ss-num" type="number" min="0.2" max="10" step="0.1" data-bind="col.width" data-type="number" value="${esc(col.width)}"></label>
                     <label class="ss-check" style="align-self:end;min-height:34px"><input id="ssSum" type="checkbox" data-bind="col.sum" ${col.sum ? 'checked' : ''}> Sumar al pie</label></div>
                     <div class="ss-field">Bordes ${segHTML('col.border', col.border, [['all', 'Todos'], ['sign', 'Línea de firma'], ['none', 'Sin bordes']])}</div>
@@ -1171,6 +1278,13 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const type = typeOf(state.sheet);
             const list = state.store.templates.filter((t) => t.template.type === type);
             const cur = activeEntry();
+            if (state.showStarters) {
+                const type = typeOf(state.sheet);
+                return `<h3 class="ss-lbl">Nueva plantilla: elige un punto de partida</h3>
+                  <div class="ss-starters">${starterTemplates().filter((st) => st.type === type).map((st) =>
+                    `<button type="button" data-act="tpl-starter" data-v="${st.id}"><strong>${esc(st.name)}</strong><span>${esc(st.hint)}</span></button>`).join('')}</div>
+                  <div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="tpl-starter-cancel">Cancelar</button></div>`;
+            }
             return `<h3 class="ss-lbl">Plantillas · ${state.sheet === 'A' ? 'tarjeta del sobre' : 'hoja de firmas'}</h3>
               <div class="ss-menu">${list.map((t) => `<button type="button" data-act="tpl-use" data-v="${t.id}" class="${t.id === cur.id ? 'active' : ''}">${esc(t.name)}${t.id === cur.id ? ' <span>✓</span>' : ''}</button>`).join('')}</div>
               <label class="ss-field">Nombre de esta plantilla<input id="ssTplName" class="ss-inp" data-bind="tplname" value="${esc(cur.name)}" maxlength="80"></label>
@@ -1198,7 +1312,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                        <label class="ss-field">Alto (mm)<input id="ssCH" class="ss-inp ss-num" type="number" min="15" max="300" data-bind="lay.cardHeight" data-type="number" value="${esc(L.cardHeight || 55)}"></label>`}
                     <label class="ss-field">Margen (mm)<input id="ssMargin" class="ss-inp ss-num" type="number" min="0" max="40" data-bind="lay.margin" data-type="number" value="${esc(L.margin)}"></label>
                     <label class="ss-field">Separación (mm)<input id="ssGap" class="ss-inp ss-num" type="number" min="0" max="20" data-bind="lay.gap" data-type="number" value="${esc(L.gap)}"></label></div>
-                  <label class="ss-check"><input id="ssCut" type="checkbox" data-bind="lay.cutMarks" ${L.cutMarks ? 'checked' : ''}> Líneas de corte punteadas</label>`;
+                  <label class="ss-check"><input id="ssCut" type="checkbox" data-bind="lay.cutMarks" ${L.cutMarks ? 'checked' : ''}> Líneas de corte punteadas</label>
+                  <div class="ss-grid2"><label class="ss-field">Letra base (pt)<input id="ssFont" class="ss-inp ss-num" type="number" min="5" max="14" step="0.25" data-bind="lay.fontSize" data-type="number" value="${esc(cardFontPt(t))}"></label>
+                    <button class="ss-btn sm" type="button" data-act="font-fit" style="align-self:end;min-height:34px" title="Busca la letra más grande con la que todo cabe en cada tarjeta">Ajustar al tamaño</button></div>`;
             } else {
                 html += `<div class="ss-grid2"><label class="ss-field">Margen (mm)<input id="ssMargin" class="ss-inp ss-num" type="number" min="0" max="40" data-bind="lay.margin" data-type="number" value="${esc(L.margin)}"></label>
                   <label class="ss-field">Alto de fila (mm)<input id="ssRowH" class="ss-inp ss-num" type="number" min="6" max="30" step="0.5" data-bind="opt.rowHeight" data-type="number" value="${esc(t.options.rowHeight)}"></label></div>
@@ -1492,6 +1608,18 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             redo: () => doUndo(1),
             'print-step': () => { state.printing = true; state.pop = null; touch(); },
             'print-back': () => { state.printing = false; touch(); },
+            'quick-chip': (v) => {
+                if (!state.sel || !state.sel.zone) return toast('Primero haz clic en una celda');
+                insertChip(state.sel.zone, TOOLS[+v].chip, state.sel.ci != null ? state.sel.ci + 1 : null);
+                touch(EDIT + ' palette');
+            },
+            'font-fit': () => {
+                const pt = autoFitFont();
+                commit();
+                tpl().layout.fontSize = pt;
+                touch();
+                toast(`Letra ajustada a ${pt} pt para que todo quepa`, true);
+            },
             'drift-ok': () => { delete state.store.printed[state.sheet]; state.pop = null; touch(); },
             breakdown: (total) => {
                 const prefix = TOTAL_PREFIX[total];
@@ -1521,8 +1649,14 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             'chip-del': () => { commit(); const [gone] = selCell().chips.splice(state.sel.ci, 1); state.sel.ci = null; state.pop = null; touch(EDIT); toast(`Se quitó “${chipLabel(gone)}”`, true); },
             'logo-del': () => { state.store.logo = null; touch('canvas layer'); },
             'tpl-use': (v) => { state.store.active[state.sheet] = v; state.sel = null; state.pop = null; state.confirmDelete = false; touch(); },
-            'tpl-new': () => {
-                const entry = { id: newId(), name: state.sheet === 'A' ? 'Nueva tarjeta' : 'Nueva hoja de firmas', template: state.sheet === 'A' ? defaultCardTemplate() : defaultTableTemplate() };
+            'tpl-new': () => { state.showStarters = true; touch('layer'); },
+            'tpl-starter-cancel': () => { state.showStarters = false; touch('layer'); },
+            'tpl-starter': (id) => {
+                const st = starterTemplates().find((x) => x.id === id);
+                if (!st) return;
+                const template = st.build(fieldSet.listConcepts().map((c) => c.key));
+                const entry = { id: newId(), name: st.name, template };
+                state.showStarters = false;
                 state.store.templates.push(entry); state.store.active[state.sheet] = entry.id; state.sel = null; state.pop = { type: 'tpl' }; touch();
                 const inp = $('#ssTplName'); if (inp) { inp.focus(); inp.select(); }
             },
@@ -1618,6 +1752,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     const same = state.pop && state.pop.type === type && state.pop.v === v;
                     state.confirmDelete = false;
                     state.pop = same ? null : { type, v };
+                    state.showStarters = false;
                     if (type === 'row' && !same) select(`A:${v}:0`);
                     if (type === 'title' && !same) select(`B:title:${v}`);
                     return touch(type === 'row' || type === 'title' ? 'canvas insp layer' : 'layer');
@@ -1881,6 +2016,10 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         resizeColumns,
         columnTotals,
         cardTotals,
+        starterTemplates,
+        cardFontPt,
+        cellFontPt,
+        fitFontSize,
         doubleCounted,
         breakDownRow,
         printSignatures,
