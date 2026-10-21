@@ -89,6 +89,10 @@
 
     const FOOTER_PAGES = ['all', 'first', 'last', 'none'];
     const SIGN_LINES = ['low', 'middle', 'divider'];
+    const LOGO_STYLES = { color: 'none', bw: 'grayscale(1) contrast(1.2)', invert: 'grayscale(1) contrast(1.2) invert(1)' };
+
+    /** Filtro CSS del logo: a color, blanco y negro o blanco y negro invertido. */
+    const logoFilter = (style) => LOGO_STYLES[style] || 'none';
     const TOTALS_MM = 8;
     const FOOTER_MM = 18;
 
@@ -102,6 +106,7 @@
             signatures: FOOTER_PAGES.includes(sig) ? sig : 'all',
             signLabels: labels || ['Entregado por', 'Revisado por'],
             signLine: SIGN_LINES.includes(src.signLine) ? src.signLine : 'low',
+            logoStyle: Object.prototype.hasOwnProperty.call(LOGO_STYLES, src.logoStyle) ? src.logoStyle : 'color',
             rowHeight: typeof src.rowHeight === 'number' && src.rowHeight > 0 ? src.rowHeight : 11
         };
     };
@@ -473,6 +478,20 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .ss-rz:hover, .ss-rz.on { background:rgba(37,99,235,.35); }
 .ss-rz.corner { top:auto; right:0; bottom:0; width:14px; height:14px; cursor:nwse-resize; background:linear-gradient(135deg, transparent 50%, rgba(37,99,235,.6) 50%); border-radius:0 0 3px 0; }
 .ss-resizing, .ss-resizing * { cursor:inherit !important; user-select:none; }
+.ss-ruler { position:relative; display:flex; height:14px; margin-bottom:2px; border-bottom:1px solid var(--paper-line); font-size:9px; color:#94a3b8; font-family:Inter,system-ui,sans-serif; }
+.ss-ruler span:not(.ss-rz) { text-align:center; line-height:13px; border-right:1px dotted var(--paper-line); }
+.ss-ruler .ss-rz { height:100%; background:rgba(37,99,235,.25); width:6px; transform:translateX(-3px); }
+.ss-ruler .ss-rz:hover { background:rgba(37,99,235,.6); }
+.ss-cardedit.formulas .ss-erow { align-items:stretch; padding:4px 0; border-bottom:1px solid var(--paper-line); border-radius:0; }
+.ss-cardedit.formulas .ss-erow.alt { background:rgba(148,163,184,.10); }
+.ss-cardedit.formulas .ss-erow.line { border-top:2px solid var(--ink-strong); }
+.ss-cardedit.formulas .ss-cell { outline:1px dashed var(--paper-line); padding:3px; }
+.ss-sheetedit.formulas table.ss-sig { table-layout:auto; }
+.ss-sheetedit.formulas table.ss-sig td { overflow:visible; vertical-align:top; min-width:5em; }
+.ss-sheetedit.formulas .ss-cell .ss-chip { white-space:nowrap; overflow-wrap:normal; }
+.ss-sheetedit .ss-cell .ss-chip { white-space:normal; overflow-wrap:anywhere; max-width:100%; min-width:0; }
+.ss-titlewrap { display:flex; gap:12px; align-items:center; } .ss-titlewrap > div { flex:1; min-width:0; } .ss-titlewrap img { object-fit:contain; flex:none; }
+.ss-logoprev { display:flex; gap:10px; align-items:center; } .ss-logoprev img { width:48px; height:48px; object-fit:contain; border:1px solid var(--border); border-radius:6px; background:#fff; }
 .ss-colsum { display:flex; flex-direction:column; gap:2px; }
 .ss-colsum label { display:flex; gap:8px; align-items:center; font-size:13px; padding:3px 6px; border-radius:6px; }
 .ss-sig-head { display:flex; gap:1em; align-items:center; border-bottom:2px solid var(--ink-strong); padding-bottom:.6em; margin-bottom:.8em; }
@@ -531,7 +550,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             printing: false, printOpts: { mode: 'all', ids: [], copies: 1 }, query: '', open: Object.assign({}, DEFAULT_OPEN), confirmDelete: false
         };
         const histories = new Map();
-        let employees = []; let engine; let fieldSet; let palette = []; let drag = null; let bound = false; let lastCommit = { key: '', at: 0 };
+        let employees = []; let engine; let fieldSet; let palette = []; let drag = null; let rz = false; let bound = false; let lastCommit = { key: '', at: 0 };
 
         const $ = (sel) => rootEl.querySelector(sel);
 
@@ -621,17 +640,22 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             `<div class="ss-crow${r.row.lineAbove ? ' line' : ''}" style="grid-template-columns:${gridCols(cols)}">${r.cells.map((c) => outHTML(c, c.cell, k)).join('')}</div>`).join('');
         const cardStyle = (w, h, k) => `width:${w * k}px;height:${h * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px;`;
 
-        /** Asas sobre la primera tarjeta: bordes entre columnas y esquina para el tamaño. */
-        const cardGrips = (k) => {
-            const cols = tpl().columns;
+        /** Asas entre columnas de la tarjeta, sobre un contenedor del ancho del contenido. */
+        const colGrips = (cols) => {
             const sumW = cols.reduce((a, b) => a + b, 0);
             let acc = 0;
-            const lines = cols.slice(0, -1).map((w, i) => {
+            return cols.slice(0, -1).map((w, i) => {
                 acc += w;
-                return `<span class="ss-rz v" data-resize="ccol:${i}" style="left:calc(${3 * k}px + (100% - ${6 * k}px) * ${acc / sumW})" title="Arrastra para cambiar el ancho de la columna"></span>`;
+                return `<span class="ss-rz v" data-resize="ccol:${i}" style="left:${(acc / sumW) * 100}%" title="Arrastra para cambiar el ancho de la columna"></span>`;
             }).join('');
-            return `<div class="ss-grips">${lines}<span class="ss-rz corner" data-resize="card" title="Arrastra para cambiar el tamaño de la tarjeta"></span></div>`;
         };
+        /** Regla sobre la tarjeta del editor: muestra las columnas y deja cambiar su ancho. */
+        const rulerHTML = (cols) => (cols.length > 1
+            ? `<div class="ss-ruler ss-rzhost">${cols.map((w) => `<span style="flex:${w}">${Math.round((w / cols.reduce((a, b) => a + b, 0)) * 100)}%</span>`).join('')}${colGrips(cols)}</div>`
+            : '');
+        /** Asas sobre la primera tarjeta de la vista previa: columnas y esquina para el tamaño. */
+        const cardGrips = (k) => `<div class="ss-grips"><div class="ss-rzhost" style="position:absolute;top:0;bottom:0;left:${3 * k}px;right:${3 * k}px">${colGrips(tpl().columns)}</div>
+            <span class="ss-rz corner" data-resize="card" title="Arrastra para cambiar el tamaño de la tarjeta"></span></div>`;
 
         const tableHTML = (t, items, k, withTotals, total, page) => {
             const sumW = t.columns.reduce((s, c) => s + (c.width || 1), 0);
@@ -691,7 +715,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             return pages.map((rows, p) => `
                 <div class="ss-page" style="width:${g.pageWidth * k}px;height:${g.pageHeight * k}px;padding:${g.margin * k}px;display:flex;flex-direction:column;font-size:${9 * PT_MM * k}px">
                   <div class="ss-sig-head">
-                    ${state.store.logo ? `<img src="${state.store.logo}" alt="Logo" style="width:${18 * k}px;height:${18 * k}px">` : ''}
+                    ${state.store.logo ? `<img src="${state.store.logo}" alt="Logo" style="width:${18 * k}px;height:${18 * k}px;filter:${logoFilter(o.logoStyle)}">` : ''}
                     <div style="flex:1;display:flex;flex-direction:column;gap:${0.6 * k}px">${titleRes.map((r) => `<div style="display:grid">${outHTML(r.cells[0], r.cells[0].cell, k)}</div>`).join('')}</div>
                     <div style="color:#64748b;text-align:right">Hoja ${p + 1} de ${pages.length}</div>
                   </div>
@@ -788,7 +812,10 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const inner = showChips
                 ? (cell.chips.map((c, i) => chipHTML(c, zone, i)).join('') || '<span class="empty">vacía</span>')
                 : (cell.chips.length ? outHTML(res, cell, k) : empty);
-            return `<div class="ss-cell${isSel && state.sel.ci == null ? ' sel' : ''}${showChips ? ' chipview' : ''}" data-zone="${zone}" tabindex="0" role="button" aria-label="Celda">${inner}</div>`;
+            // En la vista de fórmulas los chips siguen la alineación de la celda, como el resultado impreso.
+            const align = cell.align || (cell.mode === 'number' ? 'right' : 'left');
+            const justify = showChips ? `justify-content:${{ left: 'flex-start', center: 'center', right: 'flex-end' }[align]}` : '';
+            return `<div class="ss-cell${isSel && state.sel.ci == null ? ' sel' : ''}${showChips ? ' chipview' : ''}" data-zone="${zone}" tabindex="0" role="button" aria-label="Celda" style="${justify}">${inner}</div>`;
         };
 
         const renderCanvas = () => {
@@ -811,7 +838,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const rowSel = state.sel && state.sel.zone.startsWith('A:') ? zoneIndex(state.sel.zone, 1) : -1;
                 const rows = t.rows.map((row, r) => `
                     <div class="ss-insert" data-insert="${r}"></div>
-                    <div class="ss-erow${row.lineAbove ? ' line' : ''}${res[r].hidden && !state.formulas ? ' ghost' : ''}${rowSel === r ? ' row-sel' : ''}" data-row="${r}" style="grid-template-columns:${gridCols(t.columns)}">
+                    <div class="ss-erow${row.lineAbove ? ' line' : ''}${r % 2 ? ' alt' : ''}${res[r].hidden && !state.formulas ? ' ghost' : ''}${rowSel === r ? ' row-sel' : ''}" data-row="${r}" style="grid-template-columns:${gridCols(t.columns)}">
                       <span class="ss-handle" draggable="true" data-rowdrag="${r}" title="Arrastra para mover la fila" aria-hidden="true">⋮⋮</span>
                       ${row.cells.map((cell, c) => cellHTML(`A:${r}:${c}`, cell, res[r].cells[c], k)).join('')}
                       <button class="ss-rowmenu" type="button" data-pop="row" data-v="${r}" id="ssRowMenu${r}" aria-label="Opciones de la fila ${r + 1}">⋯</button>
@@ -819,9 +846,10 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     </div>`).join('');
                 el.innerHTML = `${tools}
                   <div class="ss-stage" data-stage="end">
-                    <div class="ss-paper ss-cardedit${state.store.colors ? '' : ' mono-ink'}" id="ssCardEdit" style="width:${lay.cardWidth * k}px;min-height:${lay.cardHeight * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px">
+                    <div class="ss-paper ss-cardedit${state.formulas ? ' formulas' : ''}${state.store.colors ? '' : ' mono-ink'}" id="ssCardEdit" style="width:${state.formulas ? Math.max(lay.cardWidth * k, Math.min(avail, 760)) : lay.cardWidth * k}px;min-height:${state.formulas ? 0 : lay.cardHeight * k}px;padding:${2.5 * k}px ${3 * k}px;font-size:${8.5 * PT_MM * k}px;gap:${0.6 * k}px">
+                      ${rulerHTML(t.columns)}
                       ${rows}<div class="ss-insert" data-insert="${t.rows.length}"></div>
-                      <div class="ss-limit" style="top:${lay.cardHeight * k}px"><span>límite de la tarjeta</span></div>
+                      ${state.formulas ? '' : `<div class="ss-limit" style="top:${lay.cardHeight * k}px"><span>límite de la tarjeta</span></div>`}
                     </div>
                     <div class="ss-dropzone" data-insert="end">
                       <span>Suelta aquí un campo para agregar su fila “Concepto | Monto”</span>
@@ -834,7 +862,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     const card = $('#ssCardEdit'); const warn = $('#ssCanvasWarn');
                     const rowEls = card ? card.querySelectorAll('.ss-erow:not(.ghost)') : [];
                     const last = rowEls[rowEls.length - 1];
-                    const overflow = !!last && last.offsetTop + last.offsetHeight > (lay.cardHeight - 2.5) * k + 1;
+                    const overflow = !state.formulas && !!last && last.offsetTop + last.offsetHeight > (lay.cardHeight - 2.5) * k + 1;
                     if (card && warn) warn.innerHTML = overflow ? '<p class="ss-warn">El contenido pasa del límite de la tarjeta: quita filas, reduce la letra o agranda la tarjeta en la barra “Hoja”.</p>' : '';
                 });
             } else {
@@ -849,7 +877,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     <button class="ss-rowmenu" type="button" data-pop="title" data-v="${i}" id="ssTitleMenu${i}" aria-label="Opciones de la línea ${i + 1}">⋯</button></div>`).join('');
                 const sumW = t.columns.reduce((s, c) => s + (c.width || 1), 0);
                 const cells = t.columns.map((c) => c.cell);
-                const head = `<thead><tr>${t.columns.map((c, i) => `<th class="${c.border === 'none' ? 'b-none' : 'b-all'}${colSel === i ? ' col-sel' : ''}" draggable="true" data-coldrag="${i}" data-colpick="B:col:${i}" style="text-align:${c.cell.align || (c.cell.mode === 'number' ? 'right' : 'left')}" title="Clic para editar · arrastra para mover">${esc(c.header) || '<span style="opacity:.5">(sin título)</span>'}</th>`).join('')}</tr></thead>`;
+                const grip = (i) => (i < t.columns.length - 1 ? `<span class="ss-rz" draggable="false" data-resize="tcol:${i}" title="Arrastra para cambiar el ancho"></span>` : '');
+                const head = `<thead><tr>${t.columns.map((c, i) => `<th class="${c.border === 'none' ? 'b-none' : 'b-all'}${colSel === i ? ' col-sel' : ''}" draggable="true" data-coldrag="${i}" data-colpick="B:col:${i}" style="text-align:${c.cell.align || (c.cell.mode === 'number' ? 'right' : 'left')}" title="Clic para editar · arrastra para mover">${esc(c.header) || '<span style="opacity:.5">(sin título)</span>'}${grip(i)}</th>`).join('')}</tr></thead>`;
                 const sample = state.formulas ? first.slice(0, 1) : first.slice(0, 5);
                 const body = sample.map(({ record, ctx: cx }, ri) => {
                     const res = engine.evaluateRows([{ cells }], record, cx)[0].cells;
@@ -862,8 +891,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 }).join('');
                 el.innerHTML = `${tools}
                   <div class="ss-stage">
-                    <div class="ss-paper ss-sheetedit${state.store.colors ? '' : ' mono-ink'}" style="width:${g.pageWidth * k}px;font-size:${9 * PT_MM * k}px">
-                      <div class="ss-titles">${titles}
+                    <div class="ss-paper ss-sheetedit${state.formulas ? ' formulas' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${state.formulas ? 'min-width' : 'width'}:${g.pageWidth * k}px;font-size:${9 * PT_MM * k}px">
+                      <div class="ss-titles"><div class="ss-titlewrap">${state.store.logo ? `<img src="${state.store.logo}" alt="Logo" style="width:${18 * k}px;height:${18 * k}px;filter:${logoFilter(tableOptions(t.options).logoStyle)}">` : ''}<div>${titles}</div></div>
                         <div class="ss-dropzone" data-insert-title="end" style="margin-top:4px;padding:6px">Suelta un campo aquí para agregar una línea al encabezado <button class="ss-btn sm" type="button" data-act="add-title">+ Línea</button></div>
                       </div>
                       <div class="ss-sigedit"><table class="ss-sig"><colgroup>${t.columns.map((c) => `<col style="width:${((c.width || 1) / sumW) * 100}%">`).join('')}</colgroup>${head}<tbody>${body}</tbody></table>
@@ -1029,7 +1058,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 html += `<div class="ss-grid2"><label class="ss-field">Margen (mm)<input id="ssMargin" class="ss-inp ss-num" type="number" min="0" max="40" data-bind="lay.margin" data-type="number" value="${esc(L.margin)}"></label>
                   <label class="ss-field">Alto de fila (mm)<input id="ssRowH" class="ss-inp ss-num" type="number" min="6" max="30" step="0.5" data-bind="opt.rowHeight" data-type="number" value="${esc(t.options.rowHeight)}"></label></div>
                   <label class="ss-field">Logo (imagen)<input id="ssLogo" class="ss-inp" type="file" accept="image/*" data-act-change="logo"></label>
-                  ${state.store.logo ? '<button class="ss-btn sm" type="button" data-act="logo-del">Quitar logo</button>' : ''}`;
+                  ${state.store.logo ? `<div class="ss-field">Logo ${segHTML('opt.logoStyle', tableOptions(t.options).logoStyle, [['color', 'A color'], ['bw', 'Blanco y negro'], ['invert', 'Invertido']])}</div>
+                    <div class="ss-logoprev"><img src="${state.store.logo}" alt="Logo" style="filter:${logoFilter(tableOptions(t.options).logoStyle)}">
+                    <button class="ss-btn sm" type="button" data-act="logo-del">Quitar logo</button></div>` : ''}`;
             }
             html += `<div class="ss-grid2"><label class="ss-field">Ordenar por${selectHTML('ssSort', 'sort.field', (t.sortBy || {}).field || 'no', SORTS)}</label>
               <div class="ss-field">Sentido ${segHTML('sort.dir', (t.sortBy || {}).dir || 'asc', [['asc', '↑'], ['desc', '↓']])}</div></div>`;
@@ -1242,7 +1273,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     commit(`opt:${key}`);
                     if (key === 'signLabels') t.options.signLabels = String(value).split(',').map((x) => x.trim()).filter(Boolean);
                     else t.options[key] = key === 'rowHeight' ? Math.max(6, value || 11) : value;
-                    return 'bar canvas pagebar' + (key === 'totals' || key === 'signatures' ? ' insp' : '');
+                    return 'bar canvas pagebar' + (key === 'totals' || key === 'signatures' ? ' insp' : '') + (key === 'logoStyle' ? ' layer' : '');
                 case 'colsum':
                     commit(`colsum:${key}`);
                     t.columns[+key].sum = !!value;
@@ -1461,12 +1492,13 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 e.preventDefault();
                 const [kind, idx] = h.dataset.resize.split(':');
                 const t = tpl();
-                const host = kind === 'tcol' ? h.closest('table') : h.closest('.ss-card');
+                const host = kind === 'tcol' ? h.closest('table') : kind === 'ccol' ? h.closest('.ss-rzhost') : h.closest('.ss-card');
                 if (!host) return;
                 commit();
                 const boxW = host.getBoundingClientRect().width;
                 const lay = SB.computeLayout(t.layout);
                 const k = boxW / lay.cardWidth;
+                const redraw = () => (state.printing ? renderPrintDesk() : renderCanvas());
                 const start = { x: e.clientX, y: e.clientY, widths: kind === 'tcol' ? t.columns.map((c) => c.width || 1) : t.columns.slice(), w: lay.cardWidth, h: lay.cardHeight };
                 const sumW = start.widths.reduce((a, b) => a + b, 0);
                 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(v)));
@@ -1478,22 +1510,24 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                         const w = resizeColumns(start.widths, +idx, (dx / boxW) * sumW);
                         t.columns.forEach((c, i) => { c.width = w[i]; });
                     } else if (kind === 'ccol') {
-                        t.columns = resizeColumns(start.widths, +idx, (dx / Math.max(1, boxW - 6 * k)) * sumW);
+                        t.columns = resizeColumns(start.widths, +idx, (dx / Math.max(1, boxW)) * sumW);
                     } else {
                         t.layout.mode = 'size';
                         t.layout.cardWidth = clamp(start.w + dx / k, 20, 300);
                         t.layout.cardHeight = clamp(start.h + dy / k, 15, 300);
                     }
-                    if (!raf) raf = requestAnimationFrame(() => { raf = 0; renderPrintDesk(); });
+                    if (!raf) raf = requestAnimationFrame(() => { raf = 0; redraw(); });
                 };
                 const up = () => {
                     document.removeEventListener('pointermove', move);
                     document.removeEventListener('pointerup', up);
+                    rz = false;
                     rootEl.classList.remove('ss-resizing');
                     rootEl.style.cursor = '';
                     cancelAnimationFrame(raf);
-                    touch('bar print');
+                    touch(state.printing ? 'bar print' : 'bar canvas insp');
                 };
+                rz = true;
                 rootEl.classList.add('ss-resizing');
                 rootEl.style.cursor = getComputedStyle(h).cursor;
                 document.addEventListener('pointermove', move);
@@ -1549,6 +1583,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             // Arrastrar y soltar con el ratón
             rootEl.addEventListener('dragstart', (e) => {
                 const t = e.target;
+                if (rz) { e.preventDefault(); return; }
                 const pi = t.closest && t.closest('[data-pi]');
                 const ci = t.closest && t.closest('[data-ci]');
                 const rowH = t.closest && t.closest('[data-rowdrag]');
@@ -1676,6 +1711,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         tablePageGeometry,
         tablePageSizes,
         tableOptions,
+        logoFilter,
         footerOnPage,
         resizeColumns,
         columnTotals,
