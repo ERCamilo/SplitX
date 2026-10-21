@@ -108,6 +108,21 @@ describe('tableOptions', () => {
     });
 });
 
+describe('logo style', () => {
+    test('tableOptions keeps a valid logo style and defaults to color', () => {
+        assert.equal(SS.tableOptions({}).logoStyle, 'color');
+        assert.equal(SS.tableOptions({ logoStyle: 'bw' }).logoStyle, 'bw');
+        assert.equal(SS.tableOptions({ logoStyle: 'sepia' }).logoStyle, 'color');
+    });
+
+    test('logoFilter maps each style to a CSS filter', () => {
+        assert.equal(SS.logoFilter('color'), 'none');
+        assert.equal(SS.logoFilter('bw'), 'grayscale(1) contrast(1.2)');
+        assert.equal(SS.logoFilter('invert'), 'grayscale(1) contrast(1.2) invert(1)');
+        assert.equal(SS.logoFilter(undefined), 'none');
+    });
+});
+
 describe('tablePageSizes', () => {
     const fit = (over) => {
         const t = SS.defaultTableTemplate();
