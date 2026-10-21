@@ -443,6 +443,12 @@
         return out;
     };
 
+    /**
+     * Colores de dinero: los mismos tonos de SplitX (verde, rojo, ámbar) un poco más oscuros
+     * para que el texto blanco de los chips y los montos sobre papel blanco se lean bien (≥ 4.5:1).
+     */
+    const MONEY_COLORS = { bonus: '#047857', deduction: '#e11d48', loan: '#b45309' };
+
     // ─── Estilos (se inyectan una vez) ─────────────────────────────────────
     const CSS = `
 .ss { --bg:#f8fafc; --surface:#fff; --surface-2:#f1f5f9; --fg:#1e293b; --strong:#0f172a; --muted:#475569; --faint:#64748b;
@@ -457,7 +463,7 @@ html.dark .ss { --bg:#0b1120; --surface:#0f172a; --surface-2:#1e293b; --fg:#e2e8
   --field-bg:#172554; --field-fg:#bfdbfe; --field-bd:#1e40af; --text-bg:#1e293b; --text-fg:#e2e8f0; --text-bd:#64748b;
   --numchip-bg:#451a03; --numchip-fg:#fde68a; --numchip-bd:#92400e; --run-bg:#052e16; --run-fg:#bbf7d0; --run-bd:#166534;
   --sel:#60a5fa; --warn-bg:#451a03; --warn-fg:#fde68a; --warn-bd:#92400e; --err:#fb7185; --desk:#020617; color-scheme:dark; }
-.ss, #ss-print { --bonus:#059669; --deduction:#e11d48; --loan:#d97706; --solid-fg:#fff; --paper:#fff; --ink:#334155; --ink-strong:#0f172a; --paper-line:#94a3b8; }
+.ss, #ss-print { --bonus:${MONEY_COLORS.bonus}; --deduction:${MONEY_COLORS.deduction}; --loan:${MONEY_COLORS.loan}; --solid-fg:#fff; --paper:#fff; --ink:#334155; --ink-strong:#0f172a; --paper-line:#94a3b8; }
 .ss[hidden] { display:none !important; }
 .ss *, #ss-print * { box-sizing:border-box; }
 .ss button, .ss input, .ss select, .ss textarea { font:inherit; color:inherit; }
@@ -497,6 +503,10 @@ html.dark .ss { --bg:#0b1120; --surface:#0f172a; --surface-2:#1e293b; --fg:#e2e8
 .ss-check input { width:16px; height:16px; accent-color:var(--accent); }
 .ss-sec { display:flex; flex-direction:column; gap:10px; padding-top:12px; border-top:1px solid var(--border); }
 .ss-sec:first-child { border-top:0; padding-top:0; }
+.ss-sec > h3.ss-lbl[data-fold] { cursor:pointer; display:flex; align-items:center; gap:6px; user-select:none; }
+.ss-sec > h3.ss-lbl[data-fold]::before { content:'▾'; font-size:10px; transition:transform .12s; }
+.ss-sec.collapsed > h3.ss-lbl[data-fold]::before { transform:rotate(-90deg); }
+.ss-sec.collapsed > :not(h3) { display:none !important; }
 .ss-row-btns { display:flex; flex-wrap:wrap; gap:6px; }
 /* Paleta */
 .ss-search { position:sticky; top:-12px; background:var(--surface); padding:0 0 6px; z-index:1; }
@@ -646,6 +656,16 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .ss-starters button { text-align:left; border:1px solid var(--border); background:var(--surface); color:var(--fg); border-radius:9px; padding:8px 10px; display:flex; flex-direction:column; gap:2px; cursor:pointer; }
 .ss-starters button:hover { border-color:var(--accent); background:var(--accent-soft); }
 .ss-starters span { font-size:12px; color:var(--muted); }
+.ss-thumb { position:sticky; bottom:12px; margin:16px 0 0 auto; display:flex; flex-direction:column; align-items:center; gap:4px; border:1px solid var(--border); border-radius:10px; background:var(--surface); padding:8px; cursor:pointer; box-shadow:0 6px 18px rgba(15,23,42,.15); z-index:3; }
+.ss-thumb:hover { border-color:var(--accent); }
+.ss-thumb span { font-size:11px; color:var(--muted); }
+.ss-thumb-page { pointer-events:none; overflow:hidden; }
+.ss-thumb-page .ss-page { box-shadow:0 1px 4px rgba(15,23,42,.25); }
+.ss-tour { position:fixed; z-index:85; width:300px; background:var(--strong); color:var(--bg); border-radius:12px; padding:12px 14px; box-shadow:0 16px 40px rgba(15,23,42,.35); font-size:13px; display:flex; flex-direction:column; gap:6px; }
+.ss-tour p { margin:0; line-height:1.45; }
+.ss-tour .ss-kbd { color:inherit; opacity:.7; }
+.ss-tour .ss-btn.ghost { color:inherit; }
+.ss-tour-focus { outline:3px solid var(--accent) !important; outline-offset:3px; border-radius:8px; }
 .ss-quick { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
 .ss-quick .ss-chip { cursor:pointer; }
 .ss-alert ul { margin:2px 0 0 16px; padding:0; }
@@ -710,7 +730,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
         const state = {
             store: migrateStore(null), sheet: 'A', formulas: false, preview: 0, sel: null, pop: null, drawer: null,
-            printing: false, printOpts: { mode: 'all', ids: [], copies: 1 }, query: '', open: Object.assign({}, DEFAULT_OPEN), confirmDelete: false
+            printing: false, printOpts: { mode: 'all', ids: [], copies: 1 }, folded: {}, query: '', open: Object.assign({}, DEFAULT_OPEN), confirmDelete: false
         };
         const histories = new Map();
         let employees = []; let engine; let fieldSet; let palette = []; let drag = null; let rz = false; let bound = false; let lastCommit = { key: '', at: 0 };
@@ -785,6 +805,36 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const ok = card.scrollHeight <= card.clientHeight + 1;
             if (own) probe.remove();
             return ok;
+        };
+
+        // ─── Guía de primera vez ───────────────────────────────────────────
+        const TOUR = [
+            { at: '#ssPalette', title: '1 · Arrastra un dato', text: 'Arrastra un campo, por ejemplo “Bonificaciones”, sobre la tarjeta: se crea la fila con su nombre, su monto y el signo según su color.' },
+            { at: '#ssCanvas .ss-paper', title: '2 · Revisa con datos reales', text: 'La tarjeta muestra un empleado de verdad. Cámbialo con ‹ ›, usa “Ver fórmulas” para ver los chips y haz clic en una celda para editarla.' },
+            { at: '[data-act="print-step"]', title: '3 · Imprime', text: 'En “Imprimir…” eliges a quién, compruebas que cada sobre cuadre con SplitX y ajustas tamaños arrastrando en la vista previa.' }
+        ];
+        const renderTour = () => {
+            const host = $('#ssTour');
+            rootEl.querySelectorAll('.ss-tour-focus').forEach((x) => x.classList.remove('ss-tour-focus'));
+            if (!host) return;
+            const step = state.tour != null && !state.printing ? TOUR[state.tour] : null;
+            const anchor = step && $(step.at);
+            if (!anchor) { host.innerHTML = ''; return; }
+            anchor.classList.add('ss-tour-focus');
+            const last = state.tour === TOUR.length - 1;
+            host.innerHTML = `<div class="ss-tour" role="dialog" aria-label="Guía rápida"><strong>${esc(step.title)}</strong><p>${esc(step.text)}</p>
+                <div class="ss-row-btns"><span class="ss-kbd">${state.tour + 1} de ${TOUR.length}</span><div class="ss-grow"></div>
+                <button class="ss-btn sm ghost" type="button" data-act="tour-end">Saltar</button>
+                <button class="ss-btn sm primary" type="button" data-act="${last ? 'tour-end' : 'tour-next'}">${last ? 'Listo' : 'Siguiente →'}</button></div></div>`;
+            const box = host.firstElementChild;
+            const a = anchor.getBoundingClientRect();
+            const bw = box.offsetWidth; const bh = box.offsetHeight;
+            const vw = window.innerWidth; const vh = window.innerHeight;
+            let left = a.right + 12; let top = a.top + 12;
+            if (left + bw > vw - 8) { left = Math.max(8, Math.min(a.left, vw - bw - 8)); top = a.bottom + 10; }
+            if (top + bh > vh - 8) top = Math.max(8, a.top - bh - 10);
+            box.style.left = `${left}px`;
+            box.style.top = `${top}px`;
         };
 
         // ─── Verificaciones de dinero ──────────────────────────────────────
@@ -983,12 +1033,13 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 <main class="ss-col" id="ssCanvasCol"><div class="ss-canvas" id="ssCanvas"></div></main>
                 <aside class="ss-col ss-inspector" id="ssInspector" aria-label="Propiedades"></aside>
               </div>`}
-              <div id="ssLayer"></div><div id="ssDrawer"></div><div id="ssToast"></div>
+              <div id="ssLayer"></div><div id="ssDrawer"></div><div id="ssToast"></div><div id="ssTour"></div>
               <div class="ss-trash" aria-hidden="true">Suelta para quitar el chip</div>`;
             renderBar();
             if (state.printing) renderPrintStep();
             else { renderPageBar(); renderPalette(); renderCanvas(); renderInspector(); }
             renderLayer();
+            renderTour();
         };
 
         const renderBar = () => {
@@ -1008,6 +1059,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                    <div class="ss-grow"></div>
                    <button class="ss-btn ghost" type="button" data-act="undo" ${h.canUndo() ? '' : 'disabled'} title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
                    <button class="ss-btn ghost" type="button" data-act="redo" ${h.canRedo() ? '' : 'disabled'} title="Rehacer (Ctrl+Y)">↷ Rehacer</button>
+                   <button class="ss-btn ghost" type="button" data-act="tour" title="Guía rápida" aria-label="Guía rápida">?</button>
                    <button class="ss-btn primary" type="button" data-act="print-step">Imprimir…</button>
                    <button class="ss-btn ghost" type="button" data-act="close" aria-label="Cerrar hojas imprimibles">Cerrar ✕</button>`;
         };
@@ -1063,7 +1115,33 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             return `<div class="ss-cell${isSel && state.sel.ci == null ? ' sel' : ''}${showChips ? ' chipview' : ''}" data-zone="${zone}" tabindex="0" role="button" aria-label="Celda" style="${justify}">${inner}</div>`;
         };
 
+        /** Miniatura de la primera hoja en la esquina del lienzo: un clic lleva a Imprimir. */
+        const renderThumb = () => {
+            const el = $('#ssCanvas');
+            if (!el || !employees.length) return;
+            const L = tpl().layout;
+            const [w, h] = SB.PAPER_SIZES[L.paper] || SB.PAPER_SIZES.letter;
+            const [pw, ph] = L.orientation === 'landscape' ? [h, w] : [w, h];
+            // Se dibuja a buen tamaño y se reduce con transform: el navegador no achica bien letras diminutas.
+            const k = PRINT_K;
+            const scale = 150 / (pw * k);
+            const box = document.createElement('div');
+            box.innerHTML = pagesHTML(k, true);
+            const pages = box.querySelectorAll('.ss-page');
+            pages.forEach((pg, i) => { if (i) pg.remove(); });
+            const thumb = document.createElement('button');
+            thumb.type = 'button';
+            thumb.className = 'ss-thumb';
+            thumb.dataset.act = 'print-step';
+            thumb.title = 'Ver la hoja completa e imprimir';
+            thumb.innerHTML = `<div class="ss-thumb-page" style="width:${pw * k * scale}px;height:${ph * k * scale}px"><div style="transform:scale(${scale});transform-origin:0 0">${box.innerHTML}</div></div><span>Hoja 1 de ${pages.length} · ${esc(pageSummary(tpl()).split(' · ').slice(-1)[0])}</span>`;
+            el.appendChild(thumb);
+        };
         const renderCanvas = () => {
+            renderCanvasBody();
+            renderThumb();
+        };
+        const renderCanvasBody = () => {
             const el = $('#ssCanvas');
             if (!el) return;
             const tools = `<div class="ss-tools">
@@ -1191,7 +1269,24 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             return html;
         };
 
+        /** Secciones plegables: un clic en el título las oculta; se recuerda por tipo de sección. */
+        const foldSections = (el) => {
+            if (!el) return;
+            el.querySelectorAll(':scope > .ss-sec > h3.ss-lbl:first-child').forEach((h) => {
+                const key = h.textContent.replace(/\d+/g, '#').trim();
+                h.dataset.fold = key;
+                h.tabIndex = 0;
+                h.setAttribute('role', 'button');
+                const closed = !!state.folded[key];
+                h.setAttribute('aria-expanded', String(!closed));
+                h.parentElement.classList.toggle('collapsed', closed);
+            });
+        };
         const renderInspector = () => {
+            renderInspectorBody();
+            foldSections($('#ssInspector'));
+        };
+        const renderInspectorBody = () => {
             const el = $('#ssInspector');
             if (!el) return;
             const cell = selCell();
@@ -1394,6 +1489,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 <p class="ss-hint">Se abre el diálogo de impresión: elige tu impresora o “Guardar como PDF”, con márgenes “Ninguno” y escala 100%.</p>
               </aside>
               <section class="ss-printpages" id="ssPrintPages"><div class="ss-desk" id="ssDesk"></div></section>`;
+            foldSections(el.querySelector('.ss-printside'));
             el.querySelector('.ss-printside').scrollTop = keepScroll;
             renderPrintDesk();
         };
@@ -1419,6 +1515,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (p.includes('pagebar')) renderPageBar();
             if (p.includes('palette')) renderPalette();
             if (p.includes('canvas')) renderCanvas();
+            if (state.tour != null && p.includes('canvas')) renderTour();
             if (p.includes('insp')) renderInspector();
             if (state.printing) {
                 // En el paso de impresión los cambios de plantilla se ven en la vista previa.
@@ -1620,6 +1717,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 touch();
                 toast(`Letra ajustada a ${pt} pt para que todo quepa`, true);
             },
+            tour: () => { state.tour = 0; state.pop = null; if (state.printing) { state.printing = false; touch(); } else renderTour(); renderLayer(); },
+            'tour-next': () => { state.tour += 1; renderTour(); },
+            'tour-end': () => { state.tour = null; state.store.tourDone = true; save(); renderTour(); },
             'drift-ok': () => { delete state.store.printed[state.sheet]; state.pop = null; touch(); },
             breakdown: (total) => {
                 const prefix = TOTAL_PREFIX[total];
@@ -1757,6 +1857,14 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     if (type === 'title' && !same) select(`B:title:${v}`);
                     return touch(type === 'row' || type === 'title' ? 'canvas insp layer' : 'layer');
                 }
+                const fold = t.closest('[data-fold]');
+                if (fold) {
+                    const key = fold.dataset.fold;
+                    state.folded[key] = !state.folded[key];
+                    fold.parentElement.classList.toggle('collapsed', state.folded[key]);
+                    fold.setAttribute('aria-expanded', String(!state.folded[key]));
+                    return;
+                }
                 const act = t.closest('[data-act]');
                 if (act && act.tagName !== 'INPUT') { const fn = actions[act.dataset.act]; if (fn && !act.disabled) { e.preventDefault(); fn(act.dataset.v); } return; }
                 const set = t.closest('[data-set]');
@@ -1838,7 +1946,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 if ((e.ctrlKey || e.metaKey) && !typing && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); return doUndo(e.shiftKey ? 1 : -1); }
                 if ((e.ctrlKey || e.metaKey) && !typing && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); return doUndo(1); }
                 if (!typing && (e.key === 'Delete' || e.key === 'Backspace') && selChip()) { e.preventDefault(); return actions['chip-del'](); }
-                if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-pi],[data-ci],[data-zone]')) { e.preventDefault(); e.target.click(); }
+                if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-pi],[data-ci],[data-zone],[data-fold]')) { e.preventDefault(); e.target.click(); }
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     if (state.drawer) actions['close-drawer']();
@@ -1988,6 +2096,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 document.body.style.overflow = 'hidden';
                 // Si esta hoja ya se imprimió antes, la plantilla está lista: se abre en "Imprimir".
                 state.printing = !!state.store.ready[state.sheet];
+                state.tour = !state.store.tourDone && !state.printing ? 0 : null;
                 renderShell();
                 const first = rootEl.querySelector('[data-act="close"]');
                 if (first) first.focus();
@@ -2025,6 +2134,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         printSignatures,
         snapshotDiff,
         printPageRule,
+        MONEY_COLORS,
         catOf,
         smartRowFor,
         smartColumnFor,

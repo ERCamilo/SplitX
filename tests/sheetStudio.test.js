@@ -321,6 +321,24 @@ describe('starter templates', () => {
     });
 });
 
+describe('money colors are readable', () => {
+    const lum = (hex) => {
+        const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+
+    test('white text on each solid chip and each color on white paper reach 4.5:1', () => {
+        for (const [name, color] of Object.entries(SS.MONEY_COLORS)) {
+            assert.ok(contrast(color, '#ffffff') >= 4.5, `${name} ${color} = ${contrast(color, '#ffffff').toFixed(2)}`);
+        }
+    });
+
+    test('the three colors keep the SplitX hues (green, red, amber)', () => {
+        assert.deepEqual(Object.keys(SS.MONEY_COLORS), ['bonus', 'deduction', 'loan']);
+    });
+});
+
 describe('columnTotals', () => {
     test('sums only the columns marked to sum', () => {
         const t = SS.defaultTableTemplate();
