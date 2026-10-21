@@ -4,7 +4,8 @@
   "description": "SplitX — Distribución y Denominación de Efectivo de Nómina",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "typecheck": "npx -y -p typescript@6.0.2 tsc -p jsconfig.json"
+    "typecheck": "npx -y -p typescript@6.0.2 tsc -p jsconfig.json",
+    "test:e2e": "node --test tests/e2e/*.e2e.js"
   },
   "keywords": [
     "payroll",
