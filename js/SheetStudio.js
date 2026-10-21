@@ -37,7 +37,8 @@
             { whenEmpty: 'hide', cells: [cT([F('discounts', 'label')]), cN([O('-'), F('discounts')])] },
             { whenEmpty: 'hide', cells: [cT([F('loans', 'label')]), cN([O('-'), F('loans')])] },
             { lineAbove: true, cells: [cT([T('Total a recibir')], { bold: true }), cN([RUN()], { bold: true })] },
-            { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] }
+            { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] },
+            { cells: [cT([T('Folio'), F('folio')], { size: 6.5 }), cT([])] }
         ],
         layout: { paper: 'letter', orientation: 'portrait', margin: 10, gap: 4, mode: 'grid', cols: 2, rows: 4, cutMarks: true },
         sortBy: { field: 'no', dir: 'asc' }
@@ -51,6 +52,7 @@
             cT([T('Período:'), F('period')], { size: 10 })
         ],
         columns: [
+            { header: 'Folio', width: 1, border: 'all', sum: false, cell: cT([F('folio')]) },
             { header: 'No.', width: 0.6, border: 'all', sum: false, cell: cT([F('no')]) },
             { header: 'Nombre', width: 2.2, border: 'all', sum: false, cell: cT([F('name')]) },
             { header: 'Días', width: 0.7, border: 'all', sum: true, cell: cN([F('days')]) },
@@ -224,6 +226,69 @@
         };
     };
 
+    // ─── Verificaciones de dinero (puras, probadas) ────────────────────────
+    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    const valueKeys = (cells) => cells.filter((c) => c && c.mode === 'number')
+        .flatMap((c) => c.chips.filter((ch) => ch.kind === 'field' && ch.as !== 'label').map((ch) => ch.key));
+    const templateCells = (t) => (t.type === 'table' ? t.columns.map((c) => c.cell) : t.rows.flatMap((r) => r.cells));
+
+    /**
+     * Total de cada tarjeta (la última celda con "total hasta ahora") frente al neto de SplitX.
+     * null si la tarjeta no tiene total que comparar.
+     */
+    const cardTotals = (engine, t, items, getNet) => {
+        let at = null;
+        t.rows.forEach((row, r) => row.cells.forEach((cell, c) => { if (cell.chips.some((ch) => ch.kind === 'running')) at = [r, c]; }));
+        if (!at) return null;
+        return items.map(({ record, ctx }) => {
+            const res = engine.evaluateRows(t.rows, record, ctx);
+            const card = round2(res[at[0]].cells[at[1]].value);
+            const net = round2(getNet(record));
+            const diff = round2(card - net);
+            return { record, card, net, diff, ok: Math.abs(diff) < 0.005 };
+        });
+    };
+
+    const TOTAL_PREFIX = { bonuses: 'bonus', discounts: 'deduction', loans: 'loan' };
+    /** Un total (Descuentos) junto a uno de sus conceptos (Descuento de ley) cuenta el mismo dinero dos veces. */
+    const doubleCounted = (t) => {
+        const keys = valueKeys(templateCells(t));
+        return Object.entries(TOTAL_PREFIX)
+            .filter(([total]) => keys.includes(total))
+            .map(([total, prefix]) => ({ total, concepts: [...new Set(keys.filter((k) => k.startsWith(prefix + ':')))] }))
+            .filter((x) => x.concepts.length);
+    };
+
+    /** Cambia la fila del total por una fila por concepto (sin repetir los que ya están). */
+    const breakDownRow = (t, total, conceptKeys, fieldDef) => {
+        const out = clone(t);
+        const at = out.rows.findIndex((r) => valueKeys(r.cells).includes(total));
+        if (at < 0) return out;
+        const present = new Set(valueKeys(templateCells(out)));
+        const rows = conceptKeys.filter((k) => !present.has(k)).map((k) => smartRowFor(k, fieldDef(k), out.columns.length));
+        out.rows.splice(at, 1, ...rows);
+        return out;
+    };
+
+    /** Huella de lo impreso por empleado: el texto de cada celda visible. */
+    const printSignatures = (engine, t, items, idOf) => {
+        const rows = t.type === 'table' ? [{ cells: t.columns.map((c) => c.cell) }] : t.rows;
+        const out = {};
+        for (const { record, ctx } of items) {
+            const sig = engine.evaluateRows(rows, record, ctx).filter((r) => !r.hidden).map((r) => r.cells.map((c) => c.text).join('\u241F')).join('\u241E');
+            out[idOf(record)] = { name: record.employeeName || record.name || '', sig };
+        }
+        return out;
+    };
+    const snapshotDiff = (before, now) => {
+        const changed = []; const missing = [];
+        for (const [id, b] of Object.entries(before)) {
+            if (!now[id]) missing.push(b.name);
+            else if (now[id].sig !== b.sig) changed.push(b.name);
+        }
+        return { changed, missing };
+    };
+
     const PAPER_NAMES = { letter: 'Carta', a4: 'A4', legal: 'Legal', 'half-letter': 'Media carta' };
     /** Resumen corto de la hoja para la barra de página. */
     const pageSummary = (t) => {
@@ -294,6 +359,20 @@
         if (typeof d.colors === 'boolean') out.colors = d.colors;
         if (typeof d.logo === 'string' && d.logo.startsWith('data:image/')) out.logo = d.logo;
         if (Array.isArray(d.recent)) out.recent = d.recent.filter((r) => typeof r === 'string').slice(0, 8);
+        const po = d.printOpts || {};
+        out.printOpts = {
+            mode: ['all', 'unpaid', 'loan', 'custom'].includes(po.mode) ? po.mode : 'all',
+            copies: [1, 2, 3].includes(po.copies) ? po.copies : 1,
+            ids: Array.isArray(po.ids) ? po.ids.slice(0, 2000) : []
+        };
+        out.printed = {};
+        for (const k of ['A', 'B']) {
+            const p = d.printed && d.printed[k];
+            if (p && typeof p === 'object' && typeof p.at === 'string' && p.template && p.sigs && typeof p.sigs === 'object') out.printed[k] = p;
+        }
+        out.tourDone = d.tourDone === true;
+        out.ready = { A: !!(d.ready && d.ready.A === true), B: !!(d.ready && d.ready.B === true) };
+        out.sheet = d.sheet === 'B' ? 'B' : 'A';
         return out;
     };
 
@@ -492,6 +571,15 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 .ss-sheetedit .ss-cell .ss-chip { white-space:normal; overflow-wrap:anywhere; max-width:100%; min-width:0; }
 .ss-titlewrap { display:flex; gap:12px; align-items:center; } .ss-titlewrap > div { flex:1; min-width:0; } .ss-titlewrap img { object-fit:contain; flex:none; }
 .ss-logoprev { display:flex; gap:10px; align-items:center; } .ss-logoprev img { width:48px; height:48px; object-fit:contain; border:1px solid var(--border); border-radius:6px; background:#fff; }
+.ss-alert { border-radius:8px; padding:8px 10px; font-size:12.5px; line-height:1.45; display:flex; flex-direction:column; gap:4px; border:1px solid; }
+.ss-hint.ss-bad { color:var(--err); font-weight:700; }
+.ss-alert ul { margin:2px 0 0 16px; padding:0; }
+.ss-alert.ok { background:rgba(5,150,105,.08); border-color:rgba(5,150,105,.35); color:var(--fg); }
+.ss-alert.warn { background:rgba(217,119,6,.10); border-color:rgba(217,119,6,.45); color:var(--fg); }
+.ss-alert.err { background:rgba(225,29,72,.08); border-color:rgba(225,29,72,.45); color:var(--fg); }
+.ss-alert + .ss-alert { margin-top:6px; }
+.ss-status.ok { color:#047857; border-color:rgba(5,150,105,.45); }
+.ss-status.warn { color:#b45309; border-color:rgba(217,119,6,.6); background:rgba(217,119,6,.08); font-weight:700; }
 .ss-colsum { display:flex; flex-direction:column; gap:2px; }
 .ss-colsum label { display:flex; gap:8px; align-items:center; font-size:13px; padding:3px 6px; border-radius:6px; }
 .ss-sig-head { display:flex; gap:1em; align-items:center; border-bottom:2px solid var(--ink-strong); padding-bottom:.6em; margin-bottom:.8em; }
@@ -519,7 +607,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
     const GROUPS = [
         ['Montos', ['gross', 'bonuses', 'discounts', 'afterDiscounts', 'net', 'dailyRate']],
         ['Préstamos y adelantos', ['loans', 'loanPrincipal', 'loanInterest', 'loanBalanceBefore', 'loanBalanceAfter']],
-        ['Empleado', ['no', 'name', 'firstName', 'position', 'leader']],
+        ['Empleado', ['no', 'folio', 'name', 'firstName', 'position', 'leader']],
         ['Días', ['days', 'daysRegular', 'daysOvertime', 'daysHoliday', 'daysRest']],
         ['Encabezado', ['company', 'payrollName', 'project', 'period', 'currency']]
     ];
@@ -564,6 +652,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             try { raw = JSON.parse(storage.get(STORE_KEY) || 'null'); } catch (e) { raw = null; }
             if (!raw) { try { raw = JSON.parse(storage.get(LEGACY_STORE_KEY) || 'null'); } catch (e) { raw = null; } }
             state.store = migrateStore(raw);
+            // La última selección de impresión y la hoja abierta se recuerdan entre sesiones.
+            state.printOpts = state.store.printOpts;
+            state.sheet = state.store.sheet;
         };
         const history = () => {
             const id = state.store.active[state.sheet];
@@ -591,6 +682,54 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
 
         const fieldDef = (key) => { try { return engine.requireField(key); } catch (e) { return null; } };
+
+        // ─── Verificaciones de dinero ──────────────────────────────────────
+        const netOf = (r) => (opts.getNetAmount ? opts.getNetAmount(r) : r.amount);
+        const uniqueById = (list) => list.filter((e, i) => list.findIndex((x) => x.id === e.id) === i);
+        const TOTAL_LABEL = { bonuses: 'Bonificaciones', discounts: 'Descuentos', loans: 'Préstamo/Adelanto' };
+        const fmt = (n) => engine.formatNumber(n, 2);
+        const moneyChecks = (list) => {
+            const t = tpl();
+            const out = { totals: null, bad: [], double: doubleCounted(t), drift: null };
+            if (state.sheet === 'A') {
+                out.totals = cardTotals(engine, t, sorted(uniqueById(list || employees), t.sortBy), netOf);
+                out.bad = out.totals ? out.totals.filter((x) => !x.ok) : [];
+            }
+            const snap = state.store.printed[state.sheet];
+            if (snap) {
+                try {
+                    const d = snapshotDiff(snap.sigs, printSignatures(engine, snap.template, sorted(employees, snap.template.sortBy), (e) => e.id));
+                    if (d.changed.length || d.missing.length) out.drift = Object.assign({ at: snap.at }, d);
+                } catch (e) { out.drift = null; }
+            }
+            out.warnings = out.bad.length + out.double.length + (out.drift ? 1 : 0);
+            return out;
+        };
+        const names = (list) => (list.length > 4 ? `${list.slice(0, 4).map(esc).join(', ')} y ${list.length - 4} más` : list.map(esc).join(', '));
+        const checksHTML = (c) => {
+            let html = '';
+            if (c.drift) {
+                const when = new Date(c.drift.at);
+                html += `<div class="ss-alert warn"><strong>Lo impreso el ${esc(when.toLocaleDateString())} a las ${esc(when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))} ya no coincide.</strong>
+                  ${c.drift.changed.length ? `<div>Cambió: ${names(c.drift.changed)}</div>` : ''}${c.drift.missing.length ? `<div>Ya no está: ${names(c.drift.missing)}</div>` : ''}
+                  <div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="drift-ok">Entendido</button></div></div>`;
+            }
+            for (const d of c.double) {
+                const concepts = d.concepts.map((k) => (fieldDef(k) || { label: k }).label);
+                html += `<div class="ss-alert warn"><strong>${esc(TOTAL_LABEL[d.total])} ya incluye ${names(concepts)}.</strong> Ese dinero se cuenta dos veces.
+                  ${state.sheet === 'A' ? `<div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="breakdown" data-v="${d.total}">Desglosar ${esc(TOTAL_LABEL[d.total])} por concepto</button></div>` : ''}</div>`;
+            }
+            if (state.sheet === 'A') {
+                if (!c.totals) html += '<p class="ss-hint">La tarjeta no tiene “Total hasta ahora”, así que no se puede comparar con SplitX.</p>';
+                else if (!c.bad.length) html += `<div class="ss-alert ok">✓ ${c.totals.length === 1 ? 'La tarjeta cuadra' : `Las ${c.totals.length} tarjetas cuadran`} con el monto que SplitX pone en el sobre.</div>`;
+                else {
+                    html += `<div class="ss-alert err"><strong>${c.bad.length} tarjeta${c.bad.length === 1 ? ' no cuadra' : 's no cuadran'} con SplitX:</strong>
+                      <ul>${c.bad.slice(0, 6).map((x) => `<li>${esc(x.record.employeeName || x.record.name)} — tarjeta ${esc(fmt(x.card))} · SplitX ${esc(fmt(x.net))}</li>`).join('')}</ul>
+                      ${c.bad.length > 6 ? `<div>y ${c.bad.length - 6} más</div>` : ''}</div>`;
+                }
+            }
+            return html;
+        };
         const chipClass = (chip) => (chip.kind === 'field' ? 'k-' + catOf(chip.key)
             : { op: 'k-op', paren: 'k-op', text: 'k-text', number: 'k-number', running: 'k-running' }[chip.kind]);
         const chipLabel = (chip) => {
@@ -752,7 +891,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (!el) return;
             const h = history();
             el.innerHTML = state.printing
-                ? `<button class="ss-btn" type="button" data-act="print-back">← Volver a editar</button>
+                ? `<button class="ss-btn" type="button" data-act="print-back">← Editar plantilla</button>
                    <span class="ss-title">Imprimir · ${esc(activeEntry().name)}</span><div class="ss-grow"></div>
                    <button class="ss-btn ghost" type="button" data-act="close">Cerrar ✕</button>`
                 : `<span class="ss-title">Hojas imprimibles</span>
@@ -773,6 +912,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (!el) return;
             el.innerHTML = `<span>Hoja:</span><button class="ss-btn sm" type="button" data-pop="page" id="ssPageBtn">${esc(pageSummary(tpl()))} ▾</button>
               <label class="ss-check" style="font-size:12px"><input id="ssColors" type="checkbox" data-bind="colors" ${state.store.colors ? 'checked' : ''}> Montos a color</label>
+              ${(() => { const c = moneyChecks(); return employees.length ? `<button class="ss-btn sm ss-status ${c.warnings ? 'warn' : 'ok'}" type="button" data-pop="checks" id="ssChecksBtn">${c.warnings ? `⚠ ${c.warnings} aviso${c.warnings === 1 ? '' : 's'}` : state.sheet === 'A' && c.totals ? '✓ Cuadra con SplitX' : '✓ Sin avisos'}</button>` : ''; })()}
               <div class="ss-grow"></div><span class="ss-kbd">Ctrl+Z deshacer · Supr quita el chip seleccionado · Esc cierra</span>`;
         };
 
@@ -857,7 +997,12 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                     </div>
                   </div><div id="ssCanvasWarn"></div>`;
                 const info = $('#ssCanvasInfo');
-                if (info) info.textContent = `Tarjeta de ${Math.round(lay.cardWidth)} × ${Math.round(lay.cardHeight)} mm`;
+                if (info) {
+                    const one = cardTotals(engine, t, [{ record: rec, ctx }], netOf);
+                    const check = !one ? '' : one[0].ok ? ' · ✓ cuadra con SplitX' : ` · ⚠ tarjeta ${fmt(one[0].card)} · SplitX ${fmt(one[0].net)}`;
+                    info.textContent = `Tarjeta de ${Math.round(lay.cardWidth)} × ${Math.round(lay.cardHeight)} mm${check}`;
+                    info.classList.toggle('ss-bad', !!one && !one[0].ok);
+                }
                 requestAnimationFrame(() => {
                     const card = $('#ssCardEdit'); const warn = $('#ssCanvasWarn');
                     const rowEls = card ? card.querySelectorAll('.ss-erow:not(.ghost)') : [];
@@ -1079,6 +1224,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             else if (p.type === 'title') { body = popTitle(p.v); anchor = $(`#ssTitleMenu${p.v}`); }
             else if (p.type === 'tpl') { body = popTpl(); anchor = $('#ssTplBtn'); }
             else if (p.type === 'page') { body = popPage(); anchor = $('#ssPageBtn'); }
+            else if (p.type === 'checks') { body = `<h3 class="ss-lbl">Verificación</h3>${checksHTML(moneyChecks())}`; anchor = $('#ssChecksBtn'); }
             if (!body || !anchor) { state.pop = null; host.innerHTML = ''; return; }
             host.innerHTML = `<div class="ss-pop" id="ssPop" role="dialog">${body}</div>`;
             const pop = $('#ssPop');
@@ -1114,7 +1260,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             const radio = (mode, label) => `<label class="ss-radio${o.mode === mode ? ' on' : ''}"><input type="radio" name="ssWho" data-bind="print.mode" value="${mode}" ${o.mode === mode ? 'checked' : ''}> ${label}<span class="n">${count(mode)}</span></label>`;
             const list = printList();
             const keepScroll = el.querySelector('.ss-printside') ? el.querySelector('.ss-printside').scrollTop : 0;
+            const checks = checksHTML(moneyChecks(list));
             el.innerHTML = `<aside class="ss-printside">
+                ${checks ? `<div class="ss-sec"><h3 class="ss-lbl">Verificación</h3>${checks}</div>` : ''}
                 <div class="ss-sec"><h3 class="ss-lbl">¿A quién?</h3>
                   ${radio('all', 'Todos los empleados')}${radio('unpaid', 'Solo los no pagados')}${radio('loan', 'Solo con préstamo o adelanto')}${radio('custom', 'Elegir…')}
                   ${o.mode === 'custom' ? `<div class="ss-row-btns"><button class="ss-btn sm" type="button" data-act="pick-all">Todos</button><button class="ss-btn sm" type="button" data-act="pick-none">Ninguno</button></div>
@@ -1317,7 +1465,12 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (!rule) { rule = document.createElement('style'); rule.id = 'ss-page-rule'; document.head.appendChild(rule); }
             const L = tpl().layout;
             rule.textContent = `@media print { ${printPageRule(L.paper, L.orientation)} }`;
-            const done = () => { document.body.classList.remove('ss-printing'); host.innerHTML = ''; window.removeEventListener('afterprint', done); };
+            // Copia de lo impreso: si luego cambian los datos, se avisa que el papel ya no coincide.
+            const t = tpl();
+            state.store.printed[state.sheet] = { at: new Date().toISOString(), template: clone(t), sigs: printSignatures(engine, t, sorted(uniqueById(printList()), t.sortBy), (e) => e.id) };
+            state.store.ready[state.sheet] = true;
+            save();
+            const done = () => { document.body.classList.remove('ss-printing'); host.innerHTML = ''; window.removeEventListener('afterprint', done); touch(); };
             window.addEventListener('afterprint', done);
             document.body.classList.add('ss-printing');
             window.print();
@@ -1333,12 +1486,22 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
 
         const actions = {
-            sheet: (v) => { state.sheet = v; state.sel = null; state.pop = null; touch(); },
+            sheet: (v) => { state.sheet = v; state.store.sheet = v; state.sel = null; state.pop = null; touch(); },
             close: () => api.close(),
             undo: () => doUndo(-1),
             redo: () => doUndo(1),
             'print-step': () => { state.printing = true; state.pop = null; touch(); },
             'print-back': () => { state.printing = false; touch(); },
+            'drift-ok': () => { delete state.store.printed[state.sheet]; state.pop = null; touch(); },
+            breakdown: (total) => {
+                const prefix = TOTAL_PREFIX[total];
+                const concepts = fieldSet.listConcepts().map((c) => c.key).filter((k) => k.startsWith(prefix + ':'));
+                commit();
+                activeEntry().template = breakDownRow(tpl(), total, concepts, fieldDef);
+                state.sel = null; state.pop = null;
+                touch();
+                toast(`${TOTAL_LABEL[total]} desglosado por concepto`, true);
+            },
             print,
             'pick-all': () => { state.printOpts.ids = employees.map((e) => e.id); touch('print'); },
             'pick-none': () => { state.printOpts.ids = []; touch('print'); },
@@ -1688,6 +1851,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 bindEvents();
                 rootEl.hidden = false;
                 document.body.style.overflow = 'hidden';
+                // Si esta hoja ya se imprimió antes, la plantilla está lista: se abre en "Imprimir".
+                state.printing = !!state.store.ready[state.sheet];
                 renderShell();
                 const first = rootEl.querySelector('[data-act="close"]');
                 if (first) first.focus();
@@ -1715,6 +1880,11 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         footerOnPage,
         resizeColumns,
         columnTotals,
+        cardTotals,
+        doubleCounted,
+        breakDownRow,
+        printSignatures,
+        snapshotDiff,
         printPageRule,
         catOf,
         smartRowFor,

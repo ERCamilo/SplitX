@@ -130,6 +130,12 @@ describe('Field set', () => {
         assert.equal(value('leader'), 'Líder de ejemplo');
     });
 
+    test('folio joins the period start and the employee number', () => {
+        assert.equal(value('folio'), '01OCT26-001');
+        const noPeriod = { name: 'Luis', amount: 1, employeeNumber: '017' };
+        assert.equal(engine.evaluateCell({ mode: 'text', chips: [{ kind: 'field', key: 'folio' }] }, noPeriod, { index: 0 }, null).text, '017');
+    });
+
     test('dynamic concept fields use the concept as label and the amount as value', () => {
         assert.equal(label('deduction:equipo'), 'Reparación de equipo');
         assert.equal(value('deduction:equipo'), '500.00');

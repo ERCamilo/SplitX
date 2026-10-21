@@ -188,6 +188,99 @@ describe('resizeColumns', () => {
     });
 });
 
+describe('cardTotals (reconcile with SplitX)', () => {
+    test('the default card matches the SplitX net', () => {
+        const t = SS.defaultCardTemplate();
+        const items = engine.sortRecords(employees, t.sortBy);
+        const r = SS.cardTotals(engine, t, items, (e) => e.amount);
+        assert.deepEqual(r.map((x) => [x.record.name, x.card, x.net, x.ok]), [['Luis', 12000, 12000, true], ['Ana', 9200, 9200, true]]);
+    });
+
+    test('flags a card whose total differs', () => {
+        const t = SS.defaultCardTemplate();
+        const items = engine.sortRecords(employees, t.sortBy);
+        const r = SS.cardTotals(engine, t, items, (e) => (e.name === 'Ana' ? 9000 : e.amount));
+        const ana = r.find((x) => x.record.name === 'Ana');
+        assert.equal(ana.ok, false);
+        assert.equal(ana.diff, 200);
+    });
+
+    test('a card without a running total cannot be checked', () => {
+        const t = SS.defaultCardTemplate();
+        t.rows = t.rows.filter((row) => !row.cells.some((c) => c.chips.some((ch) => ch.kind === 'running')));
+        assert.equal(SS.cardTotals(engine, t, engine.sortRecords(employees, t.sortBy), (e) => e.amount), null);
+    });
+});
+
+describe('doubleCounted', () => {
+    test('a total field plus one of its concepts is flagged', () => {
+        const t = SS.defaultCardTemplate();
+        t.rows.push({ cells: [{ mode: 'text', chips: [{ kind: 'field', key: 'deduction:ley', as: 'label' }] }, { mode: 'number', chips: [{ kind: 'op', op: '-' }, { kind: 'field', key: 'deduction:ley' }] }] });
+        const d = SS.doubleCounted(t);
+        assert.deepEqual(d.map((x) => [x.total, x.concepts]), [['discounts', ['deduction:ley']]]);
+    });
+
+    test('labels alone do not count, nor a clean template', () => {
+        const t = SS.defaultCardTemplate();
+        assert.deepEqual(SS.doubleCounted(t), []);
+        t.rows.push({ cells: [{ mode: 'text', chips: [{ kind: 'field', key: 'bonus:x', as: 'label' }] }] });
+        assert.deepEqual(SS.doubleCounted(t), []);
+    });
+});
+
+describe('breakDownRow', () => {
+    test('replaces the total row by one row per concept, keeping existing ones', () => {
+        const t = SS.defaultCardTemplate();
+        const at = t.rows.findIndex((r) => r.cells.some((c) => c.chips.some((ch) => ch.key === 'discounts' && ch.as !== 'label')));
+        t.rows.push({ cells: [{ mode: 'text', chips: [] }, { mode: 'number', chips: [{ kind: 'op', op: '-' }, { kind: 'field', key: 'deduction:ley' }] }] });
+        const out = SS.breakDownRow(t, 'discounts', ['deduction:ley', 'deduction:equipo'], () => ({ type: 'number' }));
+        const keys = out.rows.map((r) => r.cells.flatMap((c) => c.chips.filter((ch) => ch.kind === 'field' && ch.as !== 'label').map((ch) => ch.key)).join(','));
+        assert.ok(!keys.includes('discounts'));
+        assert.equal(keys[at], 'deduction:equipo');
+        assert.equal(keys.filter((k) => k === 'deduction:ley').length, 1);
+        assert.equal(out.rows[at].whenEmpty, 'hide');
+    });
+});
+
+describe('print snapshot', () => {
+    test('detects changed and missing employees', () => {
+        const t = SS.defaultCardTemplate();
+        const items = engine.sortRecords(employees, t.sortBy);
+        const snap = SS.printSignatures(engine, t, items, (e) => e.employeeNumber);
+        const changed = employees.map((e) => (e.name === 'Ana' ? { ...e, payroll: { ...e.payroll, gross: 11000 } } : e)).slice(0, 1).concat([]);
+        const now = SS.printSignatures(engine, t, engine.sortRecords(changed, t.sortBy), (e) => e.employeeNumber);
+        const d = SS.snapshotDiff(snap, now);
+        assert.deepEqual(d, { changed: ['Ana'], missing: ['Luis'] });
+        assert.deepEqual(SS.snapshotDiff(snap, snap), { changed: [], missing: [] });
+    });
+});
+
+describe('folio in the default templates', () => {
+    test('both default sheets carry the folio', () => {
+        const has = (cells) => cells.some((c) => c.chips.some((ch) => ch.key === 'folio'));
+        assert.ok(SS.defaultCardTemplate().rows.some((r) => has(r.cells)));
+        assert.ok(has(SS.defaultTableTemplate().columns.map((c) => c.cell)));
+    });
+});
+
+describe('migrateStore keeps the new per-user settings', () => {
+    test('last print options, printed snapshots and the tour flag survive', () => {
+        const printed = { A: { at: '2026-10-20T10:00:00Z', template: SS.defaultCardTemplate(), sigs: { 1: { name: 'Ana', sig: 'x' } } } };
+        const out = SS.migrateStore({ printOpts: { mode: 'unpaid', copies: 2, ids: [1] }, printed, tourDone: true, ready: { A: true } });
+        assert.deepEqual(out.printOpts, { mode: 'unpaid', copies: 2, ids: [1] });
+        assert.equal(out.printed.A.sigs[1].name, 'Ana');
+        assert.equal(out.tourDone, true);
+        assert.deepEqual(out.ready, { A: true, B: false });
+    });
+
+    test('bad values fall back to defaults', () => {
+        const out = SS.migrateStore({ printOpts: { mode: 'nope', copies: 9 }, printed: { A: 'x' }, tourDone: 'yes' });
+        assert.deepEqual(out.printOpts, { mode: 'all', copies: 1, ids: [] });
+        assert.deepEqual(out.printed, {});
+        assert.equal(out.tourDone, false);
+    });
+});
+
 describe('columnTotals', () => {
     test('sums only the columns marked to sum', () => {
         const t = SS.defaultTableTemplate();

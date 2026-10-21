@@ -336,6 +336,13 @@
         return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
     };
 
+    const MONTHS = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    /** Prefijo del folio a partir del inicio del período: '2026-10-01' → '01OCT26'. */
+    const periodTag = (/** @type {string | undefined} */ iso) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+        return m ? `${m[3]}${MONTHS[+m[2] - 1] || m[2]}${m[1].slice(2)}` : '';
+    };
+
     /** @param {any} r */
     const displayName = (r) => r.employeeName || r.name || '';
 
@@ -355,6 +362,11 @@
         const fields = [
             { key: 'no', label: 'No.', type: 'text', get: (r, ctx) => r.employeeNumber || String(ctx.index + 1) },
             { key: 'name', label: 'Nombre', type: 'text', get: displayName },
+            {
+                // Mismo folio en la tarjeta del sobre y en la hoja de firmas, para emparejarlos.
+                key: 'folio', label: 'Folio', type: 'text',
+                get: (r, ctx) => [periodTag(r.exportContext?.period?.start), r.employeeNumber || String(ctx.index + 1)].filter(Boolean).join('-')
+            },
             { key: 'firstName', label: 'Primer nombre', type: 'text', get: (r) => String(displayName(r)).trim().split(/\s+/)[0] },
             { key: 'net', label: 'Monto neto', type: 'number', get: getNet },
             { key: 'gross', label: 'Bruto', type: 'number', get: payroll((p) => p.gross) },
