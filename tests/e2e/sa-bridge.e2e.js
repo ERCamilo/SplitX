@@ -97,6 +97,7 @@ describe('SA cross-origin postMessage to the real SplitX browser app', () => {
             await receiver.click('[data-act="sheet"][data-v="B"]');
             const sheetText = await receiver.textContent('#ssCanvas');
             assert.match(sheetText, /Ana Ejemplo/);
+            assert.match(sheetText, /01OCT26-001/, 'SA period folio must survive the branch integration');
             await receiver.reload({ waitUntil: 'load' });
             const afterReload = await receiver.evaluate(() => JSON.parse(localStorage.getItem('Split_data') || '{}'));
             assert.equal(afterReload.employees[0].name, employee.nombre);
