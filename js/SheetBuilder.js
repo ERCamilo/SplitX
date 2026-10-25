@@ -642,6 +642,7 @@
     return {
         PAPER_SIZES,
         OP_SYMBOLS,
+        FormulaError,
         createEngine,
         computeLayout,
         paginate,
