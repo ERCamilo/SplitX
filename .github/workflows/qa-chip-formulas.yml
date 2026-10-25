@@ -1,0 +1,58 @@
+name: QA aislada - constructor de formulas por chips
+
+on:
+  push:
+    branches:
+      - main
+      - 'qa/chip-formula-builder-*'
+      - 'feat/chip-formula-visual-builder-*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: Base actual - debe pasar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Casos de compatibilidad del motor
+        run: node --test qa/chip-formulas/baseline.cases.cjs
+      - name: Instalar Playwright y Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Casos de compatibilidad del editor
+        run: node --test qa/chip-formulas/baseline-browser.cases.cjs
+
+  future-unit-contract:
+    name: Formulas - conversion chips y texto
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pruebas unitarias de formulas visuales
+        run: node --test qa/chip-formulas/future-unit.cases.cjs
+
+  future-browser-contract:
+    name: Constructor - navegador y movil
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar Playwright y Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Pruebas visuales desktop y touch
+        run: node --test qa/chip-formulas/future-browser.cases.cjs

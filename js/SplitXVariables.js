@@ -170,5 +170,52 @@
         return { fields, listVariables: () => definitions.map(d => ({ key: 'custom:' + d.id, label: d.label })) };
     };
 
-    return { tokenize, references, evaluate, validateDefinitions, createFieldSet };
+
+    // One expression model for both the printable SheetBuilder chips and
+    // saved named formulas. Text mode never executes JavaScript.
+    const chipsToFormula = (chips) => {
+        if (!Array.isArray(chips) || !chips.length || chips.length > 100)
+            throw new Error('Límite de chips: la fórmula debe contener entre 1 y 100 elementos.');
+        const parts = chips.map(chip => {
+            if (chip?.kind === 'field' && /^[A-Za-z_][A-Za-z_0-9:]*$/.test(chip.key))
+                return chip.key.startsWith('custom:') ? chip.key.slice(7) : chip.key;
+            if (chip?.kind === 'op' && ['+', '-', '*', '/'].includes(chip.op)) return chip.op;
+            if (chip?.kind === 'paren' && ['(', ')'].includes(chip.paren)) return chip.paren;
+            if (chip?.kind === 'number' && isNumber(chip.value) && chip.value >= 0)
+                return String(chip.value) + (chip.percent ? '%' : '');
+            throw new Error('Chip de fórmula inválido o no numérico.');
+        });
+        const formula = parts.join(' ');
+        tokenize(formula);
+        if (formula.length > MAX_FORMULA) throw new Error('Fórmula demasiado larga.');
+        evaluate(formula, () => 1);
+        return formula;
+    };
+
+    const formulaToChips = (formula, catalog = {}) => {
+        const known = new Set((catalog.fields || []).map(f => f.key));
+        const custom = new Set((catalog.variables || []).map(v => v.id));
+        const chips = tokenize(formula).map(token => {
+            if (['+', '-', '*', '/'].includes(token)) return { kind:'op', op:token };
+            if (token === '(' || token === ')') return { kind:'paren', paren:token };
+            if (/^[0-9]/.test(token)) return { kind:'number', value:Number(token) };
+            if (token === '%') return { kind:'percent' };
+            if (custom.has(token) || (token.startsWith('custom:') && custom.has(token.slice(7))))
+                return { kind:'field', key:'custom:' + token.replace(/^custom:/, '') };
+            if (known.has(token) || catalog.resolveField?.(token))
+                return { kind:'field', key:token };
+            throw new Error('Campo no encontrado: ' + token);
+        });
+        // Preserve percent literals as the exact SheetBuilder number chip type.
+        for (let i = chips.length - 1; i >= 0; i--) {
+            if (chips[i].kind !== 'percent') continue;
+            if (i === 0 || chips[i-1].kind !== 'number')
+                throw new Error('Porcentaje inválido: añade un número antes de %.');
+            chips[i-1].percent = true; chips.splice(i,1);
+        }
+        evaluate(formula, () => 1);
+        return chips;
+    };
+
+    return { tokenize, references, evaluate, validateDefinitions, createFieldSet, chipsToFormula, formulaToChips };
 });
