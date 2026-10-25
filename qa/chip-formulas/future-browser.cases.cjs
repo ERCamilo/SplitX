@@ -142,6 +142,7 @@ test('C05/C17: wrong text keeps existing valid formula unchanged and shows preci
         await page.fill('#ssVarId','extra');
         await page.fill('#ssVarLabel','Extra');
         await page.selectOption('#ssVarKind','formula');
+        await page.click('#ssVarModeText');
         await page.fill('#ssVarFormula','gross * 5%');
         await page.click('[data-act="vars-save"]');
         await page.click('#ssVarsBtn');
@@ -190,6 +191,7 @@ test('C07: on mobile, tapping chips builds a formula without drag-and-drop',asyn
         await page.evaluate(()=>window.app.openSheetStudio());
         await page.tap('#ssVarsBtn');
         await page.selectOption('#ssVarKind','formula');
+        await page.click('#ssVarModeText');
         await assertVisible(page,'#ssVarFormulaCanvas','constructor táctil de fórmulas');
         await page.locator('#ssVarBuilderPalette [data-chip-key="gross"]').tap();
         await page.locator('#ssVarBuilderPalette [data-chip-op="+"]').tap();
@@ -207,6 +209,7 @@ test('C13: saved legacy formula returns as visual chips after reload',async()=>{
         await page.fill('#ssVarId','extra');
         await page.fill('#ssVarLabel','Extra');
         await page.selectOption('#ssVarKind','formula');
+        await page.click('#ssVarModeText');
         await page.fill('#ssVarFormula','gross * 5%');
         await page.click('[data-act="vars-save"]');
         await page.reload({waitUntil:'load'});
@@ -264,6 +267,7 @@ test('C17: cancelling an advanced edit preserves the previous valid formula',asy
         await page.fill('#ssVarId','extra');
         await page.fill('#ssVarLabel','Extra');
         await page.selectOption('#ssVarKind','formula');
+        await page.click('#ssVarModeText');
         await page.fill('#ssVarFormula','gross * 5%');
         await page.click('[data-act="vars-save"]');
         await page.click('#ssVarsBtn');
