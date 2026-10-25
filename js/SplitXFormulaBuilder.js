@@ -116,7 +116,7 @@
         q('#ssVarModeText').addEventListener('click',()=>switchMode('text'));
         kind.addEventListener('change',()=>{
             if (kind.value==='formula' && !existing && !seed) mode='visual';
-            if (kind.value==='formula'&&!chips.length&&formula.value.trim()) {
+            else if (kind.value==='formula'&&!chips.length&&formula.value.trim()) {
                 try { chips=CV.formulaToChips(formula.value,catalog); }
                 catch(_) { mode='text'; }
             }
