@@ -55,6 +55,7 @@
             '<output id="ssVarPreviewValue" aria-live="polite"></output></div></div>';
         formLabel.insertAdjacentHTML('beforebegin',markup);
         const box = q('#ssVarBuilder');
+        const openedAt = Date.now();
         const area = q('#ssVarVisualArea');
         const canvas=q('#ssVarFormulaCanvas'),palette=q('#ssVarBuilderPalette');
         const preview=q('#ssVarPreviewValue'), selector=q('#ssVarPreviewEmployee');
@@ -106,7 +107,7 @@
         const showError = err => {msg.textContent=err.message || String(err);};
         const switchMode = next => {
             try {
-                if (next==='visual' && mode==='text') chips=CV.formulaToChips(formula.value,catalog);
+                if (next==='visual' && mode==='text') chips=formula.value.trim()?CV.formulaToChips(formula.value,catalog):[];
                 if (next==='text' && mode==='visual') formula.value=chips.length?CV.chipsToFormula(chips):'';
                 mode=next;msg.textContent='';renderMode();
             } catch(err) {showError(err);}
@@ -122,7 +123,10 @@
         textModeButton.addEventListener('pointerdown',()=>{textPointerDown=true;});
         textModeButton.addEventListener('pointercancel',()=>{textPointerDown=false;});
         textModeButton.addEventListener('click',e=>{
-            const intentional=!e.detail || textPointerDown;
+            // Some touch browsers retarget a 50ms synthesized gesture after
+            // the opener creates this modal. Ignore that immediate event.
+            const touchGhost=e.detail>0 && navigator.maxTouchPoints>0 && Date.now()-openedAt<220;
+            const intentional=!touchGhost && (!e.detail || textPointerDown);
             textPointerDown=false;
             if(intentional) switchMode('text');
         });
