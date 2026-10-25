@@ -440,6 +440,11 @@
         out.tourDone = d.tourDone === true;
         out.ready = { A: !!(d.ready && d.ready.A === true), B: !!(d.ready && d.ready.B === true) };
         out.sheet = d.sheet === 'B' ? 'B' : 'A';
+        // Keep valid print-only variables across upgrades. Damaged definitions
+        // must never stop the entire sheet editor from opening.
+        out.variables = Array.isArray(d.variables) ? d.variables.slice(0, 50) : [];
+        try { CV.validateDefinitions(out.variables, SF.createFieldSet()); }
+        catch (_) { out.variables = []; }
         return out;
     };
 
@@ -715,7 +720,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
     const OPS = { '+': '+', '-': '−', '*': '×', '/': '÷' };
     const PAPERS = [['letter', 'Carta (216 × 279 mm)'], ['a4', 'A4 (210 × 297 mm)'], ['legal', 'Legal (216 × 356 mm)'], ['half-letter', 'Media carta (140 × 216 mm)']];
     const SORTS = [['no', 'No.'], ['name', 'Nombre'], ['net', 'Monto neto'], ['position', 'Puesto']];
-    const DEFAULT_OPEN = { 'Usados recientemente': true, 'Conceptos importados': true, Montos: true, 'Préstamos y adelantos': true, Herramientas: true };
+    const DEFAULT_OPEN = { 'Usados recientemente': true, 'Variables propias': true, 'Conceptos importados': true, Montos: true, 'Préstamos y adelantos': true, Herramientas: true };
 
     /**
      * @param {{ root: HTMLElement, getEmployees: () => any[], getNetAmount?: (emp: any) => number,
@@ -730,7 +735,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         };
         const state = {
             store: migrateStore(null), sheet: 'A', formulas: false, preview: 0, sel: null, pop: null, drawer: null,
-            printing: false, printOpts: { mode: 'all', ids: [], copies: 1 }, folded: {}, query: '', open: Object.assign({}, DEFAULT_OPEN), confirmDelete: false
+            printing: false, printOpts: { mode: 'all', ids: [], copies: 1 }, folded: {}, query: '', open: Object.assign({}, DEFAULT_OPEN), confirmDelete: false,
+            variableEdit: null, variableDeleteConfirm: null
         };
         const histories = new Map();
         let employees = []; let engine; let fieldSet; let palette = []; let drag = null; let rz = false; let bound = false; let lastCommit = { key: '', at: 0 };
@@ -767,9 +773,12 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 
         const rebuildEngine = () => {
             fieldSet = SF.createFieldSet({ records: employees, getNetAmount: opts.getNetAmount });
+            const own = CV.createFieldSet(state.store.variables, fieldSet, SB);
+            fieldSet.fields.push(...own.fields);
             engine = SB.createEngine({ fields: fieldSet.fields, resolveField: fieldSet.resolveField, locale: opts.locale || 'en-US', decimals: 2 });
             palette = [];
             const byKey = new Map(fieldSet.fields.map((f) => [f.key, f]));
+            for (const c of own.listVariables()) palette.push({ group: 'Variables propias', label: c.label, chip: F(c.key) });
             for (const c of fieldSet.listConcepts()) palette.push({ group: 'Conceptos importados', label: c.label, chip: F(c.key) });
             for (const [group, keys] of GROUPS) for (const k of keys) if (byKey.has(k)) palette.push({ group, label: byKey.get(k).label, chip: F(k) });
             for (const t of TOOLS) palette.push({ group: 'Herramientas', label: t.label, chip: t.chip });
@@ -1085,11 +1094,88 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             };
             if (!q) state.store.recent.forEach((sig) => { const i = palette.findIndex((p) => p.sig === sig); if (i >= 0) add('Usados recientemente', palette[i], i); });
             palette.forEach((p, i) => { if (paletteMatches(p.label, q)) add(p.group, p, i); });
-            el.innerHTML = `<div class="ss-search"><input id="ssSearch" class="ss-inp" type="search" placeholder="Buscar chip…" value="${esc(q)}" data-bind="query" aria-label="Buscar chip"></div>
+            el.innerHTML = `<button type="button" class="ss-btn primary" id="ssVarsBtn" data-act="vars-open" style="width:100%">+ Variables propias (${state.store.variables.length})</button><div class="ss-search"><input id="ssSearch" class="ss-inp" type="search" placeholder="Buscar chip…" value="${esc(q)}" data-bind="query" aria-label="Buscar chip"></div>
               ${groups.length ? groups.map((g) => `<details class="ss-group" data-group="${esc(g.name)}" ${q || state.open[g.name] ? 'open' : ''}>
                 <summary>${esc(g.name)} <span class="count">${g.items.length}</span></summary><div class="ss-chips">${g.items.join('')}</div></details>`).join('')
                 : '<p class="ss-hint">Ningún chip coincide.</p>'}
               <p class="ss-hint" style="margin-top:auto">Suelta un campo <strong>sobre la tarjeta</strong> para crear su fila completa, o <strong>dentro de una celda</strong> para armar una fórmula.</p>`;
+        };
+
+
+        // Las variables son locales a la impresión; jamás se escriben en la nómina original.
+        const employeeVarId = (e) => e.employeeNumber != null ? String(e.employeeNumber) : e.id != null ? 'id:' + e.id : null;
+        const renderVariablesDialog = () => {
+            let host = $('#ssVarsDialog');
+            if (!host) {
+                host = document.createElement('div');
+                host.id = 'ssVarsDialog';
+                rootEl.appendChild(host);
+            }
+            const current = state.store.variables.find(v => v.id === state.variableEdit);
+            const options = employees.filter(e => employeeVarId(e)).map(e =>
+                `<option value="${esc(employeeVarId(e))}">${esc(e.employeeNumber || e.name)} · ${esc(e.name)}</option>`).join('');
+            host.innerHTML = `<div style="position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.62);display:flex;justify-content:center;align-items:center;padding:16px">
+              <section role="dialog" aria-modal="true" aria-label="Variables personalizadas" style="background:var(--surface,#fff);color:var(--text,#1e293b);width:min(620px,100%);max-height:92vh;overflow:auto;border-radius:15px;border:1px solid var(--border,#ddd);padding:18px;box-shadow:0 12px 36px #0003">
+                <div class="ss-row-btns"><h2 style="font-size:18px;margin:0">Variables propias para impresión</h2><div class="ss-grow"></div><button class="ss-btn" data-act="vars-close" type="button">Cerrar ✕</button></div>
+                <p class="ss-hint">Úsalas en sobres y hojas de firmas. No modifican los importes originales de SA. Puedes combinarlas con campos importados en fórmulas.</p>
+                <div id="ssVarsList" style="display:flex;flex-direction:column;gap:5px;margin:12px 0;max-height:180px;overflow:auto">
+                  ${state.store.variables.length ? state.store.variables.map(v =>
+                    `<div class="ss-row-btns" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--border,#ddd);padding:5px 0">
+                      <span><strong>${esc(v.label)}</strong> <small>(${esc(v.id)}) · ${v.kind === 'formula' ? 'Cálculo' : 'Valor fijo'}${Object.keys(v.overrides || {}).length ? ' · ' + Object.keys(v.overrides).length + ' excepciones' : ''}</small></span>
+                      <span><button class="ss-btn sm" data-act="vars-edit" data-v="${esc(v.id)}" type="button">Editar</button>
+                      <button class="ss-btn sm ${state.variableDeleteConfirm === v.id ? 'danger' : ''}" data-act="vars-delete" data-v="${esc(v.id)}" type="button">${state.variableDeleteConfirm === v.id ? 'Confirmar' : 'Eliminar'}</button></span>
+                    </div>`).join('') : '<p class="ss-hint">Todavía no hay variables creadas.</p>'}
+                </div>
+                <h3 style="margin:12px 0 8px;font-size:14px">${current ? 'Editar variable' : 'Crear variable'}</h3>
+                <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px">
+                  <label>ID<input id="ssVarId" class="ss-inp" placeholder="transporte" maxlength="32" value="${esc(current?.id || '')}" ${current ? 'readonly' : ''}></label>
+                  <label>Nombre<input id="ssVarLabel" class="ss-inp" maxlength="60" placeholder="Transporte" value="${esc(current?.label || '')}"></label>
+                  <label>Tipo<select id="ssVarKind" class="ss-inp"><option value="fixed" ${current?.kind !== 'formula' ? 'selected' : ''}>Número</option><option value="formula" ${current?.kind === 'formula' ? 'selected' : ''}>Fórmula</option></select></label>
+                  <label>Valor general<input id="ssVarValue" type="number" step="any" class="ss-inp" value="${current?.kind === 'fixed' ? esc(current.value) : '0'}"></label>
+                </div>
+                <label style="display:block;margin-top:8px">Fórmula (si seleccionas «Fórmula»)<input id="ssVarFormula" class="ss-inp" style="width:100%" maxlength="180" placeholder="gross * 5% + transporte" value="${esc(current?.formula || '')}"></label>
+                <p class="ss-hint">Campos disponibles: gross (bruto), days (días), dailyRate (tarifa), bonuses y cualquier variable propia por su ID. Operadores: + − × ÷ ( ) y %.</p>
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
+                  <label>Empleado (excepción opcional)<select id="ssVarEmployee" class="ss-inp"><option value="">Valor general</option>${options}</select></label>
+                  <label>Valor para ese empleado<input id="ssVarOverride" type="number" step="any" class="ss-inp" placeholder="Sin excepción"></label>
+                </div>
+                <p class="ss-hint">Las excepciones se aplican a variables de tipo Número y se asocian al número del empleado (o ID local si no tiene número).</p>
+                <p id="ssVarsMsg" role="alert" style="color:#b91c1c;font-size:12px;min-height:18px;margin:8px 0"></p>
+                <div class="ss-row-btns" style="justify-content:flex-end">
+                  ${current ? '<button class="ss-btn" data-act="vars-new" type="button">Nueva variable</button>' : ''}
+                  <button class="ss-btn primary" data-act="vars-save" type="button">${current ? 'Guardar cambios' : 'Crear variable'}</button>
+                </div>
+              </section></div>`;
+        };
+        const closeVariablesDialog = () => { $('#ssVarsDialog')?.remove(); state.variableEdit = null; state.variableDeleteConfirm = null; };
+        const variableError = message => { const el = $('#ssVarsMsg'); if (el) el.textContent = message; };
+        const saveVariable = () => {
+            try {
+                const id = $('#ssVarId').value.trim();
+                const kind = $('#ssVarKind').value;
+                const original = state.store.variables.find(v => v.id === id);
+                const next = { id, label: $('#ssVarLabel').value.trim(), kind };
+                if (kind === 'fixed') {
+                    const raw = $('#ssVarValue').value;
+                    if (!raw.trim()) throw new Error('Indica un valor numérico.');
+                    next.value = Number(raw);
+                    next.overrides = { ...(original?.kind === 'fixed' ? original.overrides : {}) };
+                    const employee = $('#ssVarEmployee').value;
+                    const override = $('#ssVarOverride').value.trim();
+                    if (employee) {
+                        if (!override) delete next.overrides[employee];
+                        else next.overrides[employee] = Number(override);
+                    }
+                } else next.formula = $('#ssVarFormula').value.trim();
+                const old = state.store.variables;
+                if (old.some(v => v.id === id) && state.variableEdit !== id)
+                    throw new Error('Ya existe una variable con ese ID.');
+                const defs = original ? old.map(v => v.id === id ? next : v) : [...old, next];
+                CV.validateDefinitions(defs, SF.createFieldSet({ records: employees, getNetAmount: opts.getNetAmount }));
+                state.store.variables = defs;
+                state.store.ready = { A: false, B: false };
+                save(); rebuildEngine(); closeVariablesDialog(); touch(); toast('Variable guardada para imprimir', true);
+            } catch (err) { variableError(err.message); }
         };
 
         const empNav = () => {
@@ -1700,6 +1786,25 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 
         const actions = {
             sheet: (v) => { state.sheet = v; state.store.sheet = v; state.sel = null; state.pop = null; touch(); },
+            'vars-open': () => { state.variableEdit = null; state.variableDeleteConfirm = null; renderVariablesDialog(); },
+            'vars-close': () => closeVariablesDialog(),
+            'vars-new': () => { state.variableEdit = null; renderVariablesDialog(); },
+            'vars-edit': (id) => { state.variableEdit = id; state.variableDeleteConfirm = null; renderVariablesDialog(); },
+            'vars-save': () => saveVariable(),
+            'vars-delete': (id) => {
+                if (state.variableDeleteConfirm !== id) { state.variableDeleteConfirm = id; return renderVariablesDialog(); }
+                const key = 'custom:' + id;
+                if (JSON.stringify(state.store.templates).includes('"key":"' + key + '"'))
+                    return variableError('La variable aparece en una plantilla. Quítala de la plantilla antes de eliminarla.');
+                try {
+                    const defs = state.store.variables.filter(v => v.id !== id);
+                    CV.validateDefinitions(defs, SF.createFieldSet({ records: employees, getNetAmount: opts.getNetAmount }));
+                    state.store.variables = defs;
+                    state.store.ready = { A: false, B: false };
+                    save(); rebuildEngine(); state.variableEdit = null; state.variableDeleteConfirm = null;
+                    closeVariablesDialog(); touch(); toast('Variable eliminada', true);
+                } catch (e) { variableError(e.message); }
+            },
             close: () => api.close(),
             undo: () => doUndo(-1),
             redo: () => doUndo(1),
@@ -1949,6 +2054,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-pi],[data-ci],[data-zone],[data-fold]')) { e.preventDefault(); e.target.click(); }
                 if (e.key === 'Escape') {
                     e.preventDefault();
+                    if ($('#ssVarsDialog')) return closeVariablesDialog();
                     if (state.drawer) actions['close-drawer']();
                     else if (state.pop) { state.pop = null; renderLayer(); }
                     else if (state.printing) actions['print-back']();
@@ -1968,6 +2074,12 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             });
             rootEl.addEventListener('change', (e) => {
                 const el = e.target;
+                if (el.id === 'ssVarEmployee') {
+                    const v = state.store.variables.find(x => x.id === (state.variableEdit || $('#ssVarId')?.value));
+                    const raw = v?.overrides?.[el.value];
+                    $('#ssVarOverride').value = raw === undefined ? '' : String(raw);
+                    return;
+                }
                 if (el.dataset && el.dataset.actChange === 'logo') {
                     const f = el.files && el.files[0];
                     if (!f) return;
