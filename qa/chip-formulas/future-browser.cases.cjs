@@ -105,6 +105,7 @@ test('C09: preview uses actual employee payroll and an override without changing
         await page.click('[data-act="vars-save"]');
         const before=await payroll(page);
         await editFormula(page);
+        await assertVisible(page,'#ssVarModeText','activación del modo avanzado previo a previsualizar');
         await page.click('#ssVarModeText');
         await page.fill('#ssVarFormula','gross * 5% + transporte');
         await page.click('#ssVarModeVisual');
@@ -214,5 +215,63 @@ test('C13: saved legacy formula returns as visual chips after reload',async()=>{
         await page.click('[data-act="vars-edit"][data-v="extra"]');
         await assertVisible(page,'#ssVarFormulaCanvas [data-formula-token]','fórmula antigua convertida visualmente');
         assert.equal(await page.locator('#ssVarFormulaCanvas [data-formula-token]').count(),3);
+    }finally{await close();}
+});
+
+test('C16: same calculated variable can appear on card and signature sheet without changing payroll',async()=>{
+    const {page,close,store}=await openStudio(2);
+    try{
+        const before=await payroll(page);
+        await editFormula(page);
+        await assertVisible(page,'#ssVarFormulaCanvas','constructor visual para campo reutilizable');
+        const palette=page.locator('#ssVarBuilderPalette');
+        await palette.locator('[data-chip-key="gross"]').click();
+        await palette.locator('[data-chip-op="*"]').click();
+        await page.fill('#ssVarNumberValue','5');
+        await page.check('#ssVarNumberPercent');
+        await page.click('#ssVarInsertNumber');
+        await page.fill('#ssVarLabel','Bono personalizado');
+        await page.click('[data-act="vars-save"]');
+        const defs=(await store()).variables,custom=defs.find(v=>v.label==='Bono personalizado');
+        assert.ok(custom?.id);
+        await page.locator('#ssCardEdit [data-zone="A:1:1"]').click();
+        await page.locator('#ssPalette [data-pi]',{hasText:'Bono personalizado'}).first().click();
+        await page.click('[data-act="sheet"][data-v="B"]');
+        await page.locator('#ssCanvas [data-zone^="B:col"]').first().click();
+        await page.locator('#ssPalette [data-pi]',{hasText:'Bono personalizado'}).first().click();
+        const saved=await store();
+        const key='custom:'+custom.id;
+        const card=saved.templates.find(v=>v.id===saved.active.A).template;
+        const table=saved.templates.find(v=>v.id===saved.active.B).template;
+        assert.ok(card.rows.some(row=>row.cells.some(cell=>cell.chips.some(ch=>ch.key===key))));
+        assert.ok(table.columns.some(col=>col.cell.chips.some(ch=>ch.key===key)));
+        const evaluation=await page.evaluate(key=>{
+            const employees=JSON.parse(localStorage.getItem('Split_data')).employees;
+            const source=window.SplitXSheetFields.createFieldSet({records:employees});
+            const own=window.SplitXVariables.createFieldSet(JSON.parse(localStorage.getItem('Split_sheets_v2')).variables,source,window.SheetBuilder);
+            const eng=window.SheetBuilder.createEngine({fields:[...source.fields,...own.fields],resolveField:source.resolveField});
+            return employees.slice(0,2).map((e,i)=>eng.evaluateCell({mode:'number',chips:[{kind:'field',key}]},e,{index:i},null).value);
+        },key);
+        assert.deepEqual(evaluation,[500,512.5]);
+        assert.equal(await payroll(page),before);
+    }finally{await close();}
+});
+
+test('C17: cancelling an advanced edit preserves the previous valid formula',async()=>{
+    const {page,close,store}=await openStudio(2);
+    try{
+        await page.click('#ssVarsBtn');
+        await page.fill('#ssVarId','extra');
+        await page.fill('#ssVarLabel','Extra');
+        await page.selectOption('#ssVarKind','formula');
+        await page.fill('#ssVarFormula','gross * 5%');
+        await page.click('[data-act="vars-save"]');
+        await page.click('#ssVarsBtn');
+        await page.click('[data-act="vars-edit"][data-v="extra"]');
+        await assertVisible(page,'#ssVarModeText','edición avanzada con cancelación');
+        await page.click('#ssVarModeText');
+        await page.fill('#ssVarFormula','gross * 17%');
+        await page.click('[data-act="vars-close"]');
+        assert.equal(variable(await store(),'extra').formula,'gross * 5%');
     }finally{await close();}
 });
