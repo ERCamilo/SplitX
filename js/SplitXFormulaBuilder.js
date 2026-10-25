@@ -55,7 +55,6 @@
             '<output id="ssVarPreviewValue" aria-live="polite"></output></div></div>';
         formLabel.insertAdjacentHTML('beforebegin',markup);
         const box = q('#ssVarBuilder');
-        const createdAt = Date.now();
         const area = q('#ssVarVisualArea');
         const canvas=q('#ssVarFormulaCanvas'),palette=q('#ssVarBuilderPalette');
         const preview=q('#ssVarPreviewValue'), selector=q('#ssVarPreviewEmployee');
@@ -97,7 +96,6 @@
         };
         const renderMode = () => {
             const active=kind.value==='formula';
-            box.dataset.activeMode=mode;
             box.style.display=active?'block':'none';
             formLabel.style.display=active && mode==='text'?'block':'none';
             area.style.display=mode==='visual'?'block':'none';
@@ -115,7 +113,19 @@
         };
         const add = item => { chips.push(clone(item));msg.textContent='';renderTokens();previewValue(); };
         q('#ssVarModeVisual').addEventListener('click',()=>switchMode('visual'));
-        q('#ssVarModeText').addEventListener('click',e=>{box.dataset.lastTextSwitch='clicked:'+(Date.now()-createdAt)+'ms:'+e.detail;switchMode('text');});
+        // A touch on the opener can generate a delayed click on the newly
+        // mounted dialog (click-through). Only pointer clicks that actually
+        // began on this button may switch to advanced mode. Keyboard click
+        // events (detail=0) remain accessible.
+        const textModeButton=q('#ssVarModeText');
+        let textPointerDown=false;
+        textModeButton.addEventListener('pointerdown',()=>{textPointerDown=true;});
+        textModeButton.addEventListener('pointercancel',()=>{textPointerDown=false;});
+        textModeButton.addEventListener('click',e=>{
+            const intentional=!e.detail || textPointerDown;
+            textPointerDown=false;
+            if(intentional) switchMode('text');
+        });
         kind.addEventListener('change',()=>{
             if (kind.value==='formula' && !existing && !seed) mode='visual';
             else if (kind.value==='formula'&&!chips.length&&formula.value.trim()) {
