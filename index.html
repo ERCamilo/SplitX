@@ -19,6 +19,7 @@
     <script src="js/SplitXCore.js"></script>
     <script src="js/SplitXSheetFields.js"></script>
     <script src="js/SplitXImport.js"></script>
+    <script src="js/SplitXExcelImport.js"></script>
     <script src="js/SheetBuilder.js"></script>
     <script src="js/SheetStudio.js"></script>
 
@@ -1608,6 +1609,14 @@
                     <code class="text-[10px] font-mono text-blue-600 dark:text-sky-300 block whitespace-pre bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ ... │ Monto Neto</code>
                     <p class="text-[10px] text-blue-600 dark:text-sky-400 mt-1">✓ Se usa la <strong>última columna</strong> como monto neto.</p>
                 </div>
+                <div id="excelFormatRow" class="flex items-center gap-2 mb-3">
+                    <label for="excelAmountFormat" class="text-xs font-medium text-slate-600 dark:text-slate-300">Formato de montos</label>
+                    <select id="excelAmountFormat" class="flex-1 min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2 py-1.5 text-xs">
+                        <option value="auto">Detectar / avisar si es ambiguo</option>
+                        <option value="en">1,234.56 (inglés)</option>
+                        <option value="es">1.234,56 (español)</option>
+                    </select>
+                </div>
                 <div id="importInfo-json" class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 mb-3 hidden">
                     <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wide mb-1">Ejemplo:</p>
                     <code class="text-xs font-mono text-blue-600 dark:text-sky-400 block whitespace-pre">[
@@ -1623,7 +1632,7 @@
                     <div id="importPreviewList" class="text-xs text-green-800 dark:text-emerald-300 font-mono space-y-0.5"></div>
                 </div>
                 <div id="importValidation" class="hidden mt-2 rounded-lg border p-2.5"></div>
-                <p id="importErrorMsg" class="text-xs text-rose-500 mt-2 hidden"></p>
+                <p id="importErrorMsg" class="text-xs text-rose-500 mt-2 hidden whitespace-pre-line max-h-40 overflow-y-auto" role="alert"></p>
             </div>
             <div class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
                 <button onclick="app.closeImportModal()" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
@@ -3579,6 +3588,7 @@
                 });
                 // Update placeholder
                 const ta = document.getElementById('jsonImportInput');
+                document.getElementById('excelFormatRow').classList.toggle('hidden', mode !== 'excel');
                 ta.placeholder = mode === 'excel'
                     ? 'Pega aquí las filas copiadas desde Excel...'
                     : '[{"nombre": "Empleado 1", "monto": 100}, ...]';
@@ -3588,69 +3598,13 @@
                 parseImportPreview();
             };
 
-            // Parse number from Excel: "1,300.00" or "1.300,00" → 1300.00
-            const parseExcelNumber = (str) => {
-                if (!str) return NaN;
-                str = str.trim();
-                // Remove currency symbols, spaces
-                str = str.replace(/[$RD\s]/g, '');
-                // If has comma and dot: "1,300.00" → remove commas
-                if (str.includes(',') && str.includes('.')) {
-                    str = str.replace(/,/g, '');
-                } else if (str.includes(',') && !str.includes('.')) {
-                    // Could be decimal comma: "1300,50" or thousands: "1,300"
-                    // If only one comma and <=2 digits after: decimal
-                    const parts = str.split(',');
-                    if (parts.length === 2 && parts[1].length <= 2) {
-                        str = str.replace(',', '.');
-                    } else {
-                        str = str.replace(/,/g, '');
-                    }
-                }
-                return parseFloat(str);
+            // Validate the complete monetary text; never silently guess separators.
+            const parseExcelNumber = (value) => {
+                try { return SplitXExcelImport.parseMoney(value); }
+                catch (_) { return NaN; }
             };
-
-            const parseExcelText = (rawText) => {
-                const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                let employees = [];
-                let errors = [];
-
-                lines.forEach((line, idx) => {
-                    // Split by tabs
-                    const cols = line.split('\t').map(c => c.trim());
-                    
-                    if (cols.length < 3) {
-                        errors.push(`Línea ${idx+1}: No tiene suficientes columnas (mínimo 3).`);
-                        return;
-                    }
-
-                    // Col 0 = order number (skip), Col 1 = name
-                    // Last non-empty column = net amount
-                    const name = cols[1];
-                    if (!name) { errors.push(`Línea ${idx+1}: Nombre vacío.`); return; }
-
-                    // Find last non-empty column value
-                    let amountStr = null;
-                    for (let i = cols.length - 1; i >= 2; i--) {
-                        if (cols[i] !== '' && cols[i] !== null) {
-                            amountStr = cols[i];
-                            break;
-                        }
-                    }
-
-                    if (!amountStr) { errors.push(`Línea ${idx+1}: No se encontró monto.`); return; }
-
-                    const amount = parseExcelNumber(amountStr);
-                    if (isNaN(amount) || amount < 0) {
-                        errors.push(`Línea ${idx+1}: Monto inválido ("${amountStr}").`);
-                        return;
-                    }
-
-                    employees.push({ name: name.replace(/^[\d\.\-\)\s]+/, '').trim() || name, amount, paid: false });
-                });
-
-                return { employees, errors };
-            };
+            const getExcelAmountFormat = () => document.getElementById('excelAmountFormat')?.value || 'auto';
+            const parseExcelText = (rawText) => SplitXExcelImport.parseExcelText(rawText, { format: getExcelAmountFormat() });
 
             const parseImportPreview = () => {
                 const rawText = document.getElementById('jsonImportInput').value.trim();
@@ -3666,7 +3620,11 @@
                     if (importMode === 'excel') {
                         const result = parseExcelText(rawText);
                         employees = result.employees;
-                        if (result.errors.length > 0 && employees.length === 0) throw new Error(result.errors[0]);
+                        // Show all rejected rows even when other employees are valid.
+                        if (result.errors.length) {
+                            errEl.textContent = `${result.rows} filas: ${result.valid} válidas, ${result.rejected} rechazadas. Corrige las filas antes de importar.\n${result.errors.slice(0, 10).join('\n')}${result.errors.length > 10 ? '\n... y ' + (result.errors.length - 10) + ' errores más.' : ''}`;
+                            errEl.classList.remove('hidden');
+                        } else errEl.classList.add('hidden');
                     } else {
                         const { items } = unwrapJsonImport(JSON.parse(rawText));
                         employees = items.map((item, idx) => normalizeImportedEmployee(item, idx));
@@ -3679,7 +3637,7 @@
                         ).join('') + (employees.length > 8 ? `<div class="text-green-600 italic">... y ${employees.length - 8} más</div>` : '');
                         previewEl.classList.remove('hidden');
                         renderImportValidation(employees);
-                        errEl.classList.add('hidden');
+                        if (importMode !== 'excel') errEl.classList.add('hidden');
                     } else {
                         previewEl.classList.add('hidden');
                     }
@@ -3700,10 +3658,12 @@
                 document.getElementById('importPreview').classList.add('hidden');
                 document.getElementById('importValidation').classList.add('hidden');
                 importMode = 'excel';
+                document.getElementById('excelAmountFormat').value = 'auto';
                 switchImportTab('excel');
                 // Attach live preview listener
                 const ta = document.getElementById('jsonImportInput');
                 ta.oninput = parseImportPreview;
+                document.getElementById('excelAmountFormat').onchange = parseImportPreview;
             };
 
             const closeImportModal = () => {
@@ -3720,8 +3680,9 @@
 
                     if (importMode === 'excel') {
                         const result = parseExcelText(rawText);
-                        if (result.errors.length > 0 && result.employees.length === 0) {
-                            throw new Error(result.errors.join(' | '));
+                        if (result.errors.length > 0) {
+                            // Fail atomically: do not import only the valid subset.
+                            throw new Error(`Importación bloqueada. ${result.rows} filas: ${result.valid} válidas y ${result.rejected} rechazadas. Corrige las filas y vuelve a intentarlo.\n${result.errors.slice(0, 10).join('\n')}${result.errors.length > 10 ? '\n... y ' + (result.errors.length - 10) + ' errores más.' : ''}`);
                         }
                         newEmps = result.employees.map((e, idx) => ({
                             id: Date.now() + idx,
