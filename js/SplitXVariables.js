@@ -198,7 +198,7 @@
         const chips = tokenize(formula).map(token => {
             if (['+', '-', '*', '/'].includes(token)) return { kind:'op', op:token };
             if (token === '(' || token === ')') return { kind:'paren', paren:token };
-            if (/^\\d/.test(token)) return { kind:'number', value:Number(token) };
+            if (/^[0-9]/.test(token)) return { kind:'number', value:Number(token) };
             if (token === '%') return { kind:'percent' };
             if (custom.has(token) || (token.startsWith('custom:') && custom.has(token.slice(7))))
                 return { kind:'field', key:'custom:' + token.replace(/^custom:/, '') };
