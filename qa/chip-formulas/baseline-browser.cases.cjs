@@ -36,7 +36,8 @@ test('C06 baseline: the current palette already inserts chips into a selected ca
     try{
         await page.locator('#ssCardEdit [data-zone="A:1:1"]').click();
         const chip = page.locator('#ssPalette [data-pi]',{hasText:'Días trabajados'}).first();
-        const group = page.locator('#ssPalette details').filter({has:chip});
+        // Playwright.has scopes locators relative to each details element.
+        const group = page.locator('#ssPalette details').filter({has:page.locator('[data-pi]',{hasText:'Días trabajados'})});
         if (!(await group.evaluate(el => el.open))) await group.locator('summary').click();
         await chip.click();
         const config=await store();
