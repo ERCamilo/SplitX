@@ -18,6 +18,7 @@ test('C01/C13: legacy textual formula saves, appears as chip and survives reload
         await page.fill('#ssVarId','pago_extra');
         await page.fill('#ssVarLabel','Pago extra');
         await page.selectOption('#ssVarKind','formula');
+        await page.click('#ssVarModeText');
         await page.fill('#ssVarFormula','gross * 5% + transporte');
         await page.click('[data-act="vars-save"]');
         let cfg=await store();
