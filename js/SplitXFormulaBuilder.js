@@ -55,6 +55,7 @@
             '<output id="ssVarPreviewValue" aria-live="polite"></output></div></div>';
         formLabel.insertAdjacentHTML('beforebegin',markup);
         const box = q('#ssVarBuilder');
+        const createdAt = Date.now();
         const area = q('#ssVarVisualArea');
         const canvas=q('#ssVarFormulaCanvas'),palette=q('#ssVarBuilderPalette');
         const preview=q('#ssVarPreviewValue'), selector=q('#ssVarPreviewEmployee');
@@ -96,6 +97,7 @@
         };
         const renderMode = () => {
             const active=kind.value==='formula';
+            box.dataset.activeMode=mode;
             box.style.display=active?'block':'none';
             formLabel.style.display=active && mode==='text'?'block':'none';
             area.style.display=mode==='visual'?'block':'none';
@@ -113,7 +115,7 @@
         };
         const add = item => { chips.push(clone(item));msg.textContent='';renderTokens();previewValue(); };
         q('#ssVarModeVisual').addEventListener('click',()=>switchMode('visual'));
-        q('#ssVarModeText').addEventListener('click',()=>switchMode('text'));
+        q('#ssVarModeText').addEventListener('click',e=>{box.dataset.lastTextSwitch='clicked:'+(Date.now()-createdAt)+'ms:'+e.detail;switchMode('text');});
         kind.addEventListener('change',()=>{
             if (kind.value==='formula' && !existing && !seed) mode='visual';
             else if (kind.value==='formula'&&!chips.length&&formula.value.trim()) {
