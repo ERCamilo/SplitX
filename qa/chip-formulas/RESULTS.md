@@ -1,41 +1,39 @@
-# Resultado inicial de QA de fórmulas visuales — 25 octubre 2026
+# Validación final — constructor visual de fórmulas
 
-## Evidencia reproducible
+**Fecha:** 2026-10-25 · **PR:** https://github.com/ERCamilo/SplitX/pull/18
 
-- Rama exclusiva: qa/chip-formula-builder-20261025
-- PR de QA en borrador: https://github.com/ERCamilo/SplitX/pull/17
-- Último pipeline QA evaluado: https://github.com/ERCamilo/SplitX/actions/runs/40194548038
-- Pipeline ordinario del PR: https://github.com/ERCamilo/SplitX/actions/runs/40194552011 (PASS)
-- Base de producto: a834ce08f8e3bcad246a80084b922e7adbdc8b57
-- No hay modificaciones del código de producto ni de main.
+## Resultado comprobado
 
-## Resultado por grupo
+- 6/6 pruebas de compatibilidad del motor: PASS.
+- 2/2 recorridos de compatibilidad del editor: PASS.
+- 9/9 pruebas del motor chips ↔ texto: PASS.
+- 13/13 recorridos de navegador desktop y móvil táctil: PASS.
+- **Total: 30/30 PASS.**
+- CI habitual del repositorio (Node, tipo, Playwright): PASS.
+- Evidencia específica: https://github.com/ERCamilo/SplitX/actions/runs/40199240052
+- Versión de código validada: `5b6757d785674c9a4bef71eccb4fd7de2ada79e8` (incluye corrección del toque móvil).
 
-| Conjunto | Pasan | Fallan | Interpretación |
-|---|---:|---:|---|
-| baseline.cases.cjs (Node) | 6 | 0 | Motor actual protegido |
-| baseline-browser.cases.cjs (Chromium) | 2 | 0 | Editor actual protegido |
-| future-unit.cases.cjs (Node) | 0 | 9 | Falta chipsToFormula / formulaToChips |
-| future-browser.cases.cjs (Chromium desktop y móvil táctil) | 0 | 12 | Falta el constructor visual y su interacción |
-| Total | **8** | **21** | **Rojo esperado de funcionalidades futuras** |
+## Cobertura funcional
 
-## Interpretación
+1. Campos importados de SA y variables propias como chips con etiquetas legibles.
+2. Conversión de texto a chips y de chips a texto sin alterar operaciones, paréntesis ni porcentajes.
+3. Fórmulas guardadas anteriormente siguen siendo compatibles.
+4. Arrastrar/soltar, reordenar, quitar con teclado y añadir tocando en móvil.
+5. Evitar activaciones accidentales del modo avanzado al abrir el administrador en pantallas táctiles.
+6. Cálculos de ejemplo por empleado, incluidas excepciones particulares.
+7. Guardar cálculos existentes de celdas como variables reutilizables.
+8. Usar las nuevas variables en sobres y hojas de firmas con idéntico resultado.
+9. Autocompletado de campos en el editor de texto.
+10. Rechazo de expresiones desconocidas, circulares, operaciones inseguras y fórmulas excesivamente extensas.
+11. Cancelación sin sobrescribir fórmulas previas.
+12. Datos originales `Split_data` inalterados por editar e imprimir.
 
-- PASS en baseline significa que el producto sigue aceptando y calculando fórmulas antiguas, conserva las definiciones y permite insertar campos con chips en el editor actual.
-- FAIL en future-unit significa que faltan las funciones de conversión de chips a fórmula y de fórmula a chips. No implica que una fórmula existente se calcule mal.
-- FAIL en future-browser significa que no existe todavía el lienzo de chips dentro del administrador de variables, el cambio de modo texto/visual, ni acciones visuales relacionadas. No implica error de comunicación con SA.
-- Las etiquetas/identificadores del UI de prueba se detallan en CASES.md. Durante la implementación pueden refinarse junto con las pruebas preservando el contrato funcional.
+## Flujo y límites
 
-## Secuencia de corrección sugerida
+- La interfaz visual es la opción predeterminada; la edición textual avanzada es voluntaria.
+- Las definiciones se almacenan junto a las configuraciones de hojas y continúan siendo locales al navegador.
+- Las fórmulas no pueden ejecutar JS ni modificar datos fuente de nóminas SA.
+- No se garantiza equivalencia con una sesión física de SA: los tests importan empleados de ejemplo en un navegador aislado.
+- QA continua: `.github/workflows/qa-chip-formulas.yml` se ejecutará sobre `main` y nuevas PR al fusionar esta implementación.
 
-1. C02-C05: implementar la conversión bidireccional sobre los tipos de chip de SheetBuilder (sin eval y sin modificar datos guardados).
-2. C01/C13: comprobar compatibilidad de todas las fórmulas antiguas, incluso después de recargar.
-3. C06: incorporar la paleta y el lienzo visual al diálogo de variables. Soportar arrastrar, soltar, tocar y reordenar.
-4. C07/C12: adaptar a móvil táctil y teclado; mantener controles grandes y accesibles.
-5. C09-C11: previsualización por empleado, alternativas de valores y modo texto con autocompletado.
-6. C08/C16/C17: guardar expresiones de una celda como variables, reutilizar en sobres y firmas, cancelar sin guardar.
-7. Ejecutar QA rojo hasta cero y volver a correr npm test, npm run typecheck y npm run test:e2e. Solo entonces solicitar revisión y posible fusión.
-
-## Protección
-
-No integrar esta rama QA aislada por sí sola: contiene contratos que fallan deliberadamente hasta desarrollar el comportamiento nuevo. Cuando un PR de implementación introduzca el constructor, debe incorporar las pruebas que le correspondan y demostrar todos los casos obligatorios verdes.
+La antigua rama del PR #17 contenía casos rojos deliberadamente; el PR #18 incorpora el código nuevo y los casos aprobados. No fusionar el PR #17 por separado.
