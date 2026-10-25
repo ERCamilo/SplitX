@@ -94,6 +94,7 @@ describe('SA cross-origin postMessage to the real SplitX browser app', () => {
             assert.equal(snapshot.employees[0].payroll.loanDetails.interestAmount, 100);
             await receiver.evaluate(() => window.app.openSheetStudio());
             await receiver.waitForSelector('#ssBar');
+            await receiver.click('[data-act="sheet"][data-v="B"]');
             const sheetText = await receiver.textContent('#ssCanvas');
             assert.match(sheetText, /Ana Ejemplo/);
             await receiver.reload({ waitUntil: 'load' });
