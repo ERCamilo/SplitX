@@ -283,3 +283,20 @@ test('C17: cancelling an advanced edit preserves the previous valid formula',asy
         assert.equal(variable(await store(),'extra').formula,'gross * 5%');
     }finally{await close();}
 });
+
+test('C07 regression: synthetic click-through cannot switch new formula to advanced text',async()=>{
+    const {page,close}=await openStudio(2);
+    try {
+        await page.click('#ssVarsBtn');
+        await page.selectOption('#ssVarKind','formula');
+        await assertVisible(page,'#ssVarFormulaCanvas','visual is the default');
+        await page.locator('#ssVarModeText').evaluate(el => el.dispatchEvent(
+            new MouseEvent('click',{bubbles:true,cancelable:true,detail:1})
+        ));
+        await assertVisible(page,'#ssVarFormulaCanvas','unarmed click-through must not change mode');
+        await page.click('#ssVarModeText');
+        await assertVisible(page,'#ssVarFormula','intentional pointer click still enables advanced text');
+        await page.click('#ssVarModeVisual');
+        await assertVisible(page,'#ssVarFormulaCanvas','return to chips remains available');
+    } finally {await close();}
+});
