@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'qa/chip-formula-builder-*'
+      - 'feat/chip-formula-visual-builder-*'
   workflow_dispatch:
 
 permissions:
@@ -28,18 +29,18 @@ jobs:
         run: node --test qa/chip-formulas/baseline-browser.cases.cjs
 
   future-unit-contract:
-    name: Futuro - conversion chips/texto (rojo esperado)
+    name: Futuro - conversion chips/texto (debe pasar al implementar)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Ejecutar contrato futuro (fallara hasta implementar)
+      - name: Ejecutar contrato futuro (debe pasar ahora)
         run: node --test qa/chip-formulas/future-unit.cases.cjs
 
   future-browser-contract:
-    name: Futuro - raton y movil (rojo esperado)
+    name: Futuro - raton y movil (debe pasar al implementar)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,5 +51,5 @@ jobs:
         run: |
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: Ejecutar contrato de navegador (fallara hasta implementar)
+      - name: Ejecutar contrato de navegador (debe pasar ahora)
         run: node --test qa/chip-formulas/future-browser.cases.cjs
