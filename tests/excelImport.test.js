@@ -15,9 +15,9 @@ describe('monetary parser: locale and safety', () => {
             assert.throws(() => parseMoney(v), /ambiguo/i, v);
         }
         assert.equal(parseMoney('1,300', { format: 'en' }), 1300);
-        assert.equal(parseMoney('1,300', { format: 'es' }), 1.3);
+        assert.throws(() => parseMoney('1,300', { format: 'es' }), /formato/i);
         assert.equal(parseMoney('1.300', { format: 'es' }), 1300);
-        assert.equal(parseMoney('1.300', { format: 'en' }), 1.3);
+        assert.throws(() => parseMoney('1.300', { format: 'en' }), /formato/i);
     });
 
     test('never accepts truncated or malformed amounts', () => {
