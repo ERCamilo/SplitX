@@ -8,11 +8,11 @@
  */
 (function (root, factory) {
     if (typeof exports === 'object' && typeof module !== 'undefined') {
-        module.exports = factory(require('./SheetBuilder.js'), require('./SplitXSheetFields.js'), require('./SplitXVariables.js'));
+        module.exports = factory(require('./SheetBuilder.js'), require('./SplitXSheetFields.js'), require('./SplitXVariables.js'), require('./SplitXFormulaBuilder.js'));
     } else {
-        root.SheetStudio = factory(root.SheetBuilder, root.SplitXSheetFields, root.SplitXVariables);
+        root.SheetStudio = factory(root.SheetBuilder, root.SplitXSheetFields, root.SplitXVariables, root.SplitXFormulaBuilder);
     }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (SB, SF, CV) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (SB, SF, CV, FB) {
     'use strict';
 
     const PT_MM = 0.3528;          // 1 pt en mm
@@ -739,7 +739,8 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             variableEdit: null, variableDeleteConfirm: null
         };
         const histories = new Map();
-        let employees = []; let engine; let fieldSet; let palette = []; let drag = null; let rz = false; let bound = false; let lastCommit = { key: '', at: 0 };
+        let employees = []; let engine; let fieldSet; let palette = []; let drag = null; let rz = false; let bound = false;
+        let formulaBuilder = null; let variableSeedChips = null; let lastCommit = { key: '', at: 0 };
 
         const $ = (sel) => rootEl.querySelector(sel);
 
@@ -1146,12 +1147,25 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                   <button class="ss-btn primary" data-act="vars-save" type="button">${current ? 'Guardar cambios' : 'Crear variable'}</button>
                 </div>
               </section></div>`;
+            formulaBuilder = FB.mount({
+                host, fields: fieldSet.fields, variables: state.store.variables,
+                employees, existing: current, seed: variableSeedChips,
+                savePreview: {
+                    resolveField: fieldSet.resolveField,
+                    createFieldSet: (defs) => CV.createFieldSet(defs,
+                        SF.createFieldSet({ records: employees, getNetAmount: opts.getNetAmount }), SB)
+                }
+            });
+            variableSeedChips = null;
         };
-        const closeVariablesDialog = () => { $('#ssVarsDialog')?.remove(); state.variableEdit = null; state.variableDeleteConfirm = null; };
+        const closeVariablesDialog = () => { $('#ssVarsDialog')?.remove(); formulaBuilder=null; variableSeedChips=null; state.variableEdit = null; state.variableDeleteConfirm = null; };
         const variableError = message => { const el = $('#ssVarsMsg'); if (el) el.textContent = message; };
         const saveVariable = () => {
             try {
-                const id = $('#ssVarId').value.trim();
+                const enteredId = $('#ssVarId').value.trim();
+                const label = $('#ssVarLabel').value.trim();
+                const suggested = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0,32);
+                const id = enteredId || (suggested.match(/^[a-z]/) ? suggested : 'variable_' + suggested).slice(0,32);
                 const kind = $('#ssVarKind').value;
                 const original = state.store.variables.find(v => v.id === id);
                 const next = { id, label: $('#ssVarLabel').value.trim(), kind };
@@ -1166,7 +1180,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                         if (!override) delete next.overrides[employee];
                         else next.overrides[employee] = Number(override);
                     }
-                } else next.formula = $('#ssVarFormula').value.trim();
+                } else next.formula = formulaBuilder ? formulaBuilder.getFormula() : $('#ssVarFormula').value.trim();
                 const old = state.store.variables;
                 if (old.some(v => v.id === id) && state.variableEdit !== id)
                     throw new Error('Ya existe una variable con ese ID.');
@@ -1397,7 +1411,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const r = zoneIndex(zone, 1);
                 const c = zoneIndex(zone, 2);
                 const row = tpl().rows[r];
-                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cellProps(cell, false)}</div>
+                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cell.mode==='number' && cell.chips.length ? '<button type="button" class="ss-btn sm" id="ssSaveCellAsVariable" data-act="vars-from-cell">Guardar cálculo como variable</button>' : ''}${cellProps(cell, false)}</div>
                   <div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1}</h3>
                     <div class="ss-field">Si sus montos están vacíos o en 0 ${segHTML('row.whenEmpty', row.whenEmpty || 'show', [['show', 'Mostrar'], ['dash', 'Guion “-”'], ['hide', 'Ocultar fila']])}</div>
                     <label class="ss-check"><input id="ssLine" type="checkbox" data-bind="row.lineAbove" ${row.lineAbove ? 'checked' : ''}> Línea separadora encima</label></div>${cardSection()}`;
@@ -1786,6 +1800,14 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
 
         const actions = {
             sheet: (v) => { state.sheet = v; state.store.sheet = v; state.sel = null; state.pop = null; touch(); },
+            'vars-from-cell': () => {
+                const cell = selCell();
+                if (!cell || !cell.chips.length || cell.chips.some(c => !['field','number','op','paren'].includes(c.kind)))
+                    return toast('Selecciona una celda con un cálculo numérico para guardarlo como variable');
+                variableSeedChips = clone(cell.chips);
+                state.variableEdit = null;
+                renderVariablesDialog();
+            },
             'vars-open': () => { state.variableEdit = null; state.variableDeleteConfirm = null; renderVariablesDialog(); },
             'vars-close': () => closeVariablesDialog(),
             'vars-new': () => { state.variableEdit = null; renderVariablesDialog(); },
