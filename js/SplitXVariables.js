@@ -88,6 +88,7 @@
         for (const def of definitions) {
             if (!def || !ID.test(def.id) || typeof def.label !== 'string' ||
                 !def.label.trim() || def.label.length > 60) throw new Error('ID o nombre de variable inválido.');
+            if (builtin.has(def.id)) throw new Error('El identificador coincide con un campo importado: ' + def.id);
             if (ids.has(def.id)) throw new Error('Variable duplicada: ' + def.id);
             ids.add(def.id);
             if (def.kind === 'fixed') {
