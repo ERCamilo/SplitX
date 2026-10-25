@@ -194,3 +194,39 @@ describe('getPayrollSummary', () => {
         assert.equal(s.totalRemainingBalance, 700);
     });
 });
+
+describe('bounded optimizer integration: protect payroll regressions', () => {
+    test('uses three 10 bills when a greedy 25 bill leaves an avoidable shortage', () => {
+        const { core } = make({
+            denominations: [25, 10], inventory: {25: 1, 10: 3},
+            employees: [{id:1,name:'Ana', amount:30, paid:false}]
+        });
+        const {results,leftoverInventory} = core.calculateDistribution();
+        assert.equal(results[0]._missingAmount,0);
+        assert.deepEqual(results[0].distribution, {10:3});
+        assert.deepEqual(leftoverInventory, {25:1, 10:0});
+        const {breakdown} = core.calculateBankNeeds();
+        assert.ok(Object.values(breakdown).every(x=>x.final===0));
+    });
+    test('never sacrifices an employee who was fully payable with old distribution', () => {
+        const {core} = make({
+            denominations:[25,10], inventory:{25:1,10:3},
+            employees:[{id:1,name:'A',amount:30,paid:false},{id:2,name:'B',amount:10,paid:false}]
+        });
+        const {results}=core.calculateDistribution();
+        // Optimizing A would require all three 10s and make B newly short.
+        assert.equal(results[0]._missingAmount,5);
+        assert.equal(results[1]._missingAmount,0);
+    });
+    test('optimizes loan reserve independently of paid employee inventory', () => {
+        const {core} = make({
+            denominations:[25,10], inventory:{25:1,10:3}, payrollMode:'deductions',
+            payrollLoanFund:30,
+            employees:[{id:1,name:'A',amount:0,paid:true,payroll:{loans:30,afterDiscounts:30}}]
+        });
+        const {loanFundResult,leftoverInventory}=core.calculateDistribution();
+        assert.equal(loanFundResult.missingAmount,0);
+        assert.deepEqual(loanFundResult.distribution, {10:3});
+        assert.equal(leftoverInventory[25],1);
+    });
+});
