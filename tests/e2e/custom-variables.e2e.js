@@ -56,7 +56,7 @@ describe('print-only customizable variables in the actual editor',()=>{
             await page.fill('#ssVarFormula','ciclo + 1');
             await page.click('[data-act="vars-save"]');
             assert.match(await page.textContent('#ssVarsMsg'),/circular/i);
-            assert.equal((await store()).variables.length,0);
+            assert.equal(((await store()).variables || []).length,0);
             await page.fill('#ssVarId','transporte');
             await page.fill('#ssVarLabel','Transporte');
             await page.selectOption('#ssVarKind','fixed');
