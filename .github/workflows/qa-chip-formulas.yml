@@ -3,8 +3,11 @@ name: QA aislada - constructor de formulas por chips
 on:
   push:
     branches:
+      - main
       - 'qa/chip-formula-builder-*'
       - 'feat/chip-formula-visual-builder-*'
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -29,18 +32,18 @@ jobs:
         run: node --test qa/chip-formulas/baseline-browser.cases.cjs
 
   future-unit-contract:
-    name: Futuro - conversion chips/texto (debe pasar al implementar)
+    name: Formulas - conversion chips y texto
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Ejecutar contrato futuro (debe pasar ahora)
+      - name: Pruebas unitarias de formulas visuales
         run: node --test qa/chip-formulas/future-unit.cases.cjs
 
   future-browser-contract:
-    name: Futuro - raton y movil (debe pasar al implementar)
+    name: Constructor - navegador y movil
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,5 +54,5 @@ jobs:
         run: |
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: Ejecutar contrato de navegador (debe pasar ahora)
+      - name: Pruebas visuales desktop y touch
         run: node --test qa/chip-formulas/future-browser.cases.cjs
