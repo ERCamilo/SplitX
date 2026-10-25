@@ -10,7 +10,7 @@ const assertVisible = async (page, selector, goal) => {
     const el = page.locator(selector).first();
     const visible = await el.isVisible();
     if (!visible) {
-        const diagnostics = await page.evaluate(sel => { const x = document.querySelector(sel);const kind=document.querySelector('#ssVarKind');const box=document.querySelector('#ssVarBuilder');return {exists:!!x,kind:kind?.value,box:box?.style.display,area:document.querySelector('#ssVarVisualArea')?.style.display,dialog:!!document.querySelector('#ssVarsDialog'),hidden:x?.hidden,style:x?.getAttribute('style'),parent:x?.parentElement?.getAttribute('style'),viewport:innerWidth}; }, selector);
+        const diagnostics = await page.evaluate(sel => { const x = document.querySelector(sel);const kind=document.querySelector('#ssVarKind');const box=document.querySelector('#ssVarBuilder');return {exists:!!x,kind:kind?.value,box:box?.style.display,mode:box?.dataset.activeMode,reason:box?.dataset.lastTextSwitch,visualPressed:document.querySelector('#ssVarModeVisual')?.getAttribute('aria-pressed'),textPressed:document.querySelector('#ssVarModeText')?.getAttribute('aria-pressed'),formula:document.querySelector('#ssVarFormula')?.value,area:document.querySelector('#ssVarVisualArea')?.style.display,dialog:!!document.querySelector('#ssVarsDialog'),hidden:x?.hidden,style:x?.getAttribute('style'),parent:x?.parentElement?.getAttribute('style'),viewport:innerWidth}; }, selector);
         assert.fail('PENDIENTE [constructor de chips]: '+goal+' ('+selector+'): '+JSON.stringify(diagnostics));
     }
 };
