@@ -35,7 +35,10 @@ test('C06 baseline: the current palette already inserts chips into a selected ca
     const {page,store,close}=await openStudio(2);
     try{
         await page.locator('#ssCardEdit [data-zone="A:1:1"]').click();
-        await page.locator('#ssPalette [data-pi]',{hasText:'Días trabajados'}).first().click();
+        const chip = page.locator('#ssPalette [data-pi]',{hasText:'Días trabajados'}).first();
+        const group = page.locator('#ssPalette details').filter({has:chip});
+        if (!(await group.evaluate(el => el.open))) await group.locator('summary').click();
+        await chip.click();
         const config=await store();
         const tpl=config.templates.find(t=>t.id===config.active.A).template;
         assert.ok(tpl.rows[1].cells[1].chips.some(ch=>ch.kind==='field'&&ch.key==='days'));
