@@ -114,9 +114,14 @@
         const add = item => { chips.push(clone(item));msg.textContent='';renderTokens();previewValue(); };
         q('#ssVarModeVisual').addEventListener('click',()=>switchMode('visual'));
         q('#ssVarModeText').addEventListener('click',()=>switchMode('text'));
-        kind.addEventListener('change',()=>{if(kind.value==='formula'&&!chips.length&&formula.value.trim()) {
-            try {chips=CV.formulaToChips(formula.value,catalog);}catch(_) {mode='text';}
-        }renderMode();});
+        kind.addEventListener('change',()=>{
+            if (kind.value==='formula' && !existing && !seed) mode='visual';
+            if (kind.value==='formula'&&!chips.length&&formula.value.trim()) {
+                try { chips=CV.formulaToChips(formula.value,catalog); }
+                catch(_) { mode='text'; }
+            }
+            renderMode();
+        });
         palette.addEventListener('click',e=>{
             const el=e.target.closest('[data-chip-key],[data-chip-op]');if(!el) return;
             add(el.dataset.chipKey?F(el.dataset.chipKey):makeOp(el.dataset.chipOp));
