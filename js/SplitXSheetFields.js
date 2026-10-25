@@ -257,6 +257,32 @@
     };
 
     /**
+     * Capital, interés y saldo restante de los préstamos descontados en este pago, a partir de
+     * loanBreakdown / loanSummary (undefined si el empleado no trae desglose de préstamos).
+     * @param {any} item
+     * @returns {{ principal?: number, interest?: number, balanceAfter?: number } | undefined}
+     */
+    const summarizeLoans = (item) => {
+        if (!isObj(item)) return undefined;
+        const loans = pickLoanItems(item.loanBreakdown) || [];
+        const summary = pickLoanSummary(item.loanSummary);
+        if (!loans.length && !summary) return undefined;
+        /** @type {{ principal?: number, interest?: number, balanceAfter?: number }} */
+        const out = {};
+        const sumOf = (/** @type {'principal' | 'interest' | 'balanceAfter'} */ k) => {
+            const withValue = loans.filter((l) => typeof l[k] === 'number');
+            return withValue.length ? withValue.reduce((s, l) => s + /** @type {number} */ (l[k]), 0) : undefined;
+        };
+        const principal = sumOf('principal');
+        const interest = sumOf('interest');
+        const balanceAfter = summary?.balanceAfter ?? sumOf('balanceAfter');
+        if (principal !== undefined) out.principal = principal;
+        if (interest !== undefined) out.interest = interest;
+        if (balanceAfter !== undefined) out.balanceAfter = balanceAfter;
+        return out;
+    };
+
+    /**
      * Sueldo por día: el del puesto si el export lo trae (ponderado por días si hay varios puestos);
      * si no, bruto ÷ días trabajados.
      * @param {any} r
@@ -344,7 +370,11 @@
     };
 
     /** @param {any} r */
-    const displayName = (r) => r.employeeName || r.name || '';
+    // Use edited name if user changed it in SplitX, otherwise the original clean exported name.
+    const displayName = (r) => {
+        const edited = r.originalData && r.originalData.name !== undefined && r.name !== r.originalData.name;
+        return (edited ? r.name : r.employeeName || r.name) || '';
+    };
 
     /**
      * @param {{ records?: any[], getNetAmount?: (record: any) => number }} [options]
@@ -440,5 +470,5 @@
         return { fields, resolveField, listConcepts };
     };
 
-    return { pickImportExtras, sumDetailAmounts, sumLoanAmounts, unwrapImportPayload, conceptLines, createFieldSet, slugify };
+    return { pickImportExtras, sumDetailAmounts, sumLoanAmounts, summarizeLoans, unwrapImportPayload, conceptLines, createFieldSet, slugify };
 });

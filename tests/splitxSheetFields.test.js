@@ -313,3 +313,16 @@ describe('conceptLines', () => {
         assert.deepEqual(SF.conceptLines({ payroll: { bonuses: 10 } }), { bonuses: [], deductions: [], loans: [] });
     });
 });
+
+// Preserves clean imported names until the user explicitly edits them in SplitX.
+describe('Displayed name after a manual edit', () => {
+    const nameOf = (rec) => SF.createFieldSet({ records: [rec] }).fields.find((f) => f.key === 'name').get(rec, { index: 0 });
+    test('clean imported name still prints when original not edited', () => {
+        const rec = { name: 'Ana Ejemplo (Ref #001)', employeeName: 'Ana Ejemplo', originalData: { name: 'Ana Ejemplo (Ref #001)' } };
+        assert.equal(nameOf(rec), 'Ana Ejemplo');
+    });
+    test('edited name takes precedence over stale imported name', () => {
+        const rec = { name: 'Ana M. Ejemplo', employeeName: 'Ana Ejemplo', originalData: { name: 'Ana Ejemplo (Ref #001)' } };
+        assert.equal(nameOf(rec), 'Ana M. Ejemplo');
+    });
+});
