@@ -5,11 +5,11 @@
  */
 (function (root, factory) {
     if (typeof exports === 'object' && typeof module !== 'undefined') {
-        module.exports = factory();
+        module.exports = factory(require('./CashOptimizer.js'));
     } else {
-        root.SplitXCore = factory();
+        root.SplitXCore = factory(root.CashOptimizer);
     }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (CashOptimizer) {
     'use strict';
 
     const createCore = ({ getState, fmt = (n) => String(n) }) => {
@@ -100,8 +100,34 @@
         };
 
 
+        // Allocate without mutating employees; keep the original greedy policy as
+        // the safe fallback whenever exact search exceeds its bounded resource budget.
+        const allocateAvailable = (amount, denominations, inventory, optimize = false) => {
+            if (optimize && CashOptimizer && typeof CashOptimizer.solveCash === 'function') {
+                try {
+                    const plan = CashOptimizer.solveCash(amount, denominations, inventory);
+                    Object.entries(plan.distribution).forEach(([denom, count]) => {
+                        inventory[denom] = (inventory[denom] || 0) - count;
+                    });
+                    return { distribution: plan.distribution, remainder: plan.remainder };
+                } catch (_) { /* preserved/legacy data can still use the old greedy fallback */ }
+            }
+            const distribution = {};
+            let remainder = amount;
+            denominations.forEach(denom => {
+                if (remainder <= 0) return;
+                const take = Math.min(Math.floor(remainder / denom), inventory[denom] || 0);
+                if (take > 0) {
+                    distribution[denom] = take;
+                    inventory[denom] -= take;
+                    remainder = parseFloat((remainder - take * denom).toFixed(2));
+                }
+            });
+            return { distribution, remainder };
+        };
+
         // 1. Calculate Distribution and Return LEFTOVER Inventory (Practical Approach)
-        const calculateDistribution = () => {
+        const calculateDistributionPass = (optimize = false) => {
             const state = getState();
             // We create a deep copy of inventory to simulate payments
             let currentInventory = { ...state.inventory };
@@ -126,22 +152,11 @@
                          }
                     }
                 } else {
-                    // For UNPAID, we strictly try to use available inventory
-                    let remaining = targetAmount;
-                    for (let denom of state.denominations) {
-                        if (remaining <= 0) break;
-                        let needed = Math.floor(remaining / denom);
-                        if (needed > 0) {
-                            let available = currentInventory[denom] || 0;
-                            let take = Math.min(needed, available);
-                        
-                            if (take > 0) {
-                                distribution[denom] = take;
-                                currentInventory[denom] -= take;
-                                remaining = parseFloat((remaining - (take * denom)).toFixed(2));
-                            }
-                        }
-                    }
+                    // The improved strategy is evaluated against the old plan
+                    // before it can affect other employees or the bank order.
+                    const allocation = allocateAvailable(targetAmount, state.denominations, currentInventory, optimize);
+                    distribution = allocation.distribution;
+                    const remaining = allocation.remainder;
                     if (remaining > 0) {
                         status = 'error';
                         // We attach the remaining amount to the employee object for the advisor
@@ -159,18 +174,9 @@
             const payrollSummary = getPayrollSummary();
             const loanFundAmount = isNormal ? 0 : Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
             const loanFundResult = { amount: loanFundAmount, distribution: {}, status: 'ok', missingAmount: 0 };
-            let fundRemaining = loanFundAmount;
-            state.denominations.forEach(denom => {
-                if (fundRemaining <= 0) return;
-                const needed = Math.floor(fundRemaining / denom);
-                const available = currentInventory[denom] || 0;
-                const take = Math.min(needed, available);
-                if (take > 0) {
-                    loanFundResult.distribution[denom] = take;
-                    currentInventory[denom] -= take;
-                    fundRemaining = parseFloat((fundRemaining - take * denom).toFixed(2));
-                }
-            });
+            const fundAllocation = allocateAvailable(loanFundAmount, state.denominations, currentInventory, optimize);
+            loanFundResult.distribution = fundAllocation.distribution;
+            const fundRemaining = fundAllocation.remainder;
             if (fundRemaining > 0) {
                 loanFundResult.status = 'error';
                 loanFundResult.missingAmount = fundRemaining;
@@ -178,6 +184,25 @@
 
             // Return both the mapped employees AND what's left in the inventory
             return { results, leftoverInventory: currentInventory, loanFundResult };
+        };
+
+        // Never turn an employee or loan reserve that was fully covered by the
+        // existing method into an underfunded one. Also reject plans with more
+        // missing money across the entire operation.
+        const calculateDistribution = () => {
+            const baseline = calculateDistributionPass(false);
+            if (!CashOptimizer || typeof CashOptimizer.solveCash !== 'function') return baseline;
+            const baselineMissing = baseline.results.reduce((n, e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
+                + baseline.loanFundResult.missingAmount;
+            if (baselineMissing <= 0) return baseline;
+            const candidate = calculateDistributionPass(true);
+            const newlyShort = candidate.results.some((e, i) => !e.paid &&
+                (baseline.results[i]._missingAmount || 0) === 0 && (e._missingAmount || 0) > 0);
+            if (newlyShort || (baseline.loanFundResult.missingAmount === 0 && candidate.loanFundResult.missingAmount > 0))
+                return baseline;
+            const candidateMissing = candidate.results.reduce((n, e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
+                + candidate.loanFundResult.missingAmount;
+            return candidateMissing < baselineMissing - 0.001 ? candidate : baseline;
         };
 
         // 2. Bank Planner (Calculates needs ONLY for Unpaid employees)

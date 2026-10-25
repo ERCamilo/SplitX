@@ -17,7 +17,12 @@
         const parseImportNumber = (value, fallback = 0) => {
             if (value === undefined || value === null || value === '') return fallback;
             const parsed = typeof value === 'number' ? value : parseExcelNumber(String(value));
-            return isNaN(parsed) ? fallback : parsed;
+            if (!Number.isFinite(parsed) || !Number.isSafeInteger(Math.round(parsed * 100)) ||
+                Math.abs(parsed * 100 - Math.round(parsed * 100)) > 1e-6) {
+                throw new Error('Monto JSON inválido o ambiguo: ' + String(value) +
+                    '. Utiliza un número JSON sin separador de miles o un texto monetario inequívoco.');
+            }
+            return Math.round(parsed * 100) / 100;
         };
 
         // Una lista de conceptos vacía no cuenta como dato de nómina.
