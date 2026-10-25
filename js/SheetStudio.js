@@ -8,11 +8,11 @@
  */
 (function (root, factory) {
     if (typeof exports === 'object' && typeof module !== 'undefined') {
-        module.exports = factory(require('./SheetBuilder.js'), require('./SplitXSheetFields.js'));
+        module.exports = factory(require('./SheetBuilder.js'), require('./SplitXSheetFields.js'), require('./SplitXVariables.js'));
     } else {
-        root.SheetStudio = factory(root.SheetBuilder, root.SplitXSheetFields);
+        root.SheetStudio = factory(root.SheetBuilder, root.SplitXSheetFields, root.SplitXVariables);
     }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (SB, SF) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (SB, SF, CV) {
     'use strict';
 
     const PT_MM = 0.3528;          // 1 pt en mm
