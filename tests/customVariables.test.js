@@ -58,7 +58,7 @@ describe('custom printable sheet variables', () => {
         assert.throws(()=>CV.validateDefinitions([{id:'gross',label:'X',kind:'fixed',value:2}],base),/importado/i);
     });
     test('division by zero becomes a visible cell error rather than silently zero', () => {
-        const eng = make([{id:'ratio',label:'Razón',kind:'formula',formula:'gross / (days - days)'}]);
+        const eng = make([{id:'ratio',label:'Razón',kind:'formula',formula:'gross / (days - 10)'}]);
         const res = eng.evaluateCell(cell('ratio'),record,{index:0},null);
         assert.equal(res.value,null);
         assert.match(res.error,/cero/i);
