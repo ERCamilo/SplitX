@@ -7,8 +7,12 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { openStudio } = require('../../tests/e2e/helpers.js');
 const assertVisible = async (page, selector, goal) => {
-    assert.ok(await page.locator(selector).isVisible(),
-        'PENDIENTE [constructor de chips]: '+goal+' ('+selector+')');
+    const el = page.locator(selector).first();
+    const visible = await el.isVisible();
+    if (!visible) {
+        const diagnostics = await page.evaluate(sel => { const x = document.querySelector(sel);const kind=document.querySelector('#ssVarKind');const box=document.querySelector('#ssVarBuilder');return {exists:!!x,kind:kind?.value,box:box?.style.display,area:document.querySelector('#ssVarVisualArea')?.style.display,dialog:!!document.querySelector('#ssVarsDialog'),hidden:x?.hidden,style:x?.getAttribute('style'),parent:x?.parentElement?.getAttribute('style'),viewport:innerWidth}; }, selector);
+        assert.fail('PENDIENTE [constructor de chips]: '+goal+' ('+selector+'): '+JSON.stringify(diagnostics));
+    }
 };
 const editFormula = async (page) => {
     await page.click('#ssVarsBtn');
