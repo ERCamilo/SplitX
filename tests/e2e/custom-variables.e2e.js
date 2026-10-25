@@ -23,6 +23,7 @@ describe('print-only customizable variables in the actual editor',()=>{
             await page.fill('#ssVarId','pago_extra');
             await page.fill('#ssVarLabel','Pago extra');
             await page.selectOption('#ssVarKind','formula');
+        await page.click('#ssVarModeText');
             await page.fill('#ssVarFormula','gross * 5% + transporte');
             await page.click('[data-act="vars-save"]');
             const state = await store();
@@ -53,6 +54,7 @@ describe('print-only customizable variables in the actual editor',()=>{
             await page.fill('#ssVarId','ciclo');
             await page.fill('#ssVarLabel','Ciclo');
             await page.selectOption('#ssVarKind','formula');
+        await page.click('#ssVarModeText');
             await page.fill('#ssVarFormula','ciclo + 1');
             await page.click('[data-act="vars-save"]');
             assert.match(await page.textContent('#ssVarsMsg'),/circular/i);
