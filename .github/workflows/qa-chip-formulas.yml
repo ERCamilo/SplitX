@@ -1,0 +1,54 @@
+name: QA aislada - constructor de formulas por chips
+
+on:
+  push:
+    branches:
+      - 'qa/chip-formula-builder-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: Base actual - debe pasar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Casos de compatibilidad del motor
+        run: node --test qa/chip-formulas/baseline.cases.cjs
+      - name: Instalar Playwright y Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Casos de compatibilidad del editor
+        run: node --test qa/chip-formulas/baseline-browser.cases.cjs
+
+  future-unit-contract:
+    name: Futuro - conversion chips/texto (rojo esperado)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Ejecutar contrato futuro (fallara hasta implementar)
+        run: node --test qa/chip-formulas/future-unit.cases.cjs
+
+  future-browser-contract:
+    name: Futuro - raton y movil (rojo esperado)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar Playwright y Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Ejecutar contrato de navegador (fallara hasta implementar)
+        run: node --test qa/chip-formulas/future-browser.cases.cjs
