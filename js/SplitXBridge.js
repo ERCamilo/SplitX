@@ -13,11 +13,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
-    const isAllowedSplitXOrigin = (origin) => {
+    const isLocalHostname = (hostname) => !hostname || /^(localhost|127\.0\.0\.1)$/i.test(hostname);
+
+    const isAllowedSplitXOrigin = (origin, { allowLocal = true } = {}) => {
         if (!origin) return false;
         if (origin === 'https://asistencia.erlin.do') return true;
-        // Permitir localhost / 127.0.0.1 con cualquier puerto para pruebas y desarrollo
-        if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
+        // Permitir localhost / 127.0.0.1 solo cuando SplitX también corre en local (pruebas y desarrollo)
+        if (allowLocal && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
         return false;
     };
 
@@ -42,10 +44,11 @@
         } = options;
 
         const processedTransfers = new Set();
+        const originPolicy = { allowLocal: isLocalHostname(windowRef?.location?.hostname) };
 
         const handleMessage = async (event) => {
             // 1. Validación de origen permitido
-            if (!isAllowedSplitXOrigin(event.origin)) {
+            if (!isAllowedSplitXOrigin(event.origin, originPolicy)) {
                 return { handled: false, reason: 'origin_not_allowed' };
             }
 
@@ -121,13 +124,6 @@
                     : payloadEmployees;
                 const currency = event.data.currency || (hasContext ? exportContext.currency : undefined);
 
-                if (currency && typeof currency === 'string') {
-                    const code = currency.toUpperCase();
-                    if (['DOP', 'USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'BRL', 'GBP', 'CHF', 'JPY', 'INR', 'PHP', 'RUB'].includes(code)) {
-                        setCurrencyPreset(code);
-                    }
-                }
-
                 const newEmps = rawEmployees.map((item, idx) => normalizeEmployee(item, idx));
                 const state = getState();
 
@@ -159,6 +155,8 @@
                     });
 
                     if (choice === 'cancel') {
+                        // Cancelar no consume el transferId: el emisor puede reintentar
+                        if (transferId) processedTransfers.delete(transferId);
                         if (event.source && typeof event.source.postMessage === 'function') {
                             event.source.postMessage({
                                 type: 'SPLITX_IMPORT_CANCELLED',
@@ -175,6 +173,14 @@
                     }
                 } else {
                     state.employees = newEmps;
+                }
+
+                // La moneda solo cambia cuando el usuario confirma (no al cancelar)
+                if (currency && typeof currency === 'string') {
+                    const code = currency.toUpperCase();
+                    if (['DOP', 'USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'BRL', 'GBP', 'CHF', 'JPY', 'INR', 'PHP', 'RUB'].includes(code)) {
+                        setCurrencyPreset(code);
+                    }
                 }
 
                 if (state.employees.some(e => e.payroll)) {
@@ -196,6 +202,8 @@
 
                 return { handled: true, success: true, count: newEmps.length };
             } catch (err) {
+                // Un import fallido no consume el transferId: el emisor puede reintentar
+                if (transferId) processedTransfers.delete(transferId);
                 console.error('SplitXBridge postMessage error:', err);
                 showToast(`❌ Error al importar nómina: ${err.message}`, 'error');
                 if (event.source && typeof event.source.postMessage === 'function') {
@@ -213,16 +221,18 @@
             const opener = windowRef?.opener;
             if (opener && typeof opener.postMessage === 'function') {
                 try {
-                    let targetOpenerOrigin = '*';
+                    // Sin referrer permitido no se emite: nunca se transmite a '*'
+                    let targetOpenerOrigin = null;
                     const referrer = windowRef?.document?.referrer;
                     if (referrer) {
                         try {
                             const refOrigin = new URL(referrer).origin;
-                            if (isAllowedSplitXOrigin(refOrigin)) {
+                            if (isAllowedSplitXOrigin(refOrigin, originPolicy)) {
                                 targetOpenerOrigin = refOrigin;
                             }
                         } catch (e) {}
                     }
+                    if (!targetOpenerOrigin) return;
                     opener.postMessage({ type: 'SPLITX_READY', version: '1.0' }, targetOpenerOrigin);
                 } catch (e) {
                     console.warn('SplitXBridge: no se pudo emitir SPLITX_READY a window.opener', e);
