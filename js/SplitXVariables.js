@@ -56,7 +56,12 @@
             if (peek() === '%') { take(); result /= 100; }
             return result;
         };
+        // Mirror SheetBuilder's calculator-style percentage rules:
+        // "dailyRate - 3%" subtracts 3% of dailyRate, while
+        // "dailyRate * 3%" multiplies by 0.03. Only a standalone
+        // numeric percent literal on the right of +/- is relative.
         const term = () => {
+            const start = at;
             let x = unary();
             while (peek() === '*' || peek() === '/') {
                 const op = take(), rhs = unary();
@@ -64,13 +69,16 @@
                 x = op === '*' ? x * rhs : x / rhs;
                 if (!isNumber(x)) throw new Error('Resultado fuera de rango.');
             }
-            return x;
+            const barePercent = at === start + 2 && /^\d/.test(tokens[start]) && tokens[start + 1] === '%'
+                ? Number(tokens[start]) : null;
+            return { value: x, barePercent };
         };
         const expression = () => {
-            let x = term();
+            let x = term().value;
             while (peek() === '+' || peek() === '-') {
                 const op = take(), rhs = term();
-                x = op === '+' ? x + rhs : x - rhs;
+                const delta = rhs.barePercent !== null ? (x * rhs.barePercent) / 100 : rhs.value;
+                x = op === '+' ? x + delta : x - delta;
                 if (!isNumber(x)) throw new Error('Resultado fuera de rango.');
             }
             return x;
