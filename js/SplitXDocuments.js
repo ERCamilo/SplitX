@@ -100,7 +100,8 @@
     const render = (html, employee, fields, values={}, config={}) => {
         const missing = new Set(), fieldByKey = new Map((fields||[]).map(f=>[f.key,f]));
         const currency = employee?.exportContext?.currency || 'DOP';
-        const now = config.today || new Date().toISOString().slice(0,10);
+        const d = new Date();
+        const now = config.today || [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
         const output = String(html||'').replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\}\}/g, (_,key) => {
             let raw, type='text', label=key;
             const local = PERSON_FIELDS.find(f=>f.key===key);
