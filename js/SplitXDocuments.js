@@ -73,7 +73,7 @@
     };
     const personKey = employee =>
         employee?.sourceEmployeeId ? 'source:'+String(employee.sourceEmployeeId) :
-        employee?.employeeNumber ? 'no:'+String(employee.employeeNumber) :
+        employee?.employeeNumber ? 'project:'+String(employee.exportContext?.projectId || 'none')+':no:'+String(employee.employeeNumber) :
         employee?.id !== undefined ? 'id:'+String(employee.id) : null;
 
     const numberMoney = (value, currency='DOP') => {
@@ -121,9 +121,11 @@
             }
             if (type==='money' || type==='number') {
                 if (typeof raw==='string' && !raw.trim()) {missing.add(key);return '[FALTA: '+escape(label)+']';}
-                const money=numberMoney(raw,currency);
-                if (!money) {missing.add(key);return '[FALTA: '+escape(label)+']';}
-                return escape(money);
+                const monetary = type==='money' || ['net','gross','bonuses','discounts','afterDiscounts','loans','dailyRate','loanPrincipal','loanInterest','loanBalance','loanBalanceBefore','loanBalanceAfter'].includes(key);
+                const formatted = monetary ? numberMoney(raw,currency) :
+                    (Number.isFinite(Number(raw)) ? Number(raw).toLocaleString('es-DO',{maximumFractionDigits:2}) : '');
+                if (!formatted) {missing.add(key);return '[FALTA: '+escape(label)+']';}
+                return escape(formatted);
             }
             if (type==='date')return escape(dateString(raw));
             return escape(raw);
@@ -134,8 +136,11 @@
     // foreign nodes, inline events, images and unapproved CSS before editing.
     const sanitize = (html, documentObject) => {
         if (!documentObject || !documentObject.createElement) throw new Error('Se requiere un documento del navegador.');
-        const outer=documentObject.createElement('div');
-        outer.innerHTML=String(html||'').slice(0,MAX_HTML);
+        // Parsing HTML as a detached, inert document avoids loading images
+        // and firing handlers while the user is importing a DOCX.
+        const parsed = new documentObject.defaultView.DOMParser().parseFromString(
+            String(html||'').slice(0,MAX_HTML), 'text/html');
+        const outer=parsed.body;
         const allowed = new Set(['P','DIV','BR','H1','H2','H3','H4','B','STRONG','I','EM','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','TABLE','THEAD','TBODY','TR','TH','TD','HR']);
         const blocked = new Set(['SCRIPT','STYLE','IFRAME','SVG','MATH','OBJECT','EMBED','FORM','INPUT','BUTTON','LINK','META','IMG','VIDEO','AUDIO']);
         const cleanNodes = parent => {
@@ -146,7 +151,7 @@
                 if (blocked.has(tag)) {node.remove();continue;}
                 cleanNodes(node);
                 if (!allowed.has(tag)) {
-                    const frag=documentObject.createDocumentFragment();
+                    const frag=parsed.createDocumentFragment();
                     while(node.firstChild)frag.appendChild(node.firstChild);
                     node.replaceWith(frag);continue;
                 }
