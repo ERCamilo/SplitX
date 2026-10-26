@@ -252,7 +252,7 @@
             if(e.target.id!=='ssVarInlineInput')return;
             const value=e.target.value.trim();
             if(!value)return;
-            if(!/^(?:\\d+(?:[.,]\\d*)?|[.,]\\d+)$/.test(value)){
+            if(!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(value)){
                 showError(new Error('Escribe un número; los operadores se convierten en chips.'));
                 return;
             }
