@@ -1065,6 +1065,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                      <button type="button" data-act="sheet" data-v="A" aria-pressed="${state.sheet === 'A'}">Tarjeta del sobre</button>
                      <button type="button" data-act="sheet" data-v="B" aria-pressed="${state.sheet === 'B'}">Hoja de firmas</button>
                    </div>
+                   ${state.sheet === 'B' ? '<button class="ss-btn sm" id="ssVarsBarBtn" type="button" data-act="vars-open" title="Crear y editar fórmulas visuales para las columnas de firmas">ƒx Variables</button>' : ''}
                    <button class="ss-btn ss-tplbtn" type="button" data-pop="tpl" id="ssTplBtn" title="Plantillas guardadas">📄 ${esc(activeEntry().name)} ▾</button>
                    <div class="ss-grow"></div>
                    <button class="ss-btn ghost" type="button" data-act="undo" ${h.canUndo() ? '' : 'disabled'} title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
@@ -1353,6 +1354,13 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
         const quickToolsHTML = () => `<div class="ss-quick" role="toolbar" aria-label="Agregar a la celda">${TOOLS.map((tool, i) =>
             `<button type="button" class="ss-chip ${chipClass(tool.chip)}" data-act="quick-chip" data-v="${i}" title="Agregar ${esc(tool.label)} a la celda">${esc(tool.label)}</button>`).join('')}</div>`;
 
+        // Available for both the payment-envelope cells and numeric columns of
+        // the signature sheet. Do not offer a formula save on text/signature cells.
+        const saveCellAsVariableButton = (cell) =>
+            cell.mode === 'number' && cell.chips.length
+                ? '<button type="button" class="ss-btn sm" id="ssSaveCellAsVariable" data-act="vars-from-cell">Guardar cálculo como variable</button>'
+                : '';
+
         const chipStripHTML = (zone, cell) => `<div class="ss-field">Chips de la celda
             <div class="ss-cell chipview" data-zone="${zone}" style="min-height:40px;border:1.5px dashed var(--border-strong);border-radius:8px;padding:6px;outline:0">${cell.chips.map((c, i) => chipHTML(c, zone, i)).join('') || '<span class="ss-hint">Suelta o toca chips para agregarlos</span>'}</div></div>`;
 
@@ -1399,7 +1407,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                         <p class="ss-hint">• Las filas grises están ocultas para el empleado de muestra porque no tiene ese monto.</p></div>${cardSection()}`
                     : `<div class="ss-sec"><h3 class="ss-lbl">Cómo se usa</h3>
                         <p class="ss-hint">• Arrastra un campo a la franja de la derecha de la tabla para crear una columna, o sobre un encabezado para insertarla antes.</p>
-                        <p class="ss-hint">• Haz clic en un encabezado o una celda para editar esa columna.</p>
+                        <p class="ss-hint">• Haz clic en un encabezado o una celda para editar esa columna y guardar sus cálculos como variables.</p>
                         <p class="ss-hint">• Arrastra los encabezados para reordenar columnas.</p></div>
                        ${tableSettingsHTML()}`;
                 return;
@@ -1411,18 +1419,18 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 const r = zoneIndex(zone, 1);
                 const c = zoneIndex(zone, 2);
                 const row = tpl().rows[r];
-                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cell.mode==='number' && cell.chips.length ? '<button type="button" class="ss-btn sm" id="ssSaveCellAsVariable" data-act="vars-from-cell">Guardar cálculo como variable</button>' : ''}${cellProps(cell, false)}</div>
+                html += `<div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1} · celda ${c + 1}</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${saveCellAsVariableButton(cell)}${cellProps(cell, false)}</div>
                   <div class="ss-sec"><h3 class="ss-lbl">Fila ${r + 1}</h3>
                     <div class="ss-field">Si sus montos están vacíos o en 0 ${segHTML('row.whenEmpty', row.whenEmpty || 'show', [['show', 'Mostrar'], ['dash', 'Guion “-”'], ['hide', 'Ocultar fila']])}</div>
                     <label class="ss-check"><input id="ssLine" type="checkbox" data-bind="row.lineAbove" ${row.lineAbove ? 'checked' : ''}> Línea separadora encima</label></div>${cardSection()}`;
             } else if (isTitle) {
-                html += `<div class="ss-sec"><h3 class="ss-lbl">Línea ${zoneIndex(zone, 2) + 1} del encabezado</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${cellProps(cell, true)}</div>`;
+                html += `<div class="ss-sec"><h3 class="ss-lbl">Línea ${zoneIndex(zone, 2) + 1} del encabezado</h3>${chipStripHTML(zone, cell)}${quickToolsHTML()}${saveCellAsVariableButton(cell)}${cellProps(cell, true)}</div>`;
             } else {
                 const i = zoneIndex(zone, 2);
                 const col = tpl().columns[i];
                 html += `<div class="ss-sec"><h3 class="ss-lbl">Columna ${i + 1}</h3>
                     <label class="ss-field">Encabezado<input id="ssHeader" class="ss-inp" data-bind="col.header" value="${esc(col.header)}" maxlength="60"></label>
-                    ${chipStripHTML(zone, cell)}${quickToolsHTML()}
+                    ${chipStripHTML(zone, cell)}${quickToolsHTML()}${saveCellAsVariableButton(cell)}
                     <div class="ss-grid2"><label class="ss-field">Ancho relativo<input id="ssWidth" class="ss-inp ss-num" type="number" min="0.2" max="10" step="0.1" data-bind="col.width" data-type="number" value="${esc(col.width)}"></label>
                     <label class="ss-check" style="align-self:end;min-height:34px"><input id="ssSum" type="checkbox" data-bind="col.sum" ${col.sum ? 'checked' : ''}> Sumar al pie</label></div>
                     <div class="ss-field">Bordes ${segHTML('col.border', col.border, [['all', 'Todos'], ['sign', 'Línea de firma'], ['none', 'Sin bordes']])}</div>
