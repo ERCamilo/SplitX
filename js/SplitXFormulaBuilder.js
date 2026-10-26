@@ -265,12 +265,10 @@
             selectedIndex=editingNumberIndex;
             msg.textContent='';renderTokens();previewValue();
         });
-        canvas.addEventListener('focusout',e=>{
-            if(e.target.id==='ssVarInlineInput'&&!canvas.contains(e.relatedTarget)){
-                editingNumberIndex=-1;
-                if(e.target.value)e.target.value='';
-            }
-        });
+        // Re-rendering tokens replaces the inline input during a keystroke.
+        // A focusout listener here would wrongly end the number being typed,
+        // creating separate chips for 1, 12 and 12.5. Terminate the number
+        // only when an explicit operator/action is inserted instead.
         const fromDom = el => el?.dataset?.chipKey ? F(el.dataset.chipKey) :
             el?.dataset?.chipOp ? makeOp(el.dataset.chipOp) : null;
         const removeGuide=()=>canvas.querySelector('#ssVarDropMarker')?.remove();
