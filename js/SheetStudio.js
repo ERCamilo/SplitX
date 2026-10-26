@@ -1064,6 +1064,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                    <div class="ss-seg" role="group" aria-label="Tipo de hoja">
                      <button type="button" data-act="sheet" data-v="A" aria-pressed="${state.sheet === 'A'}">Tarjeta del sobre</button>
                      <button type="button" data-act="sheet" data-v="B" aria-pressed="${state.sheet === 'B'}">Hoja de firmas</button>
+                     <button type="button" data-act="documents" aria-label="Documentos personalizados">Documentos</button>
                    </div>
                    ${state.sheet === 'B' ? '<button class="ss-btn sm" id="ssVarsBarBtn" type="button" data-act="vars-open" title="Crear y editar fórmulas visuales para las columnas de firmas">ƒx Variables</button>' : ''}
                    <button class="ss-btn ss-tplbtn" type="button" data-pop="tpl" id="ssTplBtn" title="Plantillas guardadas">📄 ${esc(activeEntry().name)} ▾</button>
@@ -1817,6 +1818,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 renderVariablesDialog();
             },
             'vars-open': () => { state.variableEdit = null; state.variableDeleteConfirm = null; renderVariablesDialog(); },
+            'documents': () => { if (typeof opts.onOpenDocuments === 'function') opts.onOpenDocuments(); },
             'vars-close': () => closeVariablesDialog(),
             'vars-new': () => { state.variableEdit = null; renderVariablesDialog(); },
             'vars-edit': (id) => { state.variableEdit = id; state.variableDeleteConfirm = null; renderVariablesDialog(); },

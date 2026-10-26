@@ -24,6 +24,9 @@
     <script src="js/SplitXVariables.js"></script>
     <script src="js/SplitXFormulaBuilder.js"></script>
     <script src="js/SheetStudio.js"></script>
+    <script src="js/SplitXDocuments.js"></script>
+    <script src="js/DocumentStudio.js"></script>
+    <link rel="stylesheet" href="css/document-studio.css">
 
     <script>
         tailwind.config = {
@@ -938,9 +941,15 @@
                     <button onclick="app.openSheetStudio()" class="toolbar-btn amber hidden sm:flex" title="Tarjetas para sobres y hoja de firmas">
                         <i class="fa-solid fa-print text-xs"></i> Hojas
                     </button>
+                    <button onclick="app.openDocumentStudio()" class="toolbar-btn blue hidden sm:flex" title="Plantillas de documentos personalizadas para empleados">
+                        <i class="fa-solid fa-file-lines text-xs"></i> Documentos
+                    </button>
                     <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
                     <button onclick="app.openSheetStudio()" title="Hojas imprimibles: tarjetas para sobres y hoja de firmas" aria-label="Hojas imprimibles" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all sm:hidden">
                         <i class="fa-solid fa-print text-sm"></i>
+                    </button>
+                    <button onclick="app.openDocumentStudio()" title="Documentos personalizados de empleados" aria-label="Documentos personalizados" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
+                        <i class="fa-solid fa-file-lines text-sm"></i>
                     </button>
                     <button onclick="app.openExportModal()" title="Exportar nómina (Excel, PDF, CSV)" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
                         <i class="fa-solid fa-file-export text-sm"></i>
@@ -2602,10 +2611,27 @@
                     sheetStudio = SheetStudio.createStudio({
                         root: document.getElementById('sheetStudio'),
                         getEmployees: () => state.employees,
-                        getNetAmount: (emp) => getEffectiveEmployeeAmount(emp)
+                        getNetAmount: (emp) => getEffectiveEmployeeAmount(emp),
+                        onOpenDocuments: () => { sheetStudio.close(); void openDocumentStudio(); }
                     });
                 }
                 sheetStudio.open();
+            };
+
+            // Document templates are independent from payroll and printable sheets.
+            let documentStudio = null;
+            const openDocumentStudio = async () => {
+                if (typeof DocumentStudio === 'undefined') return showToast('No se cargó el editor de documentos.', 'error');
+                try {
+                    if (!documentStudio) documentStudio = DocumentStudio.createStudio({
+                        root: document.getElementById('documentStudio'),
+                        getEmployees: () => state.employees,
+                        getNetAmount: emp => getEffectiveEmployeeAmount(emp)
+                    });
+                    await documentStudio.open();
+                } catch (error) {
+                    showToast('No se pudo abrir Documentos: ' + error.message, 'error');
+                }
             };
 
             // Extra import data (employee number, work days, concepts…) used by printable sheets.
@@ -5693,6 +5719,7 @@
                 exportToPDF,
                 openImportModal,
                 openSheetStudio,
+                openDocumentStudio,
                 closeImportModal,
                 closePostImportModal,
                 processImport,
@@ -5751,5 +5778,6 @@
         window.onload = app.init;
     </script>
     <div id="sheetStudio" hidden></div>
+    <div id="documentStudio" hidden></div>
 </body>
 </html>
