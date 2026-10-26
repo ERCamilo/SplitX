@@ -130,4 +130,25 @@ describe('employee document templates in SplitX',()=>{
             assert.deepEqual(errors,[]);
         }finally{await close();}
     });
+    test('mobile document editor stays usable and opens from the main toolbar',async()=>{
+        const {page,close,errors}=await openStudio(2);
+        try {
+            await page.setViewportSize({width:390,height:844});
+            await page.locator('#ssBar [data-act="close"]').click();
+            await page.locator('button[aria-label="Documentos personalizados"]').click();
+            await page.waitForSelector('#documentStudio:not([hidden]) #sxdocEditor');
+            assert.equal(await page.locator('#sxdocEditor').isVisible(),true);
+            assert.equal(await page.locator('#sxdocPreview').isVisible(),true);
+            const dimensions=await page.evaluate(()=>{
+                const view=document.getElementById('documentStudio');
+                return {width:view.clientWidth,scrollWidth:view.scrollWidth,windowWidth:innerWidth};
+            });
+            assert.ok(dimensions.scrollWidth<=dimensions.windowWidth+2,
+                'editor should not require horizontal page scrolling on mobile');
+            await page.locator('#sxdocEmployee').selectOption('1');
+            assert.match(await page.locator('#sxdocPreview').textContent(),/Empleado 2 Prueba/);
+            assert.deepEqual(errors,[]);
+        }finally{await close();}
+    });
+
 });
