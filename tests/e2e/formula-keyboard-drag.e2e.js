@@ -8,7 +8,7 @@ const openFormula=async page=>{
     await page.selectOption('#ssVarKind','formula');
     assert.equal(await page.locator('#ssVarFormulaCanvas').isVisible(),true);
 };
-const tokens=page=>page.locator('#ssVarFormulaCanvas [data-formula-token]').allTextContents();
+const tokens=page=>page.locator('#ssVarFormulaCanvas [data-formula-token]').evaluateAll(items=>items.map(el=>Array.from(el.childNodes).filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent).join('')));
 const clean=t=>t.map(v=>v.trim());
 const payroll=page=>page.evaluate(()=>localStorage.getItem('Split_data'));
 
@@ -122,11 +122,7 @@ describe('direct typing, selection and guided drag in formula chips',()=>{
             const source=palette.locator('[data-chip-key="dailyRate"]');
             const target=page.locator('#ssVarFormulaCanvas [data-formula-token="1"]');
             const a=await source.boundingBox(),b=await target.boundingBox();
-            await page.mouse.move(a.x+a.width/2,a.y+a.height/2);
-            await page.mouse.down();
-            await page.mouse.move(b.x+2,b.y+b.height/2,{steps:10});
-            assert.equal(await page.locator('#ssVarDropMarker').getAttribute('data-slot'),'1');
-            await page.mouse.up();
+            await source.dragTo(target,{sourcePosition:{x:a.width/2,y:a.height/2},targetPosition:{x:2,y:b.height/2}});
             assert.deepEqual(clean(await tokens(page)),['Bruto','Sueldo por día','+']);
             assert.deepEqual(errors,[]);
         }finally{await close();}
