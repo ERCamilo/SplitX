@@ -135,7 +135,7 @@ describe('employee document templates in SplitX',()=>{
         try {
             await page.setViewportSize({width:390,height:844});
             await page.locator('#ssBar [data-act="close"]').click();
-            await page.locator('button[aria-label="Documentos personalizados"]').click();
+            await page.locator('nav button[onclick="app.openDocumentStudio()"]:visible').click();
             await page.waitForSelector('#documentStudio:not([hidden]) #sxdocEditor');
             assert.equal(await page.locator('#sxdocEditor').isVisible(),true);
             assert.equal(await page.locator('#sxdocPreview').isVisible(),true);
