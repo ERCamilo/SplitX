@@ -61,7 +61,7 @@ describe('employee Word-like document templates',()=>{
    const r=render('{{gross}} · {{days}} · {{dailyRate}}');
    assert.equal(r.missing.length,0);
    assert.match(r.html,/10[,.]000/);
-   assert.match(r.html,/>10</);
+   assert.match(r.html,/· 10 ·/);
  });
  test('person data uses source ID or a project-scoped number to avoid collision',()=>{
    const r=employee();
