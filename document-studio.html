@@ -1,0 +1,70 @@
+<header class="bar">
+    <h1>Documentos personalizados</h1>
+    <select id="sxdocTemplates" aria-label="Plantilla"></select>
+    <button type="button" data-act="new">+ Nueva</button>
+    <button type="button" data-act="duplicate">Duplicar</button>
+    <button type="button" class="danger" data-act="delete">Eliminar</button>
+    <span class="grow"></span>
+    <button type="button" class="primary" data-act="save">Guardar plantilla</button>
+    <button type="button" data-act="close">Cerrar ✕</button>
+</header>
+<div class="body">
+    <aside class="panel">
+        <h2>Plantilla y campos</h2>
+        <label for="sxdocName">Nombre de la plantilla</label>
+        <input id="sxdocName" type="text" maxlength="100">
+        <p class="muted">Las plantillas se guardan en este navegador, sin modificar la nómina de Sistema de Asistencia.</p>
+        <label for="sxdocFields">Insertar dato del empleado</label>
+        <select id="sxdocFields"></select>
+        <button type="button" data-act="field">Insertar campo</button>
+        <p class="subtle">Cada campo se representa por un marcador como <code>{{name}}</code>. Al imprimir se sustituye por el valor del empleado.</p>
+        <hr>
+        <label for="sxdocFile">Importar documento Word (.docx) o texto (.txt)</label>
+        <input id="sxdocFile" type="file" accept=".docx,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+        <p class="notice">DOCX: se conservan texto, títulos, listas, tablas sencillas y negritas cuando sea posible. Los diseños complejos, imágenes, encabezados y pies pueden variar. La conversión ocurre en el navegador.</p>
+        <p class="muted">Importar reemplaza el contenido de la plantilla activa. Guarda una copia primero si deseas conservarlo.</p>
+        <p class="muted">Atención: los datos complementarios se guardan en este dispositivo; evita equipos compartidos y conserva respaldos de tus plantillas.</p>
+    </aside>
+    <section class="panel">
+        <h2>Editor de documento</h2>
+        <div class="tools" role="toolbar" aria-label="Formato de texto">
+            <button type="button" data-format="bold" title="Negrita"><b>B</b></button>
+            <button type="button" data-format="italic" title="Cursiva"><i>I</i></button>
+            <button type="button" data-format="underline" title="Subrayar"><u>U</u></button>
+            <button type="button" data-format="h2">Título</button>
+            <button type="button" data-format="p">Párrafo</button>
+            <button type="button" data-format="ul">• Lista</button>
+            <button type="button" data-format="ol">1. Lista</button>
+            <button type="button" data-format="center">Centrar</button>
+            <button type="button" data-format="left">Izquierda</button>
+        </div>
+        <div id="sxdocEditor" class="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto de la plantilla"></div>
+        <p class="muted">Utiliza el formato sobre el texto seleccionado. Las referencias como {{name}}, {{monthlySalary}} o {{startDate}} se resuelven por empleado.</p>
+        <div id="sxdocStatus" class="status" role="status"></div>
+    </section>
+    <aside class="panel preview-panel">
+        <h2>Vista previa por empleado</h2>
+        <label for="sxdocEmployee">Empleado</label>
+        <select id="sxdocEmployee"></select>
+        <div class="person-data">
+            <h2>Datos complementarios</h2>
+            <p class="muted">Solo para documentos; no cambia los datos originales de SA.</p>
+            <label for="sxdocPerson_idNumber">Cédula / documento de identidad</label>
+            <input id="sxdocPerson_idNumber" data-person="idNumber" type="text" maxlength="300">
+            <label for="sxdocPerson_startDate">Fecha de ingreso</label>
+            <input id="sxdocPerson_startDate" data-person="startDate" type="date">
+            <label for="sxdocPerson_monthlySalary">Sueldo mensual contractual</label>
+            <input id="sxdocPerson_monthlySalary" data-person="monthlySalary" type="number" min="0" step="0.01">
+            <label for="sxdocPerson_address">Dirección</label>
+            <input id="sxdocPerson_address" data-person="address" type="text" maxlength="300">
+        </div>
+        <div id="sxdocPreview" class="paper" aria-live="polite"></div>
+        <div id="sxdocMissing" class="flag" hidden></div>
+        <div class="row" style="margin-top:12px;flex-wrap:wrap">
+            <button type="button" data-act="print-one" class="primary">Imprimir este</button>
+            <button type="button" data-act="print-all">Imprimir todos</button>
+        </div>
+        <p class="muted">En el cuadro de impresión puedes seleccionar «Guardar como PDF». No se imprimen documentos con campos obligatorios sin completar.</p>
+    </aside>
+</div>
+<div class="footer">SplitX · Documentos locales por empleado · Revisa las condiciones antes de entregar o firmar</div>
