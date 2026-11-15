@@ -32,6 +32,27 @@ const importMsg = (opener, transferId, origin = 'https://asistencia.erlin.do', e
     data: { type: 'SPLITX_IMPORT_PAYROLL', source: 'Sistema-de-Asistencia', version: '1.0', transferId, employees }
 });
 
+describe('Sistema de Asistencia origins', () => {
+    test('accepts SA from its domain and from GitHub Pages', () => {
+        assert.equal(isAllowedSplitXOrigin('https://asistencia.erlin.do', { allowLocal: false }), true);
+        assert.equal(isAllowedSplitXOrigin('https://ercamilo.github.io', { allowLocal: false }), true);
+    });
+
+    test('rejects look-alikes, other GitHub Pages users and plain http', () => {
+        for (const origin of ['http://ercamilo.github.io', 'https://otro.github.io', 'https://ercamilo.github.io.evil.com', 'https://evil-ercamilo.github.io', 'https://ercamilo.github.io:8443']) {
+            assert.equal(isAllowedSplitXOrigin(origin, { allowLocal: false }), false, origin);
+        }
+    });
+
+    test('a payroll sent from the GitHub Pages copy of SA is imported', async () => {
+        const { bridge, opener, getState } = makeBridge({ hostname: 'splitx.erlin.do', referrer: 'https://ercamilo.github.io/-Sistema-de-asistencia/' });
+        const res = await bridge.handleMessage(importMsg(opener, 'gh1', 'https://ercamilo.github.io'));
+        assert.equal(res.success, true);
+        assert.equal(getState().employees.length, 1);
+        assert.equal(bridge.openedFromSA(), true);
+    });
+});
+
 describe('localhost origins are only trusted on local hosts', () => {
     test('isAllowedSplitXOrigin rejects localhost when allowLocal is false', () => {
         assert.equal(isAllowedSplitXOrigin('http://localhost:3000', { allowLocal: false }), false);

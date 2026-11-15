@@ -15,9 +15,13 @@
 
     const isLocalHostname = (hostname) => !hostname || /^(localhost|127\.0\.0\.1)$/i.test(hostname);
 
+    // Orígenes de Sistema de Asistencia: su dominio y la copia en GitHub Pages
+    // (https://ercamilo.github.io/-Sistema-de-asistencia/; el origen no incluye la ruta).
+    const SA_ORIGINS = ['https://asistencia.erlin.do', 'https://ercamilo.github.io'];
+
     const isAllowedSplitXOrigin = (origin, { allowLocal = true } = {}) => {
         if (!origin) return false;
-        if (origin === 'https://asistencia.erlin.do') return true;
+        if (SA_ORIGINS.includes(origin)) return true;
         // Permitir localhost / 127.0.0.1 solo cuando SplitX también corre en local (pruebas y desarrollo)
         if (allowLocal && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
         return false;
