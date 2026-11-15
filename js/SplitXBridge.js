@@ -31,6 +31,57 @@
         return true;
     };
 
+    const replyReady = (event) => {
+        if (event.source && typeof event.source.postMessage === 'function') {
+            try {
+                event.source.postMessage({
+                    type: 'SPLITX_READY',
+                    version: '1.0',
+                    transferId: event.data.transferId || null
+                }, event.origin);
+            } catch (e) {
+                console.warn('SplitXBridge: Error al responder PING:', e);
+            }
+        }
+    };
+
+    /**
+     * Cola temprana: se instala en el <head>, antes de que carguen los CDN.
+     * Sistema de Asistencia deja de enviar PING a los 10 s; si SplitX solo escucha
+     * tras window.onload, la nómina nunca llega y se muestran los datos viejos.
+     * Esta cola responde READY al instante y guarda el payload hasta que attach() lo procese.
+     */
+    const installEarlyQueue = (windowRef = (typeof window !== 'undefined' ? window : null)) => {
+        if (!windowRef || typeof windowRef.addEventListener !== 'function') return null;
+        if (windowRef.__splitxEarlyQueue) return windowRef.__splitxEarlyQueue;
+        const policy = { allowLocal: isLocalHostname(windowRef.location?.hostname) };
+        const queue = {
+            messages: [],
+            active: true,
+            contacted: false,
+            listener: (event) => {
+                if (!queue.active) return;
+                if (!isAllowedSplitXOrigin(event.origin, policy)) return;
+                if (!isAuthorizedSource(event.source, windowRef.opener || null)) return;
+                if (!event.data || typeof event.data !== 'object') return;
+                if (event.data.type === 'SPLITX_PING') {
+                    queue.contacted = true;
+                    replyReady(event);
+                } else if (event.data.type === 'SPLITX_IMPORT_PAYROLL') {
+                    queue.contacted = true;
+                    queue.messages.push({ origin: event.origin, source: event.source, data: event.data });
+                }
+            },
+            stop: () => {
+                queue.active = false;
+                windowRef.removeEventListener('message', queue.listener);
+            }
+        };
+        windowRef.addEventListener('message', queue.listener);
+        windowRef.__splitxEarlyQueue = queue;
+        return queue;
+    };
+
     const createSplitXBridge = (options = {}) => {
         const {
             getState = () => ({ employees: [] }),
@@ -40,10 +91,12 @@
             normalizeEmployee = (item, idx) => item,
             showCustomChoice = async () => 'replace',
             showToast = () => {},
+            onImported = null,
             windowRef = (typeof window !== 'undefined' ? window : null)
         } = options;
 
         const processedTransfers = new Set();
+        let gotPayload = false;
         const originPolicy = { allowLocal: isLocalHostname(windowRef?.location?.hostname) };
 
         const handleMessage = async (event) => {
@@ -65,17 +118,7 @@
 
             // Manejo de SPLITX_PING -> responde SPLITX_READY inmediatamente
             if (event.data.type === 'SPLITX_PING') {
-                if (event.source && typeof event.source.postMessage === 'function') {
-                    try {
-                        event.source.postMessage({
-                            type: 'SPLITX_READY',
-                            version: '1.0',
-                            transferId: event.data.transferId || null
-                        }, event.origin);
-                    } catch (e) {
-                        console.warn('SplitXBridge: Error al responder PING:', e);
-                    }
-                }
+                replyReady(event);
                 return { handled: true, action: 'pong_ready' };
             }
 
@@ -88,6 +131,7 @@
                 console.warn('SplitXBridge: Mensaje ignorado - source no reconocido:', event.data.source);
                 return { handled: false, reason: 'unrecognized_source' };
             }
+            gotPayload = true;
 
             const transferId = event.data.transferId;
 
@@ -126,6 +170,7 @@
 
                 const newEmps = rawEmployees.map((item, idx) => normalizeEmployee(item, idx));
                 const state = getState();
+                let importMode = 'replace';
 
                 if (state.employees && state.employees.length > 0) {
                     const choice = await showCustomChoice({
@@ -166,6 +211,7 @@
                         return { handled: true, action: 'cancelled' };
                     }
 
+                    importMode = choice === 'append' ? 'append' : 'replace';
                     if (choice === 'replace') {
                         state.employees = newEmps;
                     } else if (choice === 'append') {
@@ -189,6 +235,13 @@
 
                 setState(state);
                 saveData();
+                if (typeof onImported === 'function') {
+                    try {
+                        onImported({ employees: newEmps, period: period || null, exportContext: hasContext ? exportContext : (rawEmployees.find(e => e && typeof e.exportContext === 'object' && e.exportContext)?.exportContext || null), transferId: transferId || null, mode: importMode, count: newEmps.length, currency: currency || null });
+                    } catch (e) {
+                        console.warn('SplitXBridge: onImported falló (la importación sí se guardó):', e);
+                    }
+                }
                 showToast(`✅ ${newEmps.length} colaboradores importados desde Sistema de Asistencia.`);
 
                 if (event.source && typeof event.source.postMessage === 'function') {
@@ -217,21 +270,27 @@
             }
         };
 
+        const referrerOrigin = () => {
+            const referrer = windowRef?.document?.referrer;
+            if (!referrer) return null;
+            try {
+                const refOrigin = new URL(referrer).origin;
+                return isAllowedSplitXOrigin(refOrigin, originPolicy) ? refOrigin : null;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        /** True when this tab was opened by Sistema de Asistencia (opener + allowed referrer). */
+        const openedFromSA = () => !!(windowRef?.opener && referrerOrigin());
+        const receivedPayload = () => gotPayload || !!(windowRef?.__splitxEarlyQueue?.messages?.length);
+
         const emitReady = () => {
             const opener = windowRef?.opener;
             if (opener && typeof opener.postMessage === 'function') {
                 try {
                     // Sin referrer permitido no se emite: nunca se transmite a '*'
-                    let targetOpenerOrigin = null;
-                    const referrer = windowRef?.document?.referrer;
-                    if (referrer) {
-                        try {
-                            const refOrigin = new URL(referrer).origin;
-                            if (isAllowedSplitXOrigin(refOrigin, originPolicy)) {
-                                targetOpenerOrigin = refOrigin;
-                            }
-                        } catch (e) {}
-                    }
+                    const targetOpenerOrigin = referrerOrigin();
                     if (!targetOpenerOrigin) return;
                     opener.postMessage({ type: 'SPLITX_READY', version: '1.0' }, targetOpenerOrigin);
                 } catch (e) {
@@ -240,10 +299,16 @@
             }
         };
 
-        const attach = () => {
-            if (windowRef && typeof windowRef.addEventListener === 'function') {
-                windowRef.addEventListener('message', handleMessage);
-                emitReady();
+        const attach = async () => {
+            if (!windowRef || typeof windowRef.addEventListener !== 'function') return;
+            const early = windowRef.__splitxEarlyQueue;
+            const buffered = early ? early.messages.splice(0) : [];
+            if (early) early.stop();
+            windowRef.addEventListener('message', handleMessage);
+            emitReady();
+            // Procesa en orden lo que SA envió mientras la página cargaba.
+            for (const event of buffered) {
+                await handleMessage(event);
             }
         };
 
@@ -259,6 +324,8 @@
             attach,
             detach,
             processedTransfers,
+            openedFromSA,
+            receivedPayload,
             isAllowedSplitXOrigin,
             isAuthorizedSource
         };
@@ -267,6 +334,7 @@
     return {
         isAllowedSplitXOrigin,
         isAuthorizedSource,
+        installEarlyQueue,
         createSplitXBridge
     };
 });

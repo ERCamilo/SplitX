@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SplitX — Distribución de Nómina</title>
     <link rel="icon" type="image/png" href="imagenes/splitx_icon.png">
+    <!-- Primero el puente con SA: responde al PING y guarda la nómina mientras cargan los CDN
+         (SA deja de intentar a los 10 s; sin esto se abría con los datos viejos). -->
+    <script src="js/SplitXBridge.js"></script>
+    <script>try { SplitXBridge.installEarlyQueue(window); } catch (e) { console.warn('SplitX: cola temprana no disponible', e); }</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,8 +17,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="js/SplitXBridge.js"></script>
     <script src="js/SplitXState.js"></script>
+    <script src="js/SplitXImportHistory.js"></script>
     <script src="js/CashOptimizer.js"></script>
     <script src="js/SplitXCore.js"></script>
     <script src="js/SplitXSheetFields.js"></script>
@@ -935,6 +939,9 @@
                     <button onclick="app.openImportModal()" class="toolbar-btn blue hidden sm:flex">
                         <i class="fa-solid fa-file-import text-xs"></i> Importar
                     </button>
+                    <button id="historyBtn" onclick="app.openHistoryModal()" class="toolbar-btn hidden sm:flex" title="Últimas nóminas importadas">
+                        <i class="fa-solid fa-clock-rotate-left text-xs"></i> Historial
+                    </button>
                     <button onclick="app.openExportModal()" class="toolbar-btn green hidden sm:flex">
                         <i class="fa-solid fa-file-export text-xs"></i> Exportar
                     </button>
@@ -950,6 +957,9 @@
                     </button>
                     <button onclick="app.openDocumentStudio()" title="Documentos personalizados de empleados" aria-label="Documentos personalizados" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
                         <i class="fa-solid fa-file-lines text-sm"></i>
+                    </button>
+                    <button onclick="app.openHistoryModal()" title="Últimas nóminas importadas" aria-label="Historial de nóminas" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
+                        <i class="fa-solid fa-clock-rotate-left text-sm"></i>
                     </button>
                     <button onclick="app.openExportModal()" title="Exportar nómina (Excel, PDF, CSV)" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
                         <i class="fa-solid fa-file-export text-sm"></i>
@@ -975,6 +985,23 @@
         <button onclick="this.parentElement.classList.add('hidden')" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
             <i class="fa-solid fa-xmark"></i>
         </button>
+    </div>
+
+    <!-- Stale payroll banner: opened from SA but no new payroll arrived -->
+    <div id="saStaleBanner" class="hidden bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-xs text-amber-800 dark:text-amber-200" role="status">
+        <div class="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
+            <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
+            <span id="saStaleText" class="flex-1 min-w-[12rem]"></span>
+            <button onclick="app.retrySaImport()" class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold">
+                <i class="fa-solid fa-rotate mr-1"></i>Pedir de nuevo
+            </button>
+            <button onclick="app.openHistoryModal()" class="px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-semibold">
+                <i class="fa-solid fa-clock-rotate-left mr-1"></i>Historial
+            </button>
+            <button onclick="app.hideStaleBanner()" class="text-amber-600 hover:text-amber-900 dark:text-amber-400 shrink-0" aria-label="Cerrar aviso">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
     </div>
 
     <!-- ═══════════════════════════════════════════
@@ -1655,6 +1682,24 @@
     </div>
 
     <!-- ═══════════════════════════════════════════
+         IMPORT HISTORY MODAL
+    ═══════════════════════════════════════════ -->
+    <div id="historyModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-slate-800 dark:text-slate-100">Historial de nóminas</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Las últimas 10 importaciones, la más reciente arriba.</p>
+                </div>
+                <button onclick="app.closeHistoryModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="historyList" class="p-4 space-y-2 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
          POST-IMPORT: AUTO-DISTRIBUTE MODAL
     ═══════════════════════════════════════════ -->
     <div id="postImportModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
@@ -2322,10 +2367,171 @@
                         normalizeEmployee: normalizeImportedEmployee,
                         showCustomChoice,
                         showToast,
+                        onImported: (info) => {
+                            recordImport({ employees: info.employees, source: 'sa', context: info.exportContext, period: info.period, currency: info.currency });
+                            try { sessionStorage.setItem('splitx_sa_received', '1'); } catch (e) {}
+                            hideStaleBanner();
+                        },
                         windowRef: window
                     });
+                    saBridge = bridge;
                     bridge.attach();
+                    // Abierto desde SA pero sin nómina nueva: avisar que se ve la guardada (antes pasaba en silencio).
+                    if (bridge.openedFromSA()) {
+                        setTimeout(() => {
+                            let receivedBefore = false;
+                            try { receivedBefore = sessionStorage.getItem('splitx_sa_received') === '1'; } catch (e) {}
+                            if (!bridge.receivedPayload() && !receivedBefore) showStaleBanner();
+                        }, 5000);
+                    }
                 }
+            };
+
+            // --- IMPORT HISTORY (últimas nóminas importadas) ---
+            let saBridge = null;
+            const historyStorage = {
+                getItem: (k) => localStorage.getItem(k),
+                setItem: (k, v) => localStorage.setItem(k, v)
+            };
+            const loadHistory = () => (typeof SplitXImportHistory === 'undefined' ? [] : SplitXImportHistory.load(historyStorage));
+            const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+            // Guarda la importación en el historial y la marca como la nómina cargada.
+            const recordImport = ({ employees, source, context = null, period = null, currency = null }) => {
+                state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
+                if (typeof SplitXImportHistory !== 'undefined' && Array.isArray(employees) && employees.length) {
+                    try {
+                        const entry = SplitXImportHistory.createEntry({ employees, source, context, period, currency: currency || context?.currency || state.currency });
+                        SplitXImportHistory.save(historyStorage, SplitXImportHistory.addEntry(loadHistory(), entry));
+                        state.currentImport = { id: entry.id, title: entry.title, importedAt: entry.importedAt, source: entry.source, period: entry.period };
+                    } catch (e) {
+                        console.warn('SplitX: no se pudo guardar el historial de importaciones', e);
+                    }
+                }
+                saveData();
+            };
+
+            const currentImportLabel = () => {
+                const cur = state.currentImport;
+                if (!cur || typeof SplitXImportHistory === 'undefined') return '';
+                const d = SplitXImportHistory.describeEntry({ ...cur, count: 0 });
+                return `${cur.title}${d.periodLabel ? ' (' + d.periodLabel + ')' : ''}, importada ${d.whenLabel.toLowerCase()}`;
+            };
+
+            const showStaleBanner = () => {
+                const el = document.getElementById('saStaleBanner');
+                if (!el) return;
+                const label = currentImportLabel();
+                document.getElementById('saStaleText').innerHTML = state.employees.length
+                    ? `<strong>No llegó una nómina nueva desde Sistema de Asistencia.</strong> Estás viendo la guardada${label ? ': ' + escHtml(label) : ''}.`
+                    : '<strong>No llegó la nómina desde Sistema de Asistencia.</strong>';
+                el.classList.remove('hidden');
+            };
+            const hideStaleBanner = () => document.getElementById('saStaleBanner')?.classList.add('hidden');
+
+            const retrySaImport = () => {
+                if (saBridge) saBridge.emitReady();
+                showToast('Pedido enviado a Sistema de Asistencia. Si no llega en unos segundos, pulsa otra vez "Enviar a SplitX" allí.', 'info');
+            };
+
+            const renderHistoryList = () => {
+                const box = document.getElementById('historyList');
+                if (!box) return;
+                const list = loadHistory();
+                if (!list.length) {
+                    box.innerHTML = `<div class="text-center py-10 text-slate-400 dark:text-slate-500">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-3"></i>
+                        <p class="text-sm font-medium">Todavía no hay nóminas en el historial.</p>
+                        <p class="text-xs mt-1">Cada importación (desde Asistencia, JSON o Excel) se guarda aquí.</p>
+                    </div>`;
+                    return;
+                }
+                const sourceIcon = { sa: 'fa-right-left', json: 'fa-code', excel: 'fa-table' };
+                box.innerHTML = list.map(entry => {
+                    const d = SplitXImportHistory.describeEntry(entry);
+                    const current = SplitXImportHistory.isCurrent(entry, state.employees);
+                    return `<div class="history-item rounded-xl border ${current ? 'border-blue-300 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-800'} p-3 flex items-start gap-3" data-history-id="${escHtml(entry.id)}">
+                        <div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-300 shrink-0">
+                            <i class="fa-solid ${sourceIcon[entry.source] || 'fa-file-import'} text-sm"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-snug break-words">${escHtml(entry.title)}</span>
+                                ${current ? '<span class="text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 rounded px-1.5 py-0.5">Cargada</span>' : ''}
+                            </div>
+                            ${entry.subtitle ? `<p class="text-xs text-slate-500 dark:text-slate-400 truncate">${escHtml(entry.subtitle)}</p>` : ''}
+                            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                                ${d.periodLabel ? `<i class="fa-regular fa-calendar mr-1 text-slate-400"></i>${escHtml(d.periodLabel)} · ` : ''}${escHtml(d.countLabel)} · <span class="font-mono font-semibold">${escHtml(fmt(entry.total))}</span>
+                            </p>
+                            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">${escHtml(d.sourceLabel)} · ${escHtml(d.whenLabel)}</p>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="app.loadHistoryEntry('${escHtml(entry.id)}')" class="toolbar-btn blue" title="Cargar esta nómina">
+                                <i class="fa-solid fa-upload text-xs"></i> Cargar
+                            </button>
+                            <button onclick="app.deleteHistoryEntry('${escHtml(entry.id)}')" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800" title="Quitar del historial" aria-label="Quitar del historial">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            };
+
+            const openHistoryModal = () => {
+                renderHistoryList();
+                document.getElementById('historyModal').classList.remove('hidden');
+            };
+            const closeHistoryModal = () => document.getElementById('historyModal').classList.add('hidden');
+
+            const loadHistoryEntry = async (id) => {
+                const entry = loadHistory().find(e => e.id === id);
+                if (!entry) return showToast('Esa nómina ya no está en el historial.', 'error');
+                const newEmps = SplitXImportHistory.restoreEmployees(entry).map((e, idx) => ({ ...e, id: Date.now() + idx }));
+                let choice = 'replace';
+                if (state.employees.length > 0) {
+                    const d = SplitXImportHistory.describeEntry(entry);
+                    choice = await showCustomChoice({
+                        title: 'Cargar del historial',
+                        message: `"${entry.title}"${d.periodLabel ? ' (' + d.periodLabel + ')' : ''} tiene ${newEmps.length} colaboradores. Ya tienes ${state.employees.length} en la lista actual. ¿Cómo deseas proceder?`,
+                        icon: 'fa-clock-rotate-left',
+                        type: 'question',
+                        choices: [
+                            { label: 'Cancelar', value: 'cancel', isPrimary: false },
+                            { label: 'Agregar al final', value: 'append', icon: 'fa-user-plus', class: 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' },
+                            { label: 'Reemplazar lista', value: 'replace', icon: 'fa-rotate', isPrimary: true, class: 'bg-blue-600 hover:bg-blue-700 text-white' }
+                        ]
+                    });
+                    if (!choice || choice === 'cancel') return;
+                }
+                state.employees = choice === 'append' ? [...state.employees, ...newEmps] : newEmps;
+                if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
+                const code = String(entry.currency || '').toUpperCase();
+                if (CURRENCY_PRESETS[code] && state.currency !== code) setCurrencyPreset(code);
+                state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
+                state.currentImport = { id: entry.id, title: entry.title, importedAt: entry.importedAt, source: entry.source, period: entry.period };
+                saveData();
+                closeHistoryModal();
+                hideStaleBanner();
+                const totalAmount = state.employees.reduce((sum, e) => sum + getEffectiveEmployeeAmount(e), 0);
+                const countEl = document.getElementById('postImportCount');
+                if (countEl) countEl.textContent = `${state.employees.length} empleados · Total: ${fmt(totalAmount)}`;
+                document.getElementById('postImportModal').classList.remove('hidden');
+            };
+
+            const deleteHistoryEntry = async (id) => {
+                const entry = loadHistory().find(e => e.id === id);
+                if (!entry) return renderHistoryList();
+                const ok = await showCustomConfirm({
+                    title: '¿Quitar del historial?',
+                    message: `"${entry.title}" se quitará del historial. La lista actual no cambia.`,
+                    icon: 'fa-trash-can',
+                    type: 'warning',
+                    confirmText: 'Quitar',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
+                SplitXImportHistory.save(historyStorage, SplitXImportHistory.removeEntry(loadHistory(), id));
+                renderHistoryList();
             };
 
             // Storage helper — falls back to in-memory if localStorage is blocked (e.g. file:// from OneDrive)
@@ -3767,8 +3973,7 @@
                         if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
                         const importCurrency = String(importContext?.currency || '').toUpperCase();
                         if (CURRENCY_PRESETS[importCurrency] && state.currency !== importCurrency) setCurrencyPreset(importCurrency);
-                        state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
-                        saveData();
+                        recordImport({ employees: newEmps, source: importMode === 'excel' ? 'excel' : 'json', context: importContext });
                         closeImportModal();
 
                         // Show post-import auto-distribute modal
@@ -5718,6 +5923,12 @@
                 exportToExcel,
                 exportToPDF,
                 openImportModal,
+                openHistoryModal,
+                closeHistoryModal,
+                loadHistoryEntry,
+                deleteHistoryEntry,
+                retrySaImport,
+                hideStaleBanner,
                 openSheetStudio,
                 openDocumentStudio,
                 closeImportModal,
