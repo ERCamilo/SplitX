@@ -16,8 +16,11 @@
     'use strict';
 
     const XLSX_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    const XLSX_SRI = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
     const JSPDF_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    const JSPDF_SRI = 'sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk';
     const AUTOTABLE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js';
+    const AUTOTABLE_SRI = 'sha384-vxxMdt1K6XlME6zkLsgFrrHIeC7XIdAo1GW/uhhObjJXnymxiIi/eoMXsKJA13ZJ';
 
     /** @param {Date} [date] */
     const isoDateTag = (date = new Date()) => {
@@ -54,12 +57,13 @@
 
     /**
      * @param {string} src
+     * @param {string} integrity
      * @param {string} attr
      * @param {() => boolean} isReady
      * @param {string} errorMsg
      * @returns {Promise<void>}
      */
-    const loadScriptOnce = (src, attr, isReady, errorMsg) => new Promise((resolve, reject) => {
+    const loadScriptOnce = (src, integrity, attr, isReady, errorMsg) => new Promise((resolve, reject) => {
         if (isReady()) { resolve(); return; }
         if (typeof document === 'undefined') { reject(new Error(errorMsg)); return; }
         const existing = document.querySelector(`script[${attr}]`);
@@ -71,14 +75,16 @@
         const script = document.createElement('script');
         script.setAttribute(attr, '');
         script.src = src;
+        script.integrity = integrity;
         script.crossOrigin = 'anonymous';
+        script.referrerPolicy = 'no-referrer';
         script.onload = () => (isReady() ? resolve() : reject(new Error(errorMsg)));
         script.onerror = () => reject(new Error(errorMsg));
         document.head.appendChild(script);
     });
 
     const ensureXLSX = () => loadScriptOnce(
-        XLSX_CDN, 'data-sx-xlsx',
+        XLSX_CDN, XLSX_SRI, 'data-sx-xlsx',
         () => typeof (/** @type {any} */ (globalThis)).XLSX !== 'undefined',
         'No se pudo cargar la librería SheetJS (XLSX). Verifica tu conexión a internet.'
     );
@@ -86,12 +92,12 @@
     const ensureJsPDF = async () => {
         const g = /** @type {any} */ (globalThis);
         await loadScriptOnce(
-            JSPDF_CDN, 'data-sx-jspdf',
+            JSPDF_CDN, JSPDF_SRI, 'data-sx-jspdf',
             () => !!(g.jspdf && g.jspdf.jsPDF),
             'No se pudo cargar la librería jsPDF. Verifica tu conexión a internet.'
         );
         await loadScriptOnce(
-            AUTOTABLE_CDN, 'data-sx-jspdf-autotable',
+            AUTOTABLE_CDN, AUTOTABLE_SRI, 'data-sx-jspdf-autotable',
             () => !!(g.jspdf?.jsPDF?.API?.autoTable),
             'No se pudo cargar el complemento jsPDF AutoTable. Verifica tu conexión a internet.'
         );

@@ -99,6 +99,43 @@ describe('SplitXBackup: full versioned backup & validated restore (Issue #11)', 
         assert.equal(clean.payload.sheets.logo, null);
     });
 
+    test('validateBackup sanitizes malicious denominations, coinDenoms and history IDs (DOM XSS defense)', () => {
+        const dirty = {
+            schema: 'splitx-backup/v1',
+            version: 1,
+            exportedAt: '2026-11-25T00:00:00Z',
+            payload: {
+                data: {
+                    currency: 'DOP',
+                    denominations: [1000, "1);alert(1);//", 500, -10, 0, 'NaN', 500],
+                    coinDenoms: [25, "5);alert(2);//", -1],
+                    employees: []
+                },
+                history: [
+                    { id: '1:abc123-m5x9a', importedAt: '2026-11-25T00:00:00Z', source: 'excel', title: 'Ok', subtitle: '', period: null, currency: 'DOP', count: 0, total: 0, signature: '0:0', context: null, employees: [] },
+                    { id: "x');alert(1);//", importedAt: '2026-11-25T00:00:00Z', source: 'excel', title: 'Crafted', subtitle: '', period: null, currency: 'DOP', count: 0, total: 0, signature: '0:0', context: null, employees: [] }
+                ],
+                sheets: null,
+                documents: null
+            }
+        };
+        const clean = SplitXBackup.validateBackup(dirty);
+        assert.deepEqual(clean.payload.data.denominations, [1000, 500]);
+        assert.deepEqual(clean.payload.data.coinDenoms, [25]);
+        assert.equal(clean.payload.history[0].id, '1:abc123-m5x9a');
+        assert.match(clean.payload.history[1].id, /^[A-Za-z0-9:_-]{1,120}$/);
+        assert.equal(clean.payload.history[1].id.includes("'"), false);
+        assert.equal(clean.payload.history[1].id.includes('('), false);
+
+        const allBadDenoms = {
+            schema: 'splitx-backup/v1',
+            version: 1,
+            payload: { data: { denominations: ["1);alert(1);//", 0, -5], employees: [] }, history: null, sheets: null, documents: null }
+        };
+        const cleanAllBad = SplitXBackup.validateBackup(allBadDenoms);
+        assert.equal(cleanAllBad.payload.data.denominations, undefined);
+    });
+
     test('purgeDocumentPii removes employee cédulas/addresses while keeping document templates', () => {
         const storage = makeMemoryStorage();
         const docs = {

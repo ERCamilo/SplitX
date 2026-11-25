@@ -17,9 +17,27 @@
     const VERSION = 1;
     const MAX_BACKUP_CHARS = 8 * 1024 * 1024; // 8 MB safety cap
     const SAFE_RASTER_LOGO = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i;
+    const SAFE_HISTORY_ID = /^[A-Za-z0-9:_-]{1,120}$/;
 
     /** @param {unknown} v */
     const isPlainObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+    /**
+     * Filtra un arreglo dejando solo números finitos positivos únicos, ordenados descendentemente.
+     * @param {unknown} list
+     * @returns {number[]}
+     */
+    const sanitizePositiveNumbers = (list) => {
+        if (!Array.isArray(list)) return [];
+        /** @type {Set<number>} */
+        const seen = new Set();
+        for (const item of list) {
+            if (typeof item === 'number' && Number.isFinite(item) && item > 0) {
+                seen.add(item);
+            }
+        }
+        return Array.from(seen).sort((a, b) => b - a);
+    };
 
     /** @param {string | null} raw */
     const safeJsonParse = (raw) => {
@@ -118,6 +136,16 @@
             if (cleanPayload.data.currencySymbol !== undefined) {
                 cleanPayload.data.currencySymbol = SplitXCurrencies.sanitizeCurrencySymbol(cleanPayload.data.currencySymbol);
             }
+            if (cleanPayload.data.denominations !== undefined) {
+                const safeDenoms = sanitizePositiveNumbers(cleanPayload.data.denominations);
+                if (safeDenoms.length > 0) cleanPayload.data.denominations = safeDenoms;
+                else delete cleanPayload.data.denominations;
+            }
+            if (cleanPayload.data.coinDenoms !== undefined) {
+                const safeCoins = sanitizePositiveNumbers(cleanPayload.data.coinDenoms);
+                if (safeCoins.length > 0) cleanPayload.data.coinDenoms = safeCoins;
+                else delete cleanPayload.data.coinDenoms;
+            }
             if (isPlainObj(cleanPayload.data.billColors)) {
                 /** @type {Record<string, string>} */
                 const safeColors = {};
@@ -135,6 +163,18 @@
                 }
                 cleanPayload.data.billImages = safeImgs;
             }
+        }
+
+        if (Array.isArray(cleanPayload.history)) {
+            const stamp = Date.now().toString(36);
+            cleanPayload.history = cleanPayload.history
+                .filter((/** @type {unknown} */ entry) => isPlainObj(entry))
+                .map((/** @type {any} */ entry, /** @type {number} */ idx) => {
+                    if (typeof entry.id !== 'string' || !SAFE_HISTORY_ID.test(entry.id)) {
+                        entry.id = `h-${idx}-${stamp}`;
+                    }
+                    return entry;
+                });
         }
 
         if (cleanPayload.sheets && cleanPayload.sheets.logo !== undefined && cleanPayload.sheets.logo !== null) {

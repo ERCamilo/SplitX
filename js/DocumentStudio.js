@@ -18,6 +18,9 @@
         const script = document.createElement('script');
         script.setAttribute('data-sxdoc-mammoth', '');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.13.0/mammoth.browser.min.js';
+        script.integrity = 'sha384-8NWE3bZDrmRI4IePMoQaEoLhAQ1MmRMJkdNgnGiHRFanTqsFKr0TmK6aSZvFJ/PO';
+        script.crossOrigin = 'anonymous';
+        script.referrerPolicy = 'no-referrer';
         script.onload = () => window.mammoth ? resolve(window.mammoth) : reject(Error('Conversor DOCX no disponible'));
         script.onerror = () => reject(Error('No se pudo cargar el conversor DOCX. Comprueba la conexión.'));
         document.head.appendChild(script);

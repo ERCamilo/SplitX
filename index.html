@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>SplitX — Distribución de Nómina</title>
     <link rel="icon" type="image/png" href="imagenes/splitx_icon.png">
     <!-- Primero el puente con SA: responde al PING y guarda la nómina mientras cargan los CDN
@@ -10,7 +11,7 @@
     <script src="js/SplitXBridge.js"></script>
     <script>try { SplitXBridge.installEarlyQueue(window); } catch (e) { console.warn('SplitX: cola temprana no disponible', e); }</script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -60,6 +61,8 @@
             --amber: #d97706;
             --amber-light: #fffbeb;
             --slate-800: #1e293b;
+            --scrollbar-thumb: #64748b;
+            --scrollbar-track: transparent;
         }
 
         * { box-sizing: border-box; }
@@ -81,10 +84,17 @@
         .anim-slide { animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
         .anim-fade  { animation: fadeIn  0.15s ease forwards; }
 
-        /* Scrollbars */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        /* Scrollbars (standard properties first + guarded WebKit fallback) */
+        html, body, * {
+            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+            scrollbar-width: thin;
+        }
+        @supports not (scrollbar-color: auto) {
+            html, body, * { scrollbar-width: auto; }
+            ::-webkit-scrollbar { width: 6px; height: 6px; }
+            ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+            ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+        }
 
         /* KPI cards */
         .kpi-card {
@@ -534,6 +544,8 @@
         /* Color scheme native dark support */
         html.dark {
             color-scheme: dark;
+            --scrollbar-thumb: #94a3b8;
+            --scrollbar-track: transparent;
         }
         html.dark input,
         html.dark select,
@@ -2158,10 +2170,10 @@
                             <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">${escHtml(d.sourceLabel)} · ${escHtml(d.whenLabel)}</p>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
-                            <button onclick="app.loadHistoryEntry('${escHtml(entry.id)}')" class="toolbar-btn blue" title="Cargar esta nómina">
+                            <button type="button" data-history-action="load" data-history-id="${escHtml(entry.id)}" class="toolbar-btn blue" title="Cargar esta nómina">
                                 <i class="fa-solid fa-upload text-xs"></i> Cargar
                             </button>
-                            <button onclick="app.deleteHistoryEntry('${escHtml(entry.id)}')" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800" title="Quitar del historial" aria-label="Quitar del historial">
+                            <button type="button" data-history-action="delete" data-history-id="${escHtml(entry.id)}" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800" title="Quitar del historial" aria-label="Quitar del historial">
                                 <i class="fa-solid fa-trash-can text-xs"></i>
                             </button>
                         </div>
@@ -2266,7 +2278,14 @@
                     state = { ...state, ...parsed };
                     if (!state.currency) state.currency = 'DOP';
                     state.currencySymbol = sanitizeCurrencySymbol(state.currencySymbol || 'RD$');
-                    if (!state.coinDenoms) state.coinDenoms = [25, 10, 5, 1];
+                    const cleanDenoms = Array.isArray(state.denominations)
+                        ? [...new Set(state.denominations.filter(d => typeof d === 'number' && Number.isFinite(d) && d > 0))].sort((a, b) => b - a)
+                        : [];
+                    state.denominations = cleanDenoms.length ? cleanDenoms : [...(CURRENCY_PRESETS[state.currency]?.denominations || [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1])];
+                    const cleanCoins = Array.isArray(state.coinDenoms)
+                        ? [...new Set(state.coinDenoms.filter(d => typeof d === 'number' && Number.isFinite(d) && d > 0))].sort((a, b) => b - a)
+                        : [];
+                    state.coinDenoms = cleanCoins.length ? cleanCoins : [25, 10, 5, 1];
                     if (state.useDefaultImages === undefined) state.useDefaultImages = true;
                     if (state.roundCoins === undefined) state.roundCoins = true;
                     if (state.breakdownColumns === undefined) state.breakdownColumns = 5;
@@ -4337,6 +4356,20 @@
                         else if (action === 'toggle-details') toggleCardDetails(emp.id, e);
                         else if (action === 'edit') openEditModal(emp.id);
                         else if (action === 'remove') removeEmployee(emp.id);
+                    });
+                }
+
+                // Delegated events for import history modal (prevents DOM XSS via entry.id)
+                const histList = document.getElementById('historyList');
+                if (histList) {
+                    histList.addEventListener('click', (e) => {
+                        const target = e.target.closest('[data-history-action]');
+                        if (!target) return;
+                        const action = target.dataset.historyAction;
+                        const id = target.dataset.historyId;
+                        if (!id) return;
+                        if (action === 'load') loadHistoryEntry(id);
+                        else if (action === 'delete') deleteHistoryEntry(id);
                     });
                 }
             };

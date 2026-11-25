@@ -41,4 +41,40 @@ describe('index.html structural & script integrity', () => {
         assert.equal(/xlsx\.full\.min\.js/.test(head), false, 'xlsx must be lazy-loaded');
         assert.equal(/jspdf\.umd\.min\.js/.test(head), false, 'jspdf must be lazy-loaded');
     });
+
+    test('history modal actions use delegated data-history-action instead of inline onclick interpolation', () => {
+        assert.equal(/onclick="app\.(loadHistoryEntry|deleteHistoryEntry)\(/.test(html), false, 'must not interpolate entry.id into inline onclick');
+        assert.match(html, /data-history-action="load"/);
+        assert.match(html, /data-history-action="delete"/);
+    });
+
+    test('external pinned CDN resources enforce SRI (sha384), crossorigin=anonymous and referrerpolicy=no-referrer', () => {
+        const head = html.slice(0, html.indexOf('</head>'));
+        assert.match(head, /<meta\s+name="referrer"\s+content="strict-origin-when-cross-origin"/i);
+        const faTag = head.match(/<link[^>]*font-awesome\/6\.4\.0\/css\/all\.min\.css[^>]*>/i);
+        assert.ok(faTag, 'font-awesome stylesheet link must exist');
+        assert.match(faTag[0], /integrity="sha384-[A-Za-z0-9+/=]+"/);
+        assert.match(faTag[0], /crossorigin="anonymous"/);
+        assert.match(faTag[0], /referrerpolicy="no-referrer"/);
+
+        const exportJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXExport.js'), 'utf8');
+        assert.equal((exportJs.match(/sha384-[A-Za-z0-9+/=]{60,}/g) || []).length, 3, 'xlsx, jspdf, and jspdf-autotable must all declare sha384 SRI');
+        assert.match(exportJs, /script\.referrerPolicy\s*=\s*'no-referrer'/);
+
+        const docStudioJs = fs.readFileSync(path.join(ROOT, 'js', 'DocumentStudio.js'), 'utf8');
+        assert.match(docStudioJs, /sha384-[A-Za-z0-9+/=]{60,}/, 'mammoth script must declare sha384 SRI');
+        assert.match(docStudioJs, /script\.crossOrigin\s*=\s*'anonymous'/);
+        assert.match(docStudioJs, /script\.referrerPolicy\s*=\s*'no-referrer'/);
+    });
+
+    test('scrollbar CSS uses standard scrollbar-color/scrollbar-width with @supports fallback', () => {
+        assert.match(html, /scrollbar-color:\s*var\(--scrollbar-thumb\)\s+var\(--scrollbar-track\)/);
+        assert.match(html, /scrollbar-width:\s*thin/);
+        assert.match(html, /@supports\s+not\s+\(scrollbar-color:\s*auto\)/);
+    });
+
+    test('CI test workflow declares explicit least-privilege permissions', () => {
+        const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'test.yml'), 'utf8');
+        assert.match(workflow, /^permissions:\s*\r?\n\s+contents:\s*read/m);
+    });
 });
