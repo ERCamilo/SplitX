@@ -108,6 +108,10 @@ describe('index.html structural & script integrity', () => {
     test('app CSS, ConfigUI and EditModal are extracted out of index.html (#28)', () => {
         const head = html.slice(0, html.indexOf('</head>'));
         assert.match(head, /<link\s+rel="stylesheet"\s+href="css\/app\.css">/);
+        assert.ok(
+            head.indexOf('css/app.css') < head.indexOf('css/tailwind.css'),
+            'css/app.css must load before css/tailwind.css so Tailwind utilities like .hidden override component classes'
+        );
         assert.ok(fs.existsSync(path.join(ROOT, 'css', 'app.css')), 'css/app.css must exist');
         assert.equal(/<style>[\s\S]{100,}<\/style>/.test(head), false, 'large inline <style> block must be extracted to css/app.css');
 
