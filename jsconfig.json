@@ -16,6 +16,7 @@
     "js/SplitXImportHistory.js",
     "js/SplitXExcelImport.js",
     "js/SplitXStorage.js",
+    "js/SplitXState.js",
     "js/SplitXCurrencies.js",
     "js/SplitXBackup.js",
     "js/SplitXExport.js",

@@ -1580,6 +1580,23 @@
                             <div class="text-[10px] text-slate-500 dark:text-slate-400">Borra cédulas, direcciones y salarios contractuales sin tocar tus plantillas</div>
                         </div>
                     </button>
+                    <div id="opCorruptBackupCard" class="hidden p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 space-y-2">
+                        <div class="flex items-start gap-2">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 shrink-0"></i>
+                            <div class="min-w-0">
+                                <div class="font-bold text-xs text-amber-900 dark:text-amber-200">Copia de recuperación disponible</div>
+                                <div class="text-[10px] text-amber-800 dark:text-amber-300">Se detectaron datos dañados al iniciar. Puedes descargar el archivo localmente para inspeccionarlo sin subirlo a ningún servidor.</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="app.downloadCorruptBackup()" class="flex-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors">
+                                <i class="fa-solid fa-download mr-1"></i> Descargar copia
+                            </button>
+                            <button type="button" onclick="app.discardCorruptBackup()" class="px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs font-medium transition-colors">
+                                Descartar
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Option 4: Borrar Todo -->
@@ -2250,14 +2267,20 @@
             const storageSet = (key, val) => appStorage.set(key, val);
             const storageRemove = (key) => appStorage.remove(key);
 
+            let _corruptBackupMem = null;
+
             const loadData = () => {
-                const saved = storageGet(SplitXStorage.KEYS.DATA);
-                const loaded = SplitXState.parseSavedState(saved);
+                const loaded = SplitXState.loadOrRecoverState(appStorage, SplitXStorage.KEYS);
                 if (!loaded.ok) {
-                    // Keep corrupt user data for explicit recovery, instead of crashing on startup.
-                    storageSet(SplitXStorage.KEYS.CORRUPT_BACKUP, loaded.backup);
-                    console.error('SplitX: invalid stored state; original contents preserved as Split_data_corrupt_backup');
-                    setTimeout(() => showToast('Datos guardados dañados. Se conservó una copia de recuperación y se inició sin esos datos.', 'error'), 0);
+                    if (loaded.backupSaved) {
+                        console.error('SplitX: invalid stored state; original contents preserved as Split_data_corrupt_backup');
+                        setTimeout(() => showToast('Datos guardados dañados. Se conservó una copia de recuperación en Operaciones → Respaldo.', 'error'), 0);
+                    } else {
+                        _corruptBackupMem = loaded.rawBackup;
+                        console.error('SplitX: invalid stored state; failed to persist corrupt backup in browser storage');
+                        const reasonText = loaded.backupError === 'quota' ? 'almacenamiento lleno' : 'almacenamiento bloqueado';
+                        setTimeout(() => showToast(`Datos guardados dañados y no se pudo guardar la copia (${reasonText}). Descárgala desde Operaciones antes de cerrar la pestaña.`, 'error'), 0);
+                    }
                 }
                 if (loaded.data) {
                     const parsed = loaded.data;
@@ -2626,6 +2649,42 @@
                 if (!ok) return;
                 const res = SplitXBackup.purgeDocumentPii(appStorage);
                 showToast(res.purged > 0 ? `Se purgaron datos personales de ${res.purged} colaborador(es).` : 'No había datos personales almacenados en Documentos.', 'success');
+            };
+
+            const downloadCorruptBackup = () => {
+                const raw = SplitXState.getCorruptBackup(appStorage, SplitXStorage.KEYS, _corruptBackupMem);
+                if (!raw) {
+                    showToast('No hay ninguna copia de recuperación pendiente.', 'info');
+                    return;
+                }
+                const blob = new Blob([raw], { type: 'text/plain;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.setAttribute('hidden', '');
+                a.setAttribute('href', url);
+                a.setAttribute('download', `SplitX_recuperacion_${SplitXExport.isoDateTag()}.txt`);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+                showToast('Copia de recuperación descargada localmente.', 'success');
+            };
+
+            const discardCorruptBackup = async () => {
+                const ok = await showCustomConfirm({
+                    title: '¿Descartar copia de recuperación?',
+                    message: 'Se eliminará la copia de datos dañados guardada en este navegador. Descárgala antes si deseas inspeccionarla.',
+                    icon: 'fa-trash-can',
+                    type: 'warning',
+                    confirmText: 'Descartar copia',
+                    cancelText: 'Cancelar'
+                });
+                if (!ok) return;
+                SplitXState.clearCorruptBackup(appStorage, SplitXStorage.KEYS);
+                _corruptBackupMem = null;
+                const card = document.getElementById('opCorruptBackupCard');
+                if (card) card.classList.add('hidden');
+                showToast('Copia de recuperación eliminada.', 'info');
             };
 
             const resetAll = async () => {
@@ -3116,6 +3175,11 @@
                             descRestore.textContent = 'No hay una importación previa registrada en esta sesión';
                         }
                     }
+                }
+                const corruptCard = document.getElementById('opCorruptBackupCard');
+                if (corruptCard) {
+                    const hasCorrupt = !!SplitXState.getCorruptBackup(appStorage, SplitXStorage.KEYS, _corruptBackupMem);
+                    corruptCard.classList.toggle('hidden', !hasCorrupt);
                 }
                 modal.classList.remove('hidden');
             };
@@ -4372,6 +4436,8 @@
                 exportFullBackup,
                 importFullBackup,
                 purgeDocumentPii,
+                downloadCorruptBackup,
+                discardCorruptBackup,
                 switchTab,
                 switchMobileView,
                 openAddDrawer,

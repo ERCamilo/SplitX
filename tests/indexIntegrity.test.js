@@ -96,4 +96,11 @@ describe('index.html structural & script integrity', () => {
         const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
         assert.ok(typeof pkg.scripts?.['build:css'] === 'string' && pkg.scripts['build:css'].includes('tailwindcss'), 'package.json must expose build:css script');
     });
+
+    test('index.html handles corrupt-backup persistence failure and exposes download/discard controls (#9)', () => {
+        assert.match(html, /SplitXState\.loadOrRecoverState\(/);
+        assert.match(html, /id="opCorruptBackupCard"/);
+        assert.match(html, /app\.downloadCorruptBackup\(\)/);
+        assert.match(html, /app\.discardCorruptBackup\(\)/);
+    });
 });
