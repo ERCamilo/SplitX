@@ -48,7 +48,7 @@ const openStudio = async (employees = 3, { tour = false } = {}) => {
     const browser = await chromium.launch();
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const errors = [];
-    page.on('pageerror', (e) => { if (!/tailwind/i.test(e.message)) errors.push(e.message); });
+    page.on('pageerror', (e) => { errors.push(e.message); });
     await page.route('**/*', (route) => (route.request().url().startsWith(server.url) ? route.continue() : route.abort()));
     await page.goto(`${server.url}/index.html`, { waitUntil: 'load' });
     await page.evaluate((skipTour) => {
@@ -69,6 +69,7 @@ const importEmployees = async (page, data) => {
     await page.fill('#jsonImportInput', JSON.stringify(data));
     await page.evaluate(() => /** @type {any} */ (window).app.processImport());
     await page.waitForFunction(() => (JSON.parse(localStorage.getItem('Split_data') || '{}').employees || []).length > 0);
+    await page.evaluate(() => /** @type {any} */ (window).app.closePostImportModal(false));
 };
 
 /** Arrastra con el ratón el centro de `locator` dx/dy píxeles. */
