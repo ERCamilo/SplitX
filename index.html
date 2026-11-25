@@ -10,7 +10,7 @@
          (SA deja de intentar a los 10 s; sin esto se abría con los datos viejos). -->
     <script src="js/SplitXBridge.js"></script>
     <script>try { SplitXBridge.installEarlyQueue(window); } catch (e) { console.warn('SplitX: cola temprana no disponible', e); }</script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,20 +35,6 @@
     <script src="js/SplitXDocuments.js"></script>
     <script src="js/DocumentStudio.js"></script>
     <link rel="stylesheet" href="css/document-studio.css">
-
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    }
-                }
-            }
-        }
-    </script>
 
     <style>
         :root {

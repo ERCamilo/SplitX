@@ -77,4 +77,23 @@ describe('index.html structural & script integrity', () => {
         const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'test.yml'), 'utf8');
         assert.match(workflow, /^permissions:\s*\r?\n\s+contents:\s*read/m);
     });
+
+    test('index.html uses compiled local css/tailwind.css instead of runtime Tailwind Play CDN (#28)', () => {
+        const head = html.slice(0, html.indexOf('</head>'));
+        assert.equal(/cdn\.tailwindcss\.com/.test(head), false, 'Tailwind Play CDN must not be used in production');
+        assert.equal(/\btailwind\.config\s*=/.test(head), false, 'runtime tailwind.config script should be removed');
+        assert.match(head, /<link\s+rel="stylesheet"\s+href="css\/tailwind\.css">/);
+
+        const cssPath = path.join(ROOT, 'css', 'tailwind.css');
+        assert.ok(fs.existsSync(cssPath), 'compiled css/tailwind.css must exist');
+        const css = fs.readFileSync(cssPath, 'utf8');
+        assert.ok(css.length > 10000, 'compiled css/tailwind.css must contain compiled utilities');
+        assert.match(css, /\.flex\b/);
+        assert.match(css, /\.hidden\b/);
+        assert.match(css, /\.font-mono\b/);
+        assert.match(css, /\.dark\\:bg-slate-900:is\(\.dark \*\)/);
+
+        const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+        assert.ok(typeof pkg.scripts?.['build:css'] === 'string' && pkg.scripts['build:css'].includes('tailwindcss'), 'package.json must expose build:css script');
+    });
 });
