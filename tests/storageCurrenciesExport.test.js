@@ -115,4 +115,31 @@ describe('SplitXExport CSV injection protection & currency formatting (Issues #2
     test('isoDateTag formats local YYYY-MM-DD deterministically', () => {
         assert.equal(SplitXExport.isoDateTag(new Date(2026, 10, 5)), '2026-11-05');
     });
+
+    test('exportToExcel and exportToPDF fail gracefully offline without throwing or leaking payroll PII (Issue #12)', async () => {
+        const alerts = [];
+        const exporter = SplitXExport.createExporter({
+            getState: () => ({ denominations: [1000, 500], payrollMode: 'deductions' }),
+            getCurrencySymbol: () => 'RD$',
+            calculateDistribution: () => ({
+                results: [{ id: 1, name: 'Juan Pérez Secreto', amount: 1500, paid: false, status: 'ok', distribution: { 1000: 1, 500: 1 } }],
+                loanFundResult: { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }
+            }),
+            calculateBankNeeds: () => ({ breakdown: { 1000: { final: 1 }, 500: { final: 1 } }, remainder: 0 }),
+            getPayrollSummary: () => ({ count: 0, gross: 0, bonuses: 0, discounts: 0, loans: 0, net: 0 }),
+            getEffectiveEmployeeAmount: (e) => e.amount,
+            showCustomAlert: (opts) => alerts.push(opts)
+        });
+
+        await exporter.exportToExcel();
+        await exporter.exportToPDF();
+
+        assert.equal(alerts.length, 2);
+        assert.match(alerts[0].title, /Excel no disponible/i);
+        assert.match(alerts[1].title, /PDF no disponible/i);
+        for (const alert of alerts) {
+            assert.equal(alert.type, 'danger');
+            assert.equal(alert.message.includes('Juan Pérez Secreto'), false, 'error alert must never expose payroll PII');
+        }
+    });
 });
