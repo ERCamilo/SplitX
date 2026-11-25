@@ -19,6 +19,8 @@
     "js/SplitXCurrencies.js",
     "js/SplitXBackup.js",
     "js/SplitXExport.js",
+    "js/SplitXDialogs.js",
+    "js/SplitXEmployeeCard.js",
     "types/*.d.ts"
   ]
 }

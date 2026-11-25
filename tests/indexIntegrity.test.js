@@ -24,13 +24,16 @@ describe('index.html structural & script integrity', () => {
         assert.doesNotThrow(() => new Function(match[1]), 'inline script must parse without SyntaxError');
     });
 
-    test('extracted catalogs and exporters are not duplicated inline in index.html', () => {
+    test('extracted catalogs, dialogs, cards and exporters are not duplicated inline in index.html', () => {
         const match = html.match(/<!-- JavaScript Logic -->\s*<script>([\s\S]*?)<\/script>/);
         const body = match ? match[1] : '';
         assert.equal((body.match(/\bconst\s+DEFAULT_BILL_IMAGES\b/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+CURRENCY_PRESETS\b/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+BILL_COLORS\b/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+exportToPDF\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+showCustomDialog\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+buildEmployeeCardElement\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+generateSmartAdvisorData\s*=/g) || []).length, 0);
     });
 
     test('index.html does not block initial <head> load with xlsx or jspdf CDNs', () => {
