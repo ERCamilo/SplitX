@@ -17,6 +17,7 @@
     "js/SplitXExcelImport.js",
     "js/SplitXStorage.js",
     "js/SplitXCurrencies.js",
+    "js/SplitXBackup.js",
     "js/SplitXExport.js",
     "types/*.d.ts"
   ]
