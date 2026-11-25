@@ -9,8 +9,26 @@ describe('mobile payroll workflow at 390x844', () => {
         const browser = await loadPlaywright().chromium.launch();
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         const errors = [];
+        const cspViolations = [];
         page.on('pageerror', (e) => errors.push(e.message));
-        await page.route('**/*', (route) => (route.request().url().startsWith(server.url) ? route.continue() : route.abort()));
+        page.on('console', (msg) => {
+            if (/Content Security Policy/i.test(msg.text())) cspViolations.push(msg.text());
+        });
+        await page.route('**/*', async (route) => {
+            const url = route.request().url();
+            if (!url.startsWith(server.url)) return route.abort();
+            if (url.endsWith('/index.html')) {
+                const response = await route.fetch();
+                return route.fulfill({
+                    response,
+                    headers: {
+                        ...response.headers(),
+                        'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'"
+                    }
+                });
+            }
+            return route.continue();
+        });
 
         try {
             await page.goto(`${server.url}/index.html`, { waitUntil: 'load' });
@@ -64,6 +82,7 @@ describe('mobile payroll workflow at 390x844', () => {
             await page.waitForSelector('#operationsModal.hidden', { state: 'attached' });
 
             assert.deepEqual(errors, []);
+            assert.deepEqual(cspViolations, [], 'strict script-src self CSP must produce zero violations');
         } finally {
             await browser.close();
             await server.close();

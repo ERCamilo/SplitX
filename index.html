@@ -9,7 +9,7 @@
     <!-- Primero el puente con SA: responde al PING y guarda la nómina mientras cargan los CDN
          (SA deja de intentar a los 10 s; sin esto se abría con los datos viejos). -->
     <script src="js/SplitXBridge.js"></script>
-    <script>try { SplitXBridge.installEarlyQueue(window); } catch (e) { console.warn('SplitX: cola temprana no disponible', e); }</script>
+    <script src="js/SplitXEarlyBoot.js"></script>
     <link rel="stylesheet" href="css/app.css">
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous" referrerpolicy="no-referrer">
@@ -31,6 +31,7 @@
     <script src="js/SplitXEmployeeCard.js"></script>
     <script src="js/SplitXConfigUI.js"></script>
     <script src="js/SplitXEditModal.js"></script>
+    <script src="js/SplitXActionDelegation.js"></script>
     <script src="js/SheetBuilder.js"></script>
     <script src="js/SplitXVariables.js"></script>
     <script src="js/SplitXFormulaBuilder.js"></script>
@@ -54,41 +55,41 @@
                 </div>
                 <!-- Nav actions -->
                 <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                    <button onclick="app.openImportModal()" class="toolbar-btn blue hidden sm:flex">
+                    <button data-sx-click="openImportModal" class="toolbar-btn blue hidden sm:flex">
                         <i class="fa-solid fa-file-import text-xs"></i> Importar
                     </button>
-                    <button id="historyBtn" onclick="app.openHistoryModal()" class="toolbar-btn hidden sm:flex" title="Últimas nóminas importadas">
+                    <button id="historyBtn" data-sx-click="openHistoryModal" class="toolbar-btn hidden sm:flex" title="Últimas nóminas importadas">
                         <i class="fa-solid fa-clock-rotate-left text-xs"></i> Historial
                     </button>
-                    <button onclick="app.openExportModal()" class="toolbar-btn green hidden sm:flex">
+                    <button data-sx-click="openExportModal" class="toolbar-btn green hidden sm:flex">
                         <i class="fa-solid fa-file-export text-xs"></i> Exportar
                     </button>
-                    <button onclick="app.openSheetStudio()" class="toolbar-btn amber hidden sm:flex" title="Tarjetas para sobres y hoja de firmas">
+                    <button data-sx-click="openSheetStudio" class="toolbar-btn amber hidden sm:flex" title="Tarjetas para sobres y hoja de firmas">
                         <i class="fa-solid fa-print text-xs"></i> Hojas
                     </button>
-                    <button onclick="app.openDocumentStudio()" class="toolbar-btn blue hidden sm:flex" title="Plantillas de documentos personalizadas para empleados">
+                    <button data-sx-click="openDocumentStudio" class="toolbar-btn blue hidden sm:flex" title="Plantillas de documentos personalizadas para empleados">
                         <i class="fa-solid fa-file-lines text-xs"></i> Documentos
                     </button>
                     <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
-                    <button onclick="app.openSheetStudio()" title="Hojas imprimibles: tarjetas para sobres y hoja de firmas" aria-label="Hojas imprimibles" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all sm:hidden">
+                    <button data-sx-click="openSheetStudio" title="Hojas imprimibles: tarjetas para sobres y hoja de firmas" aria-label="Hojas imprimibles" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all sm:hidden">
                         <i class="fa-solid fa-print text-sm"></i>
                     </button>
-                    <button onclick="app.openDocumentStudio()" title="Documentos personalizados de empleados" aria-label="Documentos personalizados" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
+                    <button data-sx-click="openDocumentStudio" title="Documentos personalizados de empleados" aria-label="Documentos personalizados" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
                         <i class="fa-solid fa-file-lines text-sm"></i>
                     </button>
-                    <button onclick="app.openHistoryModal()" title="Últimas nóminas importadas" aria-label="Historial de nóminas" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
+                    <button data-sx-click="openHistoryModal" title="Últimas nóminas importadas" aria-label="Historial de nóminas" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
                         <i class="fa-solid fa-clock-rotate-left text-sm"></i>
                     </button>
-                    <button onclick="app.openExportModal()" title="Exportar nómina (Excel, PDF, CSV)" aria-label="Exportar nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
+                    <button data-sx-click="openExportModal" title="Exportar nómina (Excel, PDF, CSV)" aria-label="Exportar nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
                         <i class="fa-solid fa-file-export text-sm"></i>
                     </button>
-                    <button id="themeToggleBtn" onclick="app.toggleTheme()" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro u oscuro" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all">
+                    <button id="themeToggleBtn" data-sx-click="toggleTheme" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro u oscuro" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all">
                         <i class="fa-solid fa-moon text-sm"></i>
                     </button>
-                    <button onclick="app.openConfigModal()" title="Ajustes de sistema y diseño" aria-label="Ajustes de sistema y diseño" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
+                    <button data-sx-click="openConfigModal" title="Ajustes de sistema y diseño" aria-label="Ajustes de sistema y diseño" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
                         <i class="fa-solid fa-gear text-sm"></i>
                     </button>
-                    <button onclick="app.openOperationsModal()" title="Operaciones de nómina (Reiniciar / Restaurar / Limpiar)" aria-label="Operaciones de nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all">
+                    <button data-sx-click="openOperationsModal" title="Operaciones de nómina (Reiniciar / Restaurar / Limpiar)" aria-label="Operaciones de nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all">
                         <i class="fa-solid fa-rotate-left text-sm"></i>
                     </button>
                 </div>
@@ -100,7 +101,7 @@
     <div id="storageBanner" class="hidden bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
         <span id="storageBannerText"><strong>Almacenamiento bloqueado:</strong> Los datos solo se conservan mientras esta pestaña permanezca abierta.</span>
-        <button onclick="this.parentElement.classList.add('hidden')" aria-label="Ocultar aviso de almacenamiento" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
+        <button data-sx-click="hideParent" aria-label="Ocultar aviso de almacenamiento" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
             <i class="fa-solid fa-xmark"></i>
         </button>
     </div>
@@ -110,13 +111,13 @@
         <div class="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
             <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
             <span id="saStaleText" class="flex-1 min-w-[12rem]"></span>
-            <button onclick="app.retrySaImport()" class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold">
+            <button data-sx-click="retrySaImport" class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold">
                 <i class="fa-solid fa-rotate mr-1"></i>Pedir de nuevo
             </button>
-            <button onclick="app.openHistoryModal()" class="px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-semibold">
+            <button data-sx-click="openHistoryModal" class="px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-semibold">
                 <i class="fa-solid fa-clock-rotate-left mr-1"></i>Historial
             </button>
-            <button onclick="app.hideStaleBanner()" class="text-amber-600 hover:text-amber-900 dark:text-amber-400 shrink-0" aria-label="Cerrar aviso">
+            <button data-sx-click="hideStaleBanner" class="text-amber-600 hover:text-amber-900 dark:text-amber-400 shrink-0" aria-label="Cerrar aviso">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -146,7 +147,7 @@
                 <div class="kpi-sub" id="kpiCubiertosSub">—</div>
             </div>
             <!-- KPI 4: Retirar del banco -->
-            <div class="kpi-card cursor-pointer" onclick="app.switchTab('bank'); app.switchMobileView('caja')" title="Ver plan de retiro">
+            <div class="kpi-card cursor-pointer" data-sx-click="openBankMobile" title="Ver plan de retiro">
                 <div class="kpi-label"><i class="fa-solid fa-building-columns mr-1 text-amber-400"></i>Retirar Banco</div>
                 <div class="kpi-value text-amber-600" id="kpiRetirar">RD$ 0</div>
                 <div class="kpi-sub text-blue-500">Toca para ver plan →</div>
@@ -167,10 +168,10 @@
     ═══════════════════════════════════════════ -->
     <div class="mobile-only max-w-7xl mx-auto px-4 pt-2 pb-1">
         <div class="seg-control">
-            <button class="seg-btn active" id="seg-nomina" onclick="app.switchMobileView('nomina')">
+            <button class="seg-btn active" id="seg-nomina" data-sx-click="switchMobileView" data-sx-arg="nomina">
                 <i class="fa-solid fa-users mr-1.5 text-xs"></i>Nómina
             </button>
-            <button class="seg-btn" id="seg-caja" onclick="app.switchMobileView('caja')">
+            <button class="seg-btn" id="seg-caja" data-sx-click="switchMobileView" data-sx-arg="caja">
                 <i class="fa-solid fa-wallet mr-1.5 text-xs"></i>Mi Caja
             </button>
         </div>
@@ -186,10 +187,10 @@
 
             <!-- Panel tab switcher (desktop inline, mobile visible) -->
             <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1">
-                <button onclick="app.switchTab('inventory')" id="tab-inventory" class="panel-tab active flex-1 text-center">
+                <button data-sx-click="switchTab" data-sx-arg="inventory" id="tab-inventory" class="panel-tab active flex-1 text-center">
                     <i class="fa-solid fa-wallet mr-1.5"></i>Mi Caja
                 </button>
-                <button onclick="app.switchTab('bank')" id="tab-bank" class="panel-tab inactive flex-1 text-center">
+                <button data-sx-click="switchTab" data-sx-arg="bank" id="tab-bank" class="panel-tab inactive flex-1 text-center">
                     <i class="fa-solid fa-building-columns mr-1.5"></i>Banco
                 </button>
             </div>
@@ -234,10 +235,10 @@
                         <span class="text-sm font-medium text-slate-600">Total a Retirar:</span>
                         <span id="bankTotalDisplay" class="font-bold text-lg text-slate-800 font-mono">RD$ 0</span>
                     </div>
-                    <button id="applyBankBtn" onclick="app.applyBankToInventory()" class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm">
+                    <button id="applyBankBtn" data-sx-click="applyBankToInventory" class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm">
                         <i class="fa-solid fa-check-circle"></i> Aplicar a Mi Caja
                     </button>
-                    <button onclick="app.clearBankLimits()" class="w-full mt-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 font-medium py-2 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-xs">
+                    <button data-sx-click="clearBankLimits" class="w-full mt-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 font-medium py-2 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-xs">
                         <i class="fa-solid fa-eraser"></i> Limpiar límites del banco
                     </button>
                 </div>
@@ -255,7 +256,7 @@
                         class="ring-input flex-grow">
                     <input type="number" id="empAmount" placeholder="Monto" step="0.01"
                         class="ring-input w-full sm:w-36 font-mono">
-                    <button onclick="app.addEmployee()"
+                    <button data-sx-click="addEmployee"
                         class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition-all shrink-0 text-sm shadow-xs flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-plus text-xs"></i> Agregar
                     </button>
@@ -275,27 +276,27 @@
                         <span id="employeeCountBadge" class="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
                     </div>
                     <div class="flex items-center gap-1.5 flex-wrap">
-                        <button onclick="app.roundAllAmounts()" class="toolbar-btn amber" title="Quitar centavos a todos los montos">
+                        <button data-sx-click="roundAllAmounts" class="toolbar-btn amber" title="Quitar centavos a todos los montos">
                             <i class="fa-solid fa-scissors text-xs"></i>
                             <span class="hidden sm:inline">Centavos</span>
                         </button>
-                        <button onclick="app.openOperationsModal()" id="operationsModalBtn" class="toolbar-btn" title="Opciones de reinicio, restauración y limpieza">
+                        <button data-sx-click="openOperationsModal" id="operationsModalBtn" class="toolbar-btn" title="Opciones de reinicio, restauración y limpieza">
                             <i class="fa-solid fa-rotate-left text-xs"></i>
                             <span class="hidden sm:inline">Operaciones</span>
                         </button>
-                        <button onclick="app.cycleSortMode()" id="sortBtn" class="toolbar-btn" title="Ordenar lista">
+                        <button data-sx-click="cycleSortMode" id="sortBtn" class="toolbar-btn" title="Ordenar lista">
                             <i class="fa-solid fa-arrow-down-short-wide text-xs"></i>
                             <span class="hidden sm:inline" id="sortBtnLabel">Orden</span>
                         </button>
                         <div id="payrollModeSwitch" class="mode-switch" role="group" aria-label="Modo de préstamos">
-                            <button id="payrollModeNormal" onclick="app.setPayrollMode('normal')" class="active" title="Sin Préstamos: Bruto + Bonificaciones - Descuentos">Sin Préstamos</button>
-                            <button id="payrollModeDeductions" onclick="app.setPayrollMode('deductions')" title="Con Préstamos: Descontar préstamos en nómina">Con Préstamos</button>
+                            <button id="payrollModeNormal" data-sx-click="setPayrollMode" data-sx-arg="normal" class="active" title="Sin Préstamos: Bruto + Bonificaciones - Descuentos">Sin Préstamos</button>
+                            <button id="payrollModeDeductions" data-sx-click="setPayrollMode" data-sx-arg="deductions" title="Con Préstamos: Descontar préstamos en nómina">Con Préstamos</button>
                         </div>
-                        <button onclick="app.openImportModal()" class="toolbar-btn blue sm:hidden" title="Importar datos" aria-label="Importar datos">
+                        <button data-sx-click="openImportModal" class="toolbar-btn blue sm:hidden" title="Importar datos" aria-label="Importar datos">
                             <i class="fa-solid fa-file-import text-xs"></i>
                         </button>
                         <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
-                        <button onclick="app.openExportModal()" class="toolbar-btn green" title="Exportar nómina (Excel, PDF, CSV)">
+                        <button data-sx-click="openExportModal" class="toolbar-btn green" title="Exportar nómina (Excel, PDF, CSV)">
                             <i class="fa-solid fa-file-export text-xs"></i>
                             <span class="hidden sm:inline">Exportar</span>
                         </button>
@@ -318,25 +319,25 @@
     <!-- ═══════════════════════════════════════════
          MOBILE FAB
     ═══════════════════════════════════════════ -->
-    <button class="fab" onclick="app.openAddDrawer()" title="Agregar empleado" aria-label="Agregar empleado">
+    <button class="fab" data-sx-click="openAddDrawer" title="Agregar empleado" aria-label="Agregar empleado">
         <i class="fa-solid fa-plus"></i>
     </button>
 
     <!-- ═══════════════════════════════════════════
          MOBILE ADD EMPLOYEE DRAWER
     ═══════════════════════════════════════════ -->
-    <div class="add-drawer-backdrop" id="addDrawerBackdrop" onclick="app.closeAddDrawer()"></div>
+    <div class="add-drawer-backdrop" id="addDrawerBackdrop" data-sx-click="closeAddDrawer"></div>
     <div class="add-drawer" id="addDrawer">
         <div class="drawer-handle"></div>
         <h3 class="text-base font-bold text-slate-800 mb-4">Agregar Empleado</h3>
         <div class="flex flex-col gap-3">
             <input type="text" id="empNameMobile" placeholder="Nombre del empleado" class="ring-input">
             <input type="number" id="empAmountMobile" placeholder="Monto (ej. 4500)" step="0.01" class="ring-input font-mono">
-            <button onclick="app.addEmployeeMobile()"
+            <button data-sx-click="addEmployeeMobile"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm">
                 <i class="fa-solid fa-plus mr-2"></i> Agregar a la Nómina
             </button>
-            <button onclick="app.openImportModal(); app.closeAddDrawer()"
+            <button data-sx-click="openImportFromDrawer"
                 class="w-full border border-slate-200 text-slate-600 font-medium py-2.5 rounded-xl transition-colors text-sm hover:bg-slate-50">
                 <i class="fa-solid fa-file-import mr-2 text-xs"></i> Importar desde Excel / JSON
             </button>
@@ -347,19 +348,19 @@
          MOBILE BOTTOM NAV
     ═══════════════════════════════════════════ -->
     <nav class="bottom-nav">
-        <div class="bnav-item active" id="bnav-nomina" onclick="app.switchMobileView('nomina')">
+        <div class="bnav-item active" id="bnav-nomina" data-sx-click="switchMobileView" data-sx-arg="nomina">
             <div class="bnav-icon"><i class="fa-solid fa-users"></i></div>
             <span>Nómina</span>
         </div>
-        <div class="bnav-item" id="bnav-caja" onclick="app.switchMobileView('caja')">
+        <div class="bnav-item" id="bnav-caja" data-sx-click="switchMobileView" data-sx-arg="caja">
             <div class="bnav-icon"><i class="fa-solid fa-wallet"></i></div>
             <span>Mi Caja</span>
         </div>
-        <div class="bnav-item" id="bnav-banco" onclick="app.switchMobileView('caja'); app.switchTab('bank')">
+        <div class="bnav-item" id="bnav-banco" data-sx-click="openBankMobile">
             <div class="bnav-icon"><i class="fa-solid fa-building-columns"></i></div>
             <span>Banco</span>
         </div>
-        <div class="bnav-item" id="bnav-ajustes" onclick="app.openConfigModal()">
+        <div class="bnav-item" id="bnav-ajustes" data-sx-click="openConfigModal">
             <div class="bnav-icon"><i class="fa-solid fa-gear"></i></div>
             <span>Ajustes</span>
         </div>
@@ -374,18 +375,18 @@
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-blue-600 dark:text-sky-400"></i> Ajustes de Sistema
                 </h3>
-                <button onclick="document.getElementById('configModal').classList.add('hidden')" aria-label="Cerrar ajustes" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeConfigModal" aria-label="Cerrar ajustes" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             <div class="flex gap-1 p-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <button id="cfgTab-appearance" onclick="app.switchConfigTab('appearance')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs">
+                <button id="cfgTab-appearance" data-sx-click="switchConfigTab" data-sx-arg="appearance" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs">
                     <i class="fa-solid fa-layer-group mr-1.5"></i> Despiece y Apariencia
                 </button>
-                <button id="cfgTab-customBills" onclick="app.switchConfigTab('customBills')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                <button id="cfgTab-customBills" data-sx-click="switchConfigTab" data-sx-arg="customBills" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                     <i class="fa-solid fa-palette mr-1.5"></i> Colores e Imágenes
                 </button>
-                <button id="cfgTab-denoms" onclick="app.switchConfigTab('denoms')" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                <button id="cfgTab-denoms" data-sx-click="switchConfigTab" data-sx-arg="denoms" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                     <i class="fa-solid fa-coins mr-1.5"></i> Denominaciones
                 </button>
             </div>
@@ -416,13 +417,13 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Cómo se presenta la cantidad de cada denominación.</div>
                         </div>
                         <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
-                            <button type="button" onclick="app.setBreakdownFormat('badge')" id="fmtBtn-badge" class="px-2.5 py-1 rounded-md transition-all flex items-center gap-1" title="Icono con círculo de unidades superpuesto">
+                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="badge" id="fmtBtn-badge" class="px-2.5 py-1 rounded-md transition-all flex items-center gap-1" title="Icono con círculo de unidades superpuesto">
                                 <i class="fa-solid fa-circle-dot text-[10px]"></i> Círculo
                             </button>
-                            <button type="button" onclick="app.setBreakdownFormat('qty_x_denom')" id="fmtBtn-qty_x_denom" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: 2 × [2000]">
+                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="qty_x_denom" id="fmtBtn-qty_x_denom" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: 2 × [2000]">
                                 2 × [Icono]
                             </button>
-                            <button type="button" onclick="app.setBreakdownFormat('denom_x_qty')" id="fmtBtn-denom_x_qty" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: [2000] × 2">
+                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="denom_x_qty" id="fmtBtn-denom_x_qty" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: [2000] × 2">
                                 [Icono] × 2
                             </button>
                         </div>
@@ -437,13 +438,13 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Escala de fichas, iconos y números.</div>
                         </div>
                         <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
-                            <button type="button" onclick="app.setBreakdownSize('compact')" id="sizeBtn-compact" class="px-2.5 py-1 rounded-md transition-all">
+                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="compact" id="sizeBtn-compact" class="px-2.5 py-1 rounded-md transition-all">
                                 Compacto
                             </button>
-                            <button type="button" onclick="app.setBreakdownSize('normal')" id="sizeBtn-normal" class="px-2.5 py-1 rounded-md transition-all">
+                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="normal" id="sizeBtn-normal" class="px-2.5 py-1 rounded-md transition-all">
                                 Normal
                             </button>
-                            <button type="button" onclick="app.setBreakdownSize('large')" id="sizeBtn-large" class="px-2.5 py-1 rounded-md transition-all">
+                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="large" id="sizeBtn-large" class="px-2.5 py-1 rounded-md transition-all">
                                 Grande
                             </button>
                         </div>
@@ -458,11 +459,11 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Cantidad máxima de billetes/monedas en cada línea.</div>
                         </div>
                         <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
-                            <button type="button" onclick="app.setBreakdownColumns(3)" id="colBtn-3" class="px-2.5 py-1 rounded-md transition-all">3</button>
-                            <button type="button" onclick="app.setBreakdownColumns(4)" id="colBtn-4" class="px-2.5 py-1 rounded-md transition-all">4</button>
-                            <button type="button" onclick="app.setBreakdownColumns(5)" id="colBtn-5" class="px-2.5 py-1 rounded-md transition-all">5</button>
-                            <button type="button" onclick="app.setBreakdownColumns(6)" id="colBtn-6" class="px-2.5 py-1 rounded-md transition-all">6</button>
-                            <button type="button" onclick="app.setBreakdownColumns('auto')" id="colBtn-auto" class="px-2.5 py-1 rounded-md transition-all">Auto</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="3" id="colBtn-3" class="px-2.5 py-1 rounded-md transition-all">3</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="4" id="colBtn-4" class="px-2.5 py-1 rounded-md transition-all">4</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="5" id="colBtn-5" class="px-2.5 py-1 rounded-md transition-all">5</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="6" id="colBtn-6" class="px-2.5 py-1 rounded-md transition-all">6</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="auto" id="colBtn-auto" class="px-2.5 py-1 rounded-md transition-all">Auto</button>
                         </div>
                     </div>
 
@@ -475,7 +476,7 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Billetes en la fila superior y monedas en la fila inferior.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchGroupByType" onchange="app.toggleBreakdownGroupByType(this.checked)" class="sr-only peer">
+                            <input type="checkbox" id="switchGroupByType" data-sx-change="toggleBreakdownGroupByType" class="sr-only peer">
                             <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
@@ -489,7 +490,7 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las denominaciones no utilizadas atenuadas para mantener posiciones fijas.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchShowZeros" onchange="app.toggleBreakdownShowZeros(this.checked)" class="sr-only peer">
+                            <input type="checkbox" id="switchShowZeros" data-sx-change="toggleBreakdownShowZeros" class="sr-only peer">
                             <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
@@ -506,7 +507,7 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las fotos oficiales de la moneda dominicana.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchUseImages" onchange="app.toggleUseDefaultImages(this.checked)" class="sr-only peer">
+                            <input type="checkbox" id="switchUseImages" data-sx-change="toggleUseDefaultImages" class="sr-only peer">
                             <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
@@ -521,17 +522,17 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                            <button id="chipTextMode-dark_tone" onclick="app.setChipTextColor('dark_tone')" 
+                            <button id="chipTextMode-dark_tone" data-sx-click="setChipTextColor" data-sx-arg="dark_tone" 
                                 class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
                                 <span class="w-2.5 h-2.5 rounded-full bg-blue-900 border border-blue-950/40 shrink-0"></span>
                                 <span>Tono oscuro</span>
                             </button>
-                            <button id="chipTextMode-black" onclick="app.setChipTextColor('black')" 
+                            <button id="chipTextMode-black" data-sx-click="setChipTextColor" data-sx-arg="black" 
                                 class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
                                 <span class="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-700 shrink-0"></span>
                                 <span>Negro</span>
                             </button>
-                            <button id="chipTextMode-white" onclick="app.setChipTextColor('white')" 
+                            <button id="chipTextMode-white" data-sx-click="setChipTextColor" data-sx-arg="white" 
                                 class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
                                 <span class="w-2.5 h-2.5 rounded-full bg-white border border-slate-400 shrink-0"></span>
                                 <span>Blanco</span>
@@ -545,7 +546,7 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las monedas ($25, $10, $5, $1) circulares en vez de rectangulares.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchRoundCoins" onchange="app.toggleRoundCoins(this.checked)" class="sr-only peer">
+                            <input type="checkbox" id="switchRoundCoins" data-sx-change="toggleRoundCoins" class="sr-only peer">
                             <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                     </div>
@@ -556,7 +557,7 @@
                             <div class="text-[11px] text-slate-500 dark:text-slate-400">Activa la interfaz oscura de alto contraste.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchDarkMode" onchange="app.toggleTheme()" class="sr-only peer">
+                            <input type="checkbox" id="switchDarkMode" data-sx-change="toggleTheme" class="sr-only peer">
                             <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                         </label>
                     </div>
@@ -574,10 +575,10 @@
                 </div>
                 <div id="appearanceList" class="space-y-2"></div>
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3 justify-between items-center">
-                    <button onclick="app.resetAllAppearance()" class="text-xs font-semibold text-rose-500 hover:text-rose-600 hover:underline flex items-center gap-1.5">
+                    <button data-sx-click="resetAllAppearance" class="text-xs font-semibold text-rose-500 hover:text-rose-600 hover:underline flex items-center gap-1.5">
                         <i class="fa-solid fa-rotate-left"></i> Restaurar todos los colores
                     </button>
-                    <button onclick="app.clearAllImages()" class="text-xs font-semibold text-amber-500 hover:text-amber-600 hover:underline flex items-center gap-1.5">
+                    <button data-sx-click="clearAllImages" class="text-xs font-semibold text-amber-500 hover:text-amber-600 hover:underline flex items-center gap-1.5">
                         <i class="fa-solid fa-image"></i> Quitar imágenes personalizadas
                     </button>
                 </div>
@@ -594,7 +595,7 @@
                         </div>
                         <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
                             <span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Símbolo:</span>
-                            <input type="text" id="currencySymbolInput" onchange="app.setCurrencySymbol(this.value)" class="w-14 text-center text-xs font-bold font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-1 py-0.5 text-slate-800 dark:text-slate-100">
+                            <input type="text" id="currencySymbolInput" data-sx-change="setCurrencySymbol" class="w-14 text-center text-xs font-bold font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-1 py-0.5 text-slate-800 dark:text-slate-100">
                         </div>
                     </div>
                     <div id="currencyPresetGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800"></div>
@@ -613,9 +614,9 @@
                     <div class="flex gap-2 mb-3">
                         <div class="relative flex-grow">
                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono" id="addDenomSymbolPrefix">RD$</span>
-                            <input type="number" step="any" id="newDenomInput" placeholder="Valor (ej. 2000)" class="ring-input pl-14 w-full text-xs" onkeydown="if(event.key==='Enter') app.addDenomination()">
+                            <input type="number" step="any" id="newDenomInput" placeholder="Valor (ej. 2000)" class="ring-input pl-14 w-full text-xs" data-sx-enter="addDenomination">
                         </div>
-                        <button onclick="app.addDenomination()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 shrink-0 transition-colors">
+                        <button data-sx-click="addDenomination" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 shrink-0 transition-colors">
                             <i class="fa-solid fa-plus"></i> Agregar
                         </button>
                     </div>
@@ -624,11 +625,11 @@
             </div>
 
             <div class="p-3 bg-slate-50 dark:bg-slate-950 flex justify-between items-center shrink-0 border-t border-slate-100 dark:border-slate-800">
-                <button onclick="app.resetDenominations()" id="cfgResetBtn" class="text-xs text-rose-500 hover:underline hidden flex items-center gap-1.5 font-semibold">
+                <button data-sx-click="resetDenominations" id="cfgResetBtn" class="text-xs text-rose-500 hover:underline hidden flex items-center gap-1.5 font-semibold">
                     <i class="fa-solid fa-rotate-left"></i> Restaurar al preset activo
                 </button>
                 <span></span>
-                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs">Listo</button>
+                <button data-sx-click="closeConfigModal" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs">Listo</button>
             </div>
         </div>
     </div>
@@ -641,7 +642,7 @@
             <!-- Header -->
             <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Operaciones de Nómina</h3>
-                <button onclick="app.closeOperationsModal()" aria-label="Cerrar operaciones" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeOperationsModal" aria-label="Cerrar operaciones" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -649,7 +650,7 @@
             <!-- Body: 3 Clean Solid Options -->
             <div class="p-4 space-y-2.5">
                 <!-- Option 1: Reiniciar Operación -->
-                <button type="button" onclick="app.closeOperationsModal(); app.resetOperation();"
+                <button type="button" data-sx-click="opResetOperation"
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-arrow-rotate-left text-2xl text-amber-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
@@ -659,7 +660,7 @@
                 </button>
 
                 <!-- Option 2: Restaurar Importación -->
-                <button type="button" id="opCardRestore" onclick="app.closeOperationsModal(); app.restoreImportSnapshot();"
+                <button type="button" id="opCardRestore" data-sx-click="opRestoreImportSnapshot"
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-clock-rotate-left text-2xl text-blue-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
@@ -672,7 +673,7 @@
                 <div class="pt-1 border-t border-slate-100 dark:border-slate-800 space-y-2">
                     <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">Respaldo y Privacidad Local</div>
                     <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="app.exportFullBackup();"
+                        <button type="button" data-sx-click="exportFullBackup"
                             class="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-slate-900 hover:bg-emerald-50/50 dark:hover:bg-slate-800 transition-all flex items-center gap-2.5">
                             <i class="fa-solid fa-download text-lg text-emerald-600 dark:text-emerald-400 shrink-0"></i>
                             <div class="min-w-0">
@@ -686,10 +687,10 @@
                                 <div class="font-bold text-xs text-slate-800 dark:text-slate-100">Restaurar Respaldo</div>
                                 <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Archivo .json SplitX</div>
                             </div>
-                            <input type="file" accept=".json,application/json" class="hidden" onchange="app.importFullBackup(this)">
+                            <input type="file" accept=".json,application/json" class="hidden" data-sx-change="importFullBackup">
                         </label>
                     </div>
-                    <button type="button" onclick="app.closeOperationsModal(); app.purgeDocumentPii();"
+                    <button type="button" data-sx-click="opPurgeDocumentPii"
                         class="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-700 bg-white dark:bg-slate-900 hover:bg-amber-50/50 dark:hover:bg-slate-800 transition-all flex items-center gap-3">
                         <i class="fa-solid fa-user-shield text-lg text-amber-600 dark:text-amber-400 shrink-0"></i>
                         <div class="flex-grow min-w-0">
@@ -706,10 +707,10 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button type="button" onclick="app.downloadCorruptBackup()" class="flex-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors">
+                            <button type="button" data-sx-click="downloadCorruptBackup" class="flex-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors">
                                 <i class="fa-solid fa-download mr-1"></i> Descargar copia
                             </button>
-                            <button type="button" onclick="app.discardCorruptBackup()" class="px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs font-medium transition-colors">
+                            <button type="button" data-sx-click="discardCorruptBackup" class="px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs font-medium transition-colors">
                                 Descartar
                             </button>
                         </div>
@@ -717,7 +718,7 @@
                 </div>
 
                 <!-- Option 4: Borrar Todo -->
-                <button type="button" onclick="app.closeOperationsModal(); app.resetAll();"
+                <button type="button" data-sx-click="opResetAll"
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-trash-can text-2xl text-rose-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
@@ -729,7 +730,7 @@
 
             <!-- Footer -->
             <div class="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
-                <button type="button" onclick="app.closeOperationsModal()" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
+                <button type="button" data-sx-click="closeOperationsModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
             </div>
         </div>
     </div>
@@ -742,7 +743,7 @@
             <!-- Header -->
             <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Exportar Nómina</h3>
-                <button onclick="app.closeExportModal()" aria-label="Cerrar exportación" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeExportModal" aria-label="Cerrar exportación" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -750,7 +751,7 @@
             <!-- Body: Simple Clean Options -->
             <div class="p-4 space-y-2.5">
                 <!-- Excel (Verde) -->
-                <button type="button" onclick="app.closeExportModal(); app.exportToExcel();"
+                <button type="button" data-sx-click="exportExcelAndClose"
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-file-excel text-2xl text-green-600 dark:text-green-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
@@ -760,7 +761,7 @@
                 </button>
 
                 <!-- PDF (Rojo) -->
-                <button type="button" onclick="app.closeExportModal(); app.exportToPDF();"
+                <button type="button" data-sx-click="exportPDFAndClose"
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-file-pdf text-2xl text-red-600 dark:text-red-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
@@ -770,7 +771,7 @@
                 </button>
 
                 <!-- CSV (Azul) -->
-                <button type="button" onclick="app.closeExportModal(); app.exportToCSV();"
+                <button type="button" data-sx-click="exportCSVAndClose"
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-file-csv text-2xl text-blue-600 dark:text-blue-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
@@ -782,7 +783,7 @@
 
             <!-- Footer -->
             <div class="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
-                <button type="button" onclick="app.closeExportModal()" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
+                <button type="button" data-sx-click="closeExportModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
             </div>
         </div>
     </div>
@@ -794,16 +795,16 @@
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100">Importar Empleados</h3>
-                <button onclick="app.closeImportModal()" aria-label="Cerrar importación" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeImportModal" aria-label="Cerrar importación" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             <div class="p-4">
                 <div class="flex gap-1 mb-3 bg-slate-100 dark:bg-slate-950 p-1 rounded-lg">
-                    <button id="importTab-excel" onclick="app.switchImportTab('excel')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-sm">
+                    <button id="importTab-excel" data-sx-click="switchImportTab" data-sx-arg="excel" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-sm">
                         <i class="fa-solid fa-table mr-1"></i> Excel / TSV
                     </button>
-                    <button id="importTab-json" onclick="app.switchImportTab('json')" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                    <button id="importTab-json" data-sx-click="switchImportTab" data-sx-arg="json" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                         <i class="fa-solid fa-code mr-1"></i> JSON
                     </button>
                 </div>
@@ -843,8 +844,8 @@
                 <p id="importErrorMsg" class="text-xs text-rose-500 mt-2 hidden whitespace-pre-line max-h-40 overflow-y-auto" role="alert"></p>
             </div>
             <div class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-                <button onclick="app.closeImportModal()" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
-                <button onclick="app.processImport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm font-medium">
+                <button data-sx-click="closeImportModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
+                <button data-sx-click="processImport" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm font-medium">
                     <i class="fa-solid fa-file-import mr-1"></i> Cargar Datos
                 </button>
             </div>
@@ -861,7 +862,7 @@
                     <h3 class="font-bold text-slate-800 dark:text-slate-100">Historial de nóminas</h3>
                     <p class="text-xs text-slate-500 dark:text-slate-400">Las últimas 10 importaciones, la más reciente arriba.</p>
                 </div>
-                <button onclick="app.closeHistoryModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all" aria-label="Cerrar">
+                <button data-sx-click="closeHistoryModal" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all" aria-label="Cerrar">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -899,10 +900,10 @@
                 </div>
             </div>
             <div class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-                <button onclick="app.closePostImportModal(false)" class="px-4 py-2.5 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">
+                <button data-sx-click="closePostImportModal" data-sx-arg="false" class="px-4 py-2.5 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">
                     <i class="fa-solid fa-hand mr-1"></i> Manual
                 </button>
-                <button onclick="app.closePostImportModal(true)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm font-bold flex items-center gap-2">
+                <button data-sx-click="closePostImportModal" data-sx-arg="true" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm font-bold flex items-center gap-2">
                     <i class="fa-solid fa-bolt"></i> Repartir Automático
                 </button>
             </div>
@@ -948,7 +949,7 @@
                         <p class="text-[11px] text-slate-400 dark:text-slate-400 truncate font-mono" id="editModalSubtitle">ID: #0</p>
                     </div>
                 </div>
-                <button onclick="app.closeEditModal()" aria-label="Cerrar edición de empleado" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all shrink-0">
+                <button data-sx-click="closeEditModal" aria-label="Cerrar edición de empleado" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all shrink-0">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -967,7 +968,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Sueldo Bruto</label>
                     <div class="relative">
-                        <input type="number" step="0.01" id="editEmpGross" oninput="app.updateModalCalculations()" class="ring-input font-mono pl-8 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
+                        <input type="number" step="0.01" id="editEmpGross" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-8 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
                         <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
                     </div>
                 </div>
@@ -979,12 +980,12 @@
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Bonificaciones</label>
                             <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
-                                <button type="button" id="bonusTypeFixed" onclick="app.setModalAdjustmentType('bonus', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
-                                <button type="button" id="bonusTypePercent" onclick="app.setModalAdjustmentType('bonus', 'percent')" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
+                                <button type="button" id="bonusTypeFixed" data-sx-click="setModalAdjustmentType" data-sx-arg="bonus" data-sx-arg2="fixed" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
+                                <button type="button" id="bonusTypePercent" data-sx-click="setModalAdjustmentType" data-sx-arg="bonus" data-sx-arg2="percent" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
                             </div>
                         </div>
                         <div class="relative">
-                            <input type="number" step="0.01" id="editEmpBonus" oninput="app.updateModalCalculations()" class="ring-input font-mono text-sm pl-7" placeholder="0">
+                            <input type="number" step="0.01" id="editEmpBonus" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-7" placeholder="0">
                             <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="bonusSymbol">$</span>
                         </div>
                         <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-1.5 font-semibold text-right" id="bonusCalcDisplay">+0.00</div>
@@ -995,12 +996,12 @@
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Descuentos</label>
                             <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
-                                <button type="button" id="discountTypeFixed" onclick="app.setModalAdjustmentType('discount', 'fixed')" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
-                                <button type="button" id="discountTypePercent" onclick="app.setModalAdjustmentType('discount', 'percent')" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
+                                <button type="button" id="discountTypeFixed" data-sx-click="setModalAdjustmentType" data-sx-arg="discount" data-sx-arg2="fixed" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
+                                <button type="button" id="discountTypePercent" data-sx-click="setModalAdjustmentType" data-sx-arg="discount" data-sx-arg2="percent" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
                             </div>
                         </div>
                         <div class="relative">
-                            <input type="number" step="0.01" id="editEmpDiscount" oninput="app.updateModalCalculations()" class="ring-input font-mono text-sm pl-7" placeholder="0">
+                            <input type="number" step="0.01" id="editEmpDiscount" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-7" placeholder="0">
                             <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="discountSymbol">$</span>
                         </div>
                         <div class="text-[10px] text-rose-600 dark:text-rose-400 font-mono mt-1.5 font-semibold text-right" id="discountCalcDisplay">-0.00</div>
@@ -1011,12 +1012,12 @@
                 <div class="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
                     <div class="flex justify-between items-center">
                         <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Deducción por Préstamos (Cuota)</label>
-                        <button type="button" onclick="app.toggleLoanDetailsPanel()" class="text-[10px] text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 font-bold flex items-center gap-1">
+                        <button type="button" data-sx-click="toggleLoanDetailsPanel" class="text-[10px] text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 font-bold flex items-center gap-1">
                             <i class="fa-solid fa-sliders text-[9px]"></i> <span id="toggleLoanDetailsText">Detalles (Interés/Saldo)</span>
                         </button>
                     </div>
                     <div class="relative">
-                        <input type="number" step="0.01" id="editEmpLoans" oninput="app.updateModalCalculations()" class="ring-input font-mono pl-8 bg-white dark:bg-slate-950 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
+                        <input type="number" step="0.01" id="editEmpLoans" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-8 bg-white dark:bg-slate-950 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
                         <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
                     </div>
 
@@ -1025,17 +1026,17 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Capital cuota</label>
-                                <input type="number" step="0.01" id="editEmpLoanPrincipal" oninput="app.calcLoanFromDetails()" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
+                                <input type="number" step="0.01" id="editEmpLoanPrincipal" data-sx-input="calcLoanFromDetails" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Tasa Interés (%)</label>
-                                <input type="number" step="0.01" id="editEmpLoanInterestRate" oninput="app.calcLoanFromDetails()" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00%">
+                                <input type="number" step="0.01" id="editEmpLoanInterestRate" data-sx-input="calcLoanFromDetails" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00%">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Monto Interés cuota</label>
-                                <input type="number" step="0.01" id="editEmpLoanInterestAmount" oninput="app.calcLoanFromInterestAmount()" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
+                                <input type="number" step="0.01" id="editEmpLoanInterestAmount" data-sx-input="calcLoanFromInterestAmount" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
                             </div>
                             <div>
                                 <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Saldo restante total</label>
@@ -1052,12 +1053,12 @@
                         <label class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                             <i class="fa-solid fa-calculator text-blue-600 dark:text-sky-400"></i> Sueldo Neto a Pagar
                         </label>
-                        <button type="button" onclick="app.syncNetFromCalculated()" class="text-[10px] font-bold text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 hover:underline">
+                        <button type="button" data-sx-click="syncNetFromCalculated" class="text-[10px] font-bold text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 hover:underline">
                             <i class="fa-solid fa-arrows-rotate mr-0.5"></i> Usar calculado (<span id="calcFormulaNet">0.00</span>)
                         </button>
                     </div>
                     <div class="relative">
-                        <input type="number" step="0.01" id="editEmpNet" oninput="app.updateModalCalculations(true)" class="ring-input font-mono font-bold text-base text-slate-900 dark:text-slate-50 pl-8 bg-white dark:bg-slate-950" placeholder="0.00">
+                        <input type="number" step="0.01" id="editEmpNet" data-sx-input="updateModalCalculations" data-sx-arg="true" class="ring-input font-mono font-bold text-base text-slate-900 dark:text-slate-50 pl-8 bg-white dark:bg-slate-950" placeholder="0.00">
                         <span class="absolute left-3 top-2.5 text-sm text-slate-400 font-bold">$</span>
                     </div>
                     <!-- Status message -->
@@ -1080,12 +1081,12 @@
 
             <!-- Footer -->
             <div class="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 justify-between items-center shrink-0">
-                <button type="button" id="revertEmpBtn" onclick="app.revertEmployeeToOriginal()" class="text-xs text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-950/60 px-3 py-2 rounded-lg font-semibold transition-all flex items-center gap-1.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                <button type="button" id="revertEmpBtn" data-sx-click="revertEmployeeToOriginal" class="text-xs text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-950/60 px-3 py-2 rounded-lg font-semibold transition-all flex items-center gap-1.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
                     <i class="fa-solid fa-clock-rotate-left"></i> Restaurar original
                 </button>
                 <div class="flex gap-2 ml-auto">
-                    <button type="button" onclick="app.closeEditModal()" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cancelar</button>
-                    <button type="button" onclick="app.saveEmployeeModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm transition-colors shadow-sm font-semibold flex items-center gap-1.5">
+                    <button type="button" data-sx-click="closeEditModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cancelar</button>
+                    <button type="button" data-sx-click="saveEmployeeModal" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm transition-colors shadow-sm font-semibold flex items-center gap-1.5">
                         <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
                     </button>
                 </div>
@@ -1094,1905 +1095,7 @@
     </div>
 
     <!-- JavaScript Logic -->
-    <script>
-        const app = (() => {
-            const {
-                DEFAULT_BILL_IMAGES,
-                CURRENCY_PRESETS,
-                BILL_COLORS,
-                escapeHTML,
-                sanitizeCurrencySymbol,
-                sanitizeHexColor
-            } = SplitXCurrencies;
-            const escHtml = escapeHTML;
-
-            const isCoin = (denom) => {
-                const d = Number(denom);
-                if (state.coinDenoms && Array.isArray(state.coinDenoms)) {
-                    return state.coinDenoms.includes(d);
-                }
-                return [25, 10, 5, 1].includes(d);
-            };
-
-            // --- STATE ---
-            let state = {
-                currency: 'DOP',
-                currencySymbol: 'RD$',
-                coinDenoms: [25, 10, 5, 1],
-                denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
-                inventory: {}, 
-                employees: [], 
-                bankLimits: {},
-                billColors: {},   // { 1000: '#c0392b' } — overrides default
-                billImages: {},   // { 1000: 'data:image/...' } — custom base64 images
-                useDefaultImages: true,
-                roundCoins: true,
-                breakdownColumns: 5,        // 3 | 4 | 5 | 6 | 'auto'
-                breakdownGroupByType: false, // true = Billetes arriba / Monedas abajo
-                breakdownShowZeros: false,   // true = Modo bandeja fija con ceros atenuados
-                breakdownSize: 'normal',     // 'compact' | 'normal' | 'large'
-                breakdownFormat: 'badge',    // 'badge' | 'qty_x_denom' | 'denom_x_qty'
-                chipTextColor: 'dark_tone',  // 'dark_tone' | 'black' | 'white'
-                payrollMode: 'normal',
-                payrollLoanFund: 0,
-                importSnapshot: null,
-                mode: 'inventory',
-                theme: 'light'
-            };
-
-            // Sort mode: 'default' | 'ref' | 'status'
-            let sortMode = 'status';
-
-            // Set of expanded employee card IDs for detailed math view
-            let expandedEmpCards = new Set();
-
-            const toggleCardDetails = (empId, evt) => {
-                if (evt) evt.stopPropagation();
-                if (expandedEmpCards.has(empId)) {
-                    expandedEmpCards.delete(empId);
-                } else {
-                    expandedEmpCards.add(empId);
-                }
-                renderAll();
-            };
-
-            // --- THEME ---
-            const applyTheme = () => {
-                const isDark = state.theme === 'dark';
-                document.documentElement.classList.toggle('dark', isDark);
-                const btn = document.getElementById('themeToggleBtn');
-                if (btn) {
-                    btn.innerHTML = `<i class="fa-solid ${isDark ? 'fa-sun text-amber-400' : 'fa-moon text-slate-400'} text-sm"></i>`;
-                    btn.title = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
-                }
-                const switchDark = document.getElementById('switchDarkMode');
-                if (switchDark) switchDark.checked = isDark;
-            };
-
-            const toggleTheme = () => {
-                state.theme = state.theme === 'dark' ? 'light' : 'dark';
-                applyTheme();
-                saveData();
-                showToast(`Modo ${state.theme === 'dark' ? 'oscuro' : 'claro'} activado`, 'success');
-            };
-
-            // --- INIT ---
-            const init = () => {
-                loadData();
-                renderAll();
-                setupEventListeners();
-
-                // Cross-window postMessage bridge (e.g. from Sistema de Asistencia)
-                if (typeof SplitXBridge !== 'undefined') {
-                    const bridge = SplitXBridge.createSplitXBridge({
-                        getState: () => state,
-                        setState: (newState) => { state = newState; },
-                        saveData,
-                        setCurrencyPreset,
-                        normalizeEmployee: normalizeImportedEmployee,
-                        showCustomChoice,
-                        showToast,
-                        onImported: (info) => {
-                            recordImport({ employees: info.employees, source: 'sa', context: info.exportContext, period: info.period, currency: info.currency });
-                            try { sessionStorage.setItem('splitx_sa_received', '1'); } catch (e) {}
-                            hideStaleBanner();
-                        },
-                        windowRef: window
-                    });
-                    saBridge = bridge;
-                    bridge.attach();
-                    // Abierto desde SA pero sin nómina nueva: avisar que se ve la guardada (antes pasaba en silencio).
-                    if (bridge.openedFromSA()) {
-                        setTimeout(() => {
-                            let receivedBefore = false;
-                            try { receivedBefore = sessionStorage.getItem('splitx_sa_received') === '1'; } catch (e) {}
-                            if (!bridge.receivedPayload() && !receivedBefore) showStaleBanner();
-                        }, 5000);
-                    }
-                }
-            };
-
-            // --- IMPORT HISTORY (últimas nóminas importadas) ---
-            let saBridge = null;
-            const historyStorage = {
-                getItem: (k) => appStorage.get(k),
-                setItem: (k, v) => appStorage.set(k, v)
-            };
-            const loadHistory = () => (typeof SplitXImportHistory === 'undefined' ? [] : SplitXImportHistory.load(historyStorage));
-
-            // Guarda la importación en el historial y la marca como la nómina cargada.
-            const recordImport = ({ employees, source, context = null, period = null, currency = null }) => {
-                state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
-                if (typeof SplitXImportHistory !== 'undefined' && Array.isArray(employees) && employees.length) {
-                    try {
-                        const entry = SplitXImportHistory.createEntry({ employees, source, context, period, currency: currency || context?.currency || state.currency });
-                        SplitXImportHistory.save(historyStorage, SplitXImportHistory.addEntry(loadHistory(), entry));
-                        state.currentImport = { id: entry.id, title: entry.title, importedAt: entry.importedAt, source: entry.source, period: entry.period };
-                    } catch (e) {
-                        console.warn('SplitX: no se pudo guardar el historial de importaciones', e);
-                    }
-                }
-                saveData();
-            };
-
-            const currentImportLabel = () => {
-                const cur = state.currentImport;
-                if (!cur || typeof SplitXImportHistory === 'undefined') return '';
-                const d = SplitXImportHistory.describeEntry({ ...cur, count: 0 });
-                return `${cur.title}${d.periodLabel ? ' (' + d.periodLabel + ')' : ''}, importada ${d.whenLabel.toLowerCase()}`;
-            };
-
-            const showStaleBanner = () => {
-                const el = document.getElementById('saStaleBanner');
-                if (!el) return;
-                const label = currentImportLabel();
-                document.getElementById('saStaleText').innerHTML = state.employees.length
-                    ? `<strong>No llegó una nómina nueva desde Sistema de Asistencia.</strong> Estás viendo la guardada${label ? ': ' + escHtml(label) : ''}.`
-                    : '<strong>No llegó la nómina desde Sistema de Asistencia.</strong>';
-                el.classList.remove('hidden');
-            };
-            const hideStaleBanner = () => document.getElementById('saStaleBanner')?.classList.add('hidden');
-
-            const retrySaImport = () => {
-                if (saBridge) saBridge.emitReady();
-                showToast('Pedido enviado a Sistema de Asistencia. Si no llega en unos segundos, pulsa otra vez "Enviar a SplitX" allí.', 'info');
-            };
-
-            const renderHistoryList = () => {
-                const box = document.getElementById('historyList');
-                if (!box) return;
-                const list = loadHistory();
-                if (!list.length) {
-                    box.innerHTML = `<div class="text-center py-10 text-slate-400 dark:text-slate-500">
-                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-3"></i>
-                        <p class="text-sm font-medium">Todavía no hay nóminas en el historial.</p>
-                        <p class="text-xs mt-1">Cada importación (desde Asistencia, JSON o Excel) se guarda aquí.</p>
-                    </div>`;
-                    return;
-                }
-                const sourceIcon = { sa: 'fa-right-left', json: 'fa-code', excel: 'fa-table' };
-                box.innerHTML = list.map(entry => {
-                    const d = SplitXImportHistory.describeEntry(entry);
-                    const current = SplitXImportHistory.isCurrent(entry, state.employees);
-                    return `<div class="history-item rounded-xl border ${current ? 'border-blue-300 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/40' : 'border-slate-200 dark:border-slate-800'} p-3 flex items-start gap-3" data-history-id="${escHtml(entry.id)}">
-                        <div class="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-300 shrink-0">
-                            <i class="fa-solid ${sourceIcon[entry.source] || 'fa-file-import'} text-sm"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                                <span class="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-snug break-words">${escHtml(entry.title)}</span>
-                                ${current ? '<span class="text-[10px] font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/60 rounded px-1.5 py-0.5">Cargada</span>' : ''}
-                            </div>
-                            ${entry.subtitle ? `<p class="text-xs text-slate-500 dark:text-slate-400 truncate">${escHtml(entry.subtitle)}</p>` : ''}
-                            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                                ${d.periodLabel ? `<i class="fa-regular fa-calendar mr-1 text-slate-400"></i>${escHtml(d.periodLabel)} · ` : ''}${escHtml(d.countLabel)} · <span class="font-mono font-semibold">${escHtml(fmt(entry.total))}</span>
-                            </p>
-                            <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">${escHtml(d.sourceLabel)} · ${escHtml(d.whenLabel)}</p>
-                        </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <button type="button" data-history-action="load" data-history-id="${escHtml(entry.id)}" class="toolbar-btn blue" title="Cargar esta nómina">
-                                <i class="fa-solid fa-upload text-xs"></i> Cargar
-                            </button>
-                            <button type="button" data-history-action="delete" data-history-id="${escHtml(entry.id)}" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800" title="Quitar del historial" aria-label="Quitar del historial">
-                                <i class="fa-solid fa-trash-can text-xs"></i>
-                            </button>
-                        </div>
-                    </div>`;
-                }).join('');
-            };
-
-            const openHistoryModal = () => {
-                renderHistoryList();
-                document.getElementById('historyModal').classList.remove('hidden');
-            };
-            const closeHistoryModal = () => document.getElementById('historyModal').classList.add('hidden');
-
-            const loadHistoryEntry = async (id) => {
-                const entry = loadHistory().find(e => e.id === id);
-                if (!entry) return showToast('Esa nómina ya no está en el historial.', 'error');
-                const newEmps = SplitXImportHistory.restoreEmployees(entry).map((e) => ({ ...e, id: SplitXCore.nextEmployeeId() }));
-                let choice = 'replace';
-                if (state.employees.length > 0) {
-                    const d = SplitXImportHistory.describeEntry(entry);
-                    choice = await showCustomChoice({
-                        title: 'Cargar del historial',
-                        message: `"${entry.title}"${d.periodLabel ? ' (' + d.periodLabel + ')' : ''} tiene ${newEmps.length} colaboradores. Ya tienes ${state.employees.length} en la lista actual. ¿Cómo deseas proceder?`,
-                        icon: 'fa-clock-rotate-left',
-                        type: 'question',
-                        choices: [
-                            { label: 'Cancelar', value: 'cancel', isPrimary: false },
-                            { label: 'Agregar al final', value: 'append', icon: 'fa-user-plus', class: 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' },
-                            { label: 'Reemplazar lista', value: 'replace', icon: 'fa-rotate', isPrimary: true, class: 'bg-blue-600 hover:bg-blue-700 text-white' }
-                        ]
-                    });
-                    if (!choice || choice === 'cancel') return;
-                }
-                state.employees = choice === 'append' ? [...state.employees, ...newEmps] : newEmps;
-                if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
-                const code = String(entry.currency || '').toUpperCase();
-                if (CURRENCY_PRESETS[code] && state.currency !== code) setCurrencyPreset(code);
-                state.importSnapshot = JSON.parse(JSON.stringify(state.employees));
-                state.currentImport = { id: entry.id, title: entry.title, importedAt: entry.importedAt, source: entry.source, period: entry.period };
-                saveData();
-                closeHistoryModal();
-                hideStaleBanner();
-                const totalAmount = state.employees.reduce((sum, e) => sum + getEffectiveEmployeeAmount(e), 0);
-                const countEl = document.getElementById('postImportCount');
-                if (countEl) countEl.textContent = `${state.employees.length} empleados · Total: ${fmt(totalAmount)}`;
-                document.getElementById('postImportModal').classList.remove('hidden');
-            };
-
-            const deleteHistoryEntry = async (id) => {
-                const entry = loadHistory().find(e => e.id === id);
-                if (!entry) return renderHistoryList();
-                const ok = await showCustomConfirm({
-                    title: '¿Quitar del historial?',
-                    message: `"${entry.title}" se quitará del historial. La lista actual no cambia.`,
-                    icon: 'fa-trash-can',
-                    type: 'warning',
-                    confirmText: 'Quitar',
-                    cancelText: 'Cancelar'
-                });
-                if (!ok) return;
-                SplitXImportHistory.save(historyStorage, SplitXImportHistory.removeEntry(loadHistory(), id));
-                renderHistoryList();
-            };
-
-            // Unified storage adapter (SplitXStorage): multi-key memory fallback + quota vs blocked diagnostics
-            let _storageWarnedReason = null;
-            const appStorage = SplitXStorage.createStorage({
-                onError: ({ reason }) => {
-                    if (_storageWarnedReason === reason) return;
-                    _storageWarnedReason = reason;
-                    const banner = document.getElementById('storageBanner');
-                    const textEl = document.getElementById('storageBannerText');
-                    if (reason === 'quota') {
-                        console.warn('SplitX: cuota de localStorage agotada. Los cambios recientes están solo en memoria.');
-                        if (textEl) {
-                            textEl.innerHTML = '<strong>Almacenamiento lleno (cuota agotada):</strong> No hay espacio libre en este navegador para guardar cambios. Elimina imágenes personalizadas pesadas o entradas antiguas del historial.';
-                        }
-                    } else {
-                        console.warn('SplitX: localStorage bloqueado. Los datos solo se guardan mientras la pestaña esté abierta.');
-                        if (textEl) {
-                            textEl.innerHTML = '<strong>Almacenamiento bloqueado:</strong> El navegador impide guardar datos locales (ej. archivo abierto desde OneDrive/red o modo privado). Los datos <strong>no se guardarán</strong> al cerrar la pestaña.';
-                        }
-                    }
-                    if (banner) banner.classList.remove('hidden');
-                }
-            });
-            const storageGet = (key) => appStorage.get(key);
-            const storageSet = (key, val) => appStorage.set(key, val);
-            const storageRemove = (key) => appStorage.remove(key);
-
-            let _corruptBackupMem = null;
-
-            const loadData = () => {
-                const loaded = SplitXState.loadOrRecoverState(appStorage, SplitXStorage.KEYS);
-                if (!loaded.ok) {
-                    if (loaded.backupSaved) {
-                        console.error('SplitX: invalid stored state; original contents preserved as Split_data_corrupt_backup');
-                        setTimeout(() => showToast('Datos guardados dañados. Se conservó una copia de recuperación en Operaciones → Respaldo.', 'error'), 0);
-                    } else {
-                        _corruptBackupMem = loaded.rawBackup;
-                        console.error('SplitX: invalid stored state; failed to persist corrupt backup in browser storage');
-                        const reasonText = loaded.backupError === 'quota' ? 'almacenamiento lleno' : 'almacenamiento bloqueado';
-                        setTimeout(() => showToast(`Datos guardados dañados y no se pudo guardar la copia (${reasonText}). Descárgala desde Operaciones antes de cerrar la pestaña.`, 'error'), 0);
-                    }
-                }
-                if (loaded.data) {
-                    const parsed = loaded.data;
-                    state = { ...state, ...parsed };
-                    if (!state.currency) state.currency = 'DOP';
-                    state.currencySymbol = sanitizeCurrencySymbol(state.currencySymbol || 'RD$');
-                    const cleanDenoms = Array.isArray(state.denominations)
-                        ? [...new Set(state.denominations.filter(d => typeof d === 'number' && Number.isFinite(d) && d > 0))].sort((a, b) => b - a)
-                        : [];
-                    state.denominations = cleanDenoms.length ? cleanDenoms : [...(CURRENCY_PRESETS[state.currency]?.denominations || [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1])];
-                    const cleanCoins = Array.isArray(state.coinDenoms)
-                        ? [...new Set(state.coinDenoms.filter(d => typeof d === 'number' && Number.isFinite(d) && d > 0))].sort((a, b) => b - a)
-                        : [];
-                    state.coinDenoms = cleanCoins.length ? cleanCoins : [25, 10, 5, 1];
-                    if (state.useDefaultImages === undefined) state.useDefaultImages = true;
-                    if (state.roundCoins === undefined) state.roundCoins = true;
-                    if (state.breakdownColumns === undefined) state.breakdownColumns = 5;
-                    if (state.breakdownGroupByType === undefined) state.breakdownGroupByType = false;
-                    if (state.breakdownShowZeros === undefined) state.breakdownShowZeros = false;
-                    if (state.breakdownSize === undefined) state.breakdownSize = 'normal';
-                    if (state.breakdownFormat === undefined) state.breakdownFormat = 'badge';
-                    if (!state.chipTextColor) state.chipTextColor = 'dark_tone';
-                    if (parsed.theme !== 'dark' && parsed.theme !== 'light') {
-                        state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                    }
-                    if (Array.isArray(state.employees)) {
-                        state.employees = state.employees.map(emp => ({
-                            ...emp,
-                            isManual: emp.isManual !== undefined ? emp.isManual : !emp.payroll,
-                            isEdited: emp.isEdited || false,
-                            originalData: emp.originalData || (emp.payroll ? { name: emp.name, amount: emp.amount, payroll: { ...emp.payroll } } : null)
-                        }));
-                    }
-                } else {
-                    state.denominations.sort((a,b) => b-a).forEach(d => state.inventory[d] = 0);
-                    state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-                applyTheme();
-            };
-
-            const saveData = () => {
-                storageSet('Split_data', JSON.stringify(state));
-                renderAll();
-            };
-
-            // --- CORE LOGIC: DISTRIBUTION & CURRENCY ---
-            const getCurrencySymbol = () => state.currencySymbol || 'RD$';
-            const fmt = (num) => {
-                const val = Number(num) || 0;
-                const isNeg = val < 0;
-                return `${isNeg ? '-' : ''}${getCurrencySymbol()} ${fmtNum(Math.abs(val))}`;
-            };
-            const fmtNum = (num) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(Number(num) || 0));
-            const {
-                showToast,
-                closeCustomDialog,
-                showCustomDialog,
-                showCustomAlert,
-                showCustomConfirm,
-                showCustomChoice
-            } = SplitXDialogs.createDialogs({ documentRef: document, escapeHTML });
-
-            // Printable sheets (envelope cards + signature sheet). Created on first open.
-            let sheetStudio = null;
-            const openSheetStudio = () => {
-                if (typeof SheetStudio === 'undefined') return showToast('No se pudo cargar el módulo de hojas imprimibles.', 'error');
-                if (!state.employees.length) return showToast('Agrega o importa empleados primero.', 'error');
-                if (!sheetStudio) {
-                    sheetStudio = SheetStudio.createStudio({
-                        root: document.getElementById('sheetStudio'),
-                        getEmployees: () => state.employees,
-                        getNetAmount: (emp) => getEffectiveEmployeeAmount(emp),
-                        onOpenDocuments: () => { sheetStudio.close(); void openDocumentStudio(); }
-                    });
-                }
-                sheetStudio.open();
-            };
-
-            // Document templates are independent from payroll and printable sheets.
-            let documentStudio = null;
-            const openDocumentStudio = async () => {
-                if (typeof DocumentStudio === 'undefined') return showToast('No se cargó el editor de documentos.', 'error');
-                try {
-                    if (!documentStudio) documentStudio = DocumentStudio.createStudio({
-                        root: document.getElementById('documentStudio'),
-                        getEmployees: () => state.employees,
-                        getNetAmount: emp => getEffectiveEmployeeAmount(emp)
-                    });
-                    await documentStudio.open();
-                } catch (error) {
-                    showToast('No se pudo abrir Documentos: ' + error.message, 'error');
-                }
-            };
-
-            // Extra import data (employee number, work days, concepts…) used by printable sheets.
-            const sheetFields = typeof SplitXSheetFields !== 'undefined' ? SplitXSheetFields : null;
-
-            // Accepts a plain list [...] or { exportContext, employees: [...] } (sa-splitx-payroll/v1).
-            const unwrapJsonImport = (parsed) => {
-                if (sheetFields) return sheetFields.unwrapImportPayload(parsed);
-                if (!Array.isArray(parsed)) throw new Error("El JSON debe ser una lista [...]");
-                return { items: parsed, context: null };
-            };
-
-            const { parseImportNumber, hasPayrollFields, normalizeImportedEmployee } = SplitXImport.createImporter({ sheetFields, parseNumber: (str) => parseExcelNumber(str) });
-
-            // Isolated and unit-tested cash/payroll engine.
-            const core = SplitXCore.createCore({ getState: () => state, fmt });
-            const { getEffectiveEmployeeAmount, getPayrollSummary, getIdealBreakdown, calculateDistribution, calculateBankNeeds } = core;
-
-            const getImportValidation = (employees) => employees.reduce((summary, emp) => {
-                if (!emp.payroll || emp.payroll.reconciled === null) return summary;
-                summary.checked += 1;
-                if (emp.payroll.reconciled) summary.valid += 1;
-                else {
-                    summary.invalid += 1;
-                    summary.difference += emp.payroll.difference;
-                    summary.items.push({ name: emp.name, difference: emp.payroll.difference });
-                }
-                return summary;
-            }, { checked: 0, valid: 0, invalid: 0, difference: 0, items: [] });
-
-            const renderImportValidation = (employees) => {
-                const el = document.getElementById('importValidation');
-                const validation = getImportValidation(employees);
-                if (!validation.checked) { el.classList.add('hidden'); return; }
-                const isValid = validation.invalid === 0;
-                el.className = `mt-2 rounded-lg border p-2.5 ${isValid ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'}`;
-                const details = validation.items.slice(0, 3).map(item =>
-                    `<div class="flex justify-between gap-3 mt-1 font-mono"><span class="truncate">${escapeHTML(item.name)}</span><strong>${item.difference > 0 ? '+' : ''}${fmt(item.difference)}</strong></div>`
-                ).join('');
-                el.innerHTML = `
-                    <div class="flex items-start gap-2 text-xs">
-                        <i class="fa-solid ${isValid ? 'fa-circle-check' : 'fa-triangle-exclamation'} mt-0.5"></i>
-                        <div class="min-w-0 flex-1">
-                            <strong>${isValid ? 'Nómina conciliada' : `${validation.invalid} registro(s) no cuadran`}</strong>
-                            <div class="mt-0.5 opacity-80">${validation.valid} de ${validation.checked} cumplen: bruto + bonificaciones − descuentos − préstamos = neto.</div>
-                            ${details}
-                            ${validation.invalid > 3 ? `<div class="mt-1">Y ${validation.invalid - 3} diferencia(s) más.</div>` : ''}
-                        </div>
-                    </div>`;
-                el.classList.remove('hidden');
-            };
-
-            // 3. Smart Advisor: extracted to SplitXEmployeeCard.generateSmartAdvisorData
-            const getSmartAdvisorData = (leftoverInventory, processedEmployees) =>
-                SplitXEmployeeCard.generateSmartAdvisorData(state.denominations, leftoverInventory, processedEmployees);
-
-            // --- ACTIONS ---
-
-            const addEmployee = () => {
-                const nameInput = document.getElementById('empName');
-                const amtInput = document.getElementById('empAmount');
-                
-                let name = nameInput.value.trim();
-                let valStr = amtInput.value.trim();
-
-                if (!name && !valStr) return;
-                if (name && !valStr) {
-                    const match = name.match(/^[\d\.\-\)\s]*([a-zA-Z\u00C0-\u00FF\s]+)[,\s]+(\d+(\.\d+)?)/);
-                    if (match) { name = match[1].trim(); valStr = match[2]; }
-                }
-
-                if (name && valStr) {
-                    const parsed = SplitXCore.parseManualAmount(valStr, (v) => SplitXExcelImport.parseMoney(v));
-                    if (!parsed.ok) {
-                        showToast(parsed.error, 'error');
-                        return;
-                    }
-                    state.employees.push({
-                        id: SplitXCore.nextEmployeeId(),
-                        name,
-                        amount: parsed.amount,
-                        paid: false,
-                        isManual: true,
-                        isEdited: false,
-                        originalData: null
-                    });
-                    nameInput.value = '';
-                    amtInput.value = '';
-                    nameInput.focus();
-                    saveData();
-                }
-            };
-
-            const removeEmployee = (id) => {
-                state.employees = state.employees.filter(e => e.id !== id);
-                saveData();
-            };
-            
-            const togglePaid = (id) => {
-                state.employees = state.employees.map(e => 
-                    e.id === id ? { ...e, paid: !e.paid } : e
-                );
-                saveData();
-            };
-
-            const updateInventory = (denom, val) => {
-                state.inventory[denom] = SplitXCore.sanitizeInventoryQty(val);
-                saveData();
-            };
-
-            const updateBankLimit = (denom, val) => {
-                if (val === '') state.bankLimits[denom] = null;
-                else state.bankLimits[denom] = parseInt(val);
-                saveData();
-            };
-
-            const applyBankToInventory = () => {
-                const bankData = calculateBankNeeds();
-                let totalAdded = 0;
-                state.denominations.forEach(d => {
-                    const quantity = bankData.breakdown[d]?.final || 0;
-                    state.inventory[d] = (state.inventory[d] || 0) + quantity;
-                    totalAdded += quantity * d;
-                });
-                if (totalAdded <= 0) {
-                    showToast('No hay dinero pendiente para retirar del banco.', 'info');
-                    return;
-                }
-                state.mode = 'inventory';
-                switchTab('inventory');
-                saveData();
-                showToast(`${fmt(totalAdded)} agregados a Mi Caja. El inventario anterior se conservó.`);
-            };
-
-            const clearBankLimits = () => {
-                const hasLimits = Object.values(state.bankLimits || {}).some(value => value !== null && value !== undefined && value !== '');
-                if (!hasLimits) {
-                    showToast('No hay límites bancarios configurados.', 'info');
-                    return;
-                }
-                state.bankLimits = {};
-                saveData();
-            };
-
-            const setCurrencyPreset = (key) => {
-                const preset = CURRENCY_PRESETS[key];
-                if (!preset) return;
-                state.currency = preset.code;
-                state.currencySymbol = sanitizeCurrencySymbol(preset.symbol);
-                state.denominations = [...preset.denominations];
-                state.coinDenoms = [...preset.coinDenoms];
-                
-                // If DOP, default to photo images; for others default to vector chips unless customized
-                if (key === 'DOP') {
-                    state.useDefaultImages = true;
-                }
-                
-                // Merge preset colors into state.billColors if defined
-                if (preset.colors) {
-                    state.billColors = { ...preset.colors, ...state.billColors };
-                }
-
-                // Ensure inventory keys exist
-                state.denominations.forEach(d => {
-                    if (state.inventory[d] === undefined) state.inventory[d] = 0;
-                });
-
-                saveData();
-                renderAppearanceConfig();
-                renderCustomBillsConfig();
-                showToast(`Moneda cambiada a ${preset.name} (${preset.symbol})`, 'success');
-            };
-
-            const setCurrencySymbol = (sym) => {
-                const val = sanitizeCurrencySymbol(sym);
-                state.currencySymbol = val;
-                saveData();
-                renderAppearanceConfig();
-                renderCustomBillsConfig();
-                showToast(`Símbolo de moneda actualizado a "${val}"`, 'success');
-            };
-
-            const addDenomination = () => {
-                const input = document.getElementById('newDenomInput');
-                if (!input) return;
-                const val = parseFloat(input.value);
-                if (isNaN(val) || val <= 0) {
-                    showToast('Ingresa un valor numérico válido mayor a 0', 'warning');
-                    return;
-                }
-                if (state.denominations.includes(val)) {
-                    showToast(`La denominación ${val} ya existe en la lista`, 'warning');
-                    return;
-                }
-                state.denominations.push(val);
-                state.denominations.sort((a, b) => b - a);
-                if (state.inventory[val] === undefined) state.inventory[val] = 0;
-                input.value = '';
-                saveData();
-                renderAppearanceConfig();
-                renderCustomBillsConfig();
-                showToast(`Denominación ${val} agregada correctamente`, 'success');
-            };
-
-            const removeDenom = (denom) => {
-                if (state.denominations.length <= 1) {
-                    showToast('Debes mantener al menos una denominación activa', 'warning');
-                    return;
-                }
-                state.denominations = state.denominations.filter(d => Number(d) !== Number(denom));
-                delete state.inventory[denom];
-                saveData();
-                renderAppearanceConfig();
-                renderCustomBillsConfig();
-                showToast(`Denominación ${denom} eliminada`, 'success');
-            };
-
-            const exportFullBackup = () => {
-                const json = SplitXBackup.serializeBackup(appStorage);
-                const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.setAttribute('hidden', '');
-                a.setAttribute('href', url);
-                a.setAttribute('download', `respaldo_SplitX_${SplitXExport.isoDateTag()}.json`);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-                showToast('Respaldo íntegro descargado. Guárdalo en un lugar seguro.', 'success');
-            };
-
-            const importFullBackup = async (input) => {
-                const file = input?.files?.[0];
-                if (!file) return;
-                try {
-                    const text = await file.text();
-                    const preview = SplitXBackup.validateBackup(text);
-                    const s = preview.summary;
-                    const ok = await showCustomConfirm({
-                        title: '¿Restaurar respaldo completo?',
-                        message: `Se restaurarán ${s.employees} colaborador(es) (${s.currency}), ${s.historyCount} nómina(s) en historial, ${s.sheetsCount} plantilla(s) de hojas y ${s.docTemplatesCount} plantilla(s) de documentos. Esto sobrescribirá los datos actuales del navegador.`,
-                        icon: 'fa-upload',
-                        type: 'warning',
-                        confirmText: 'Sí, restaurar respaldo',
-                        cancelText: 'Cancelar'
-                    });
-                    if (!ok) return;
-                    SplitXBackup.restoreBackup(appStorage, text);
-                    closeOperationsModal();
-                    location.reload();
-                } catch (err) {
-                    showCustomAlert({
-                        title: 'Respaldo inválido',
-                        message: err instanceof Error ? err.message : 'No se pudo validar el archivo de respaldo.',
-                        icon: 'fa-circle-exclamation',
-                        type: 'danger',
-                        confirmText: 'Entendido'
-                    });
-                } finally {
-                    if (input) input.value = '';
-                }
-            };
-
-            const purgeDocumentPii = async () => {
-                const ok = await showCustomConfirm({
-                    title: '¿Purgar datos personales de Documentos?',
-                    message: 'Se eliminarán las cédulas, direcciones, fechas de ingreso y salarios contractuales guardados en este navegador. Tus plantillas de documentos y la nómina actual no se borrarán.',
-                    icon: 'fa-user-shield',
-                    type: 'warning',
-                    confirmText: 'Sí, purgar datos',
-                    cancelText: 'Cancelar'
-                });
-                if (!ok) return;
-                const res = SplitXBackup.purgeDocumentPii(appStorage);
-                showToast(res.purged > 0 ? `Se purgaron datos personales de ${res.purged} colaborador(es).` : 'No había datos personales almacenados en Documentos.', 'success');
-            };
-
-            const downloadCorruptBackup = () => {
-                const raw = SplitXState.getCorruptBackup(appStorage, SplitXStorage.KEYS, _corruptBackupMem);
-                if (!raw) {
-                    showToast('No hay ninguna copia de recuperación pendiente.', 'info');
-                    return;
-                }
-                const blob = new Blob([raw], { type: 'text/plain;charset=utf-8;' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.setAttribute('hidden', '');
-                a.setAttribute('href', url);
-                a.setAttribute('download', `SplitX_recuperacion_${SplitXExport.isoDateTag()}.txt`);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-                showToast('Copia de recuperación descargada localmente.', 'success');
-            };
-
-            const discardCorruptBackup = async () => {
-                const ok = await showCustomConfirm({
-                    title: '¿Descartar copia de recuperación?',
-                    message: 'Se eliminará la copia de datos dañados guardada en este navegador. Descárgala antes si deseas inspeccionarla.',
-                    icon: 'fa-trash-can',
-                    type: 'warning',
-                    confirmText: 'Descartar copia',
-                    cancelText: 'Cancelar'
-                });
-                if (!ok) return;
-                SplitXState.clearCorruptBackup(appStorage, SplitXStorage.KEYS);
-                _corruptBackupMem = null;
-                const card = document.getElementById('opCorruptBackupCard');
-                if (card) card.classList.add('hidden');
-                showToast('Copia de recuperación eliminada.', 'info');
-            };
-
-            const resetAll = async () => {
-                const ok = await showCustomConfirm({
-                    title: '¿Borrar todos los datos?',
-                    message: 'Esta acción restablecerá por completo la aplicación a su estado de fábrica en este navegador. Se borrarán empleados, inventario, caja, historial de importaciones, plantillas de hojas y documentos personalizados (incluidas cédulas y direcciones).',
-                    icon: 'fa-trash-can',
-                    type: 'danger',
-                    confirmText: 'Sí, borrar todo',
-                    cancelText: 'Cancelar'
-                });
-                if (ok) {
-                    appStorage.clearAll();
-                    location.reload();
-                }
-            };
-
-            const resetDenominations = () => {
-                const preset = CURRENCY_PRESETS[state.currency || 'DOP'] || CURRENCY_PRESETS.DOP;
-                state.denominations = [...preset.denominations];
-                state.coinDenoms = [...preset.coinDenoms];
-                state.denominations.forEach(d => {
-                    if (state.inventory[d] === undefined) state.inventory[d] = 0;
-                });
-                saveData();
-                renderAppearanceConfig();
-                renderCustomBillsConfig();
-                showToast(`Denominaciones restauradas al preset ${preset.code}`, 'success');
-            };
-
-            const exporter = SplitXExport.createExporter({
-                getState: () => state,
-                getCurrencySymbol,
-                calculateDistribution,
-                calculateBankNeeds,
-                getPayrollSummary,
-                getEffectiveEmployeeAmount,
-                showCustomAlert
-            });
-            const { buildExportData, exportToCSV, exportToExcel, exportToPDF } = exporter;
-
-            let importMode = 'excel'; // 'excel' | 'json'
-
-            const switchImportTab = (mode) => {
-                importMode = mode;
-                const tabs = ['excel', 'json'];
-                tabs.forEach(t => {
-                    const tab = document.getElementById(`importTab-${t}`);
-                    const info = document.getElementById(`importInfo-${t}`);
-                    if (t === mode) {
-                        tab.classList.add('bg-white', 'text-blue-700', 'shadow-sm');
-                        tab.classList.remove('text-slate-500');
-                        info.classList.remove('hidden');
-                    } else {
-                        tab.classList.remove('bg-white', 'text-blue-700', 'shadow-sm');
-                        tab.classList.add('text-slate-500');
-                        info.classList.add('hidden');
-                    }
-                });
-                // Update placeholder
-                const ta = document.getElementById('jsonImportInput');
-                document.getElementById('excelFormatRow').classList.toggle('hidden', mode !== 'excel');
-                ta.placeholder = mode === 'excel'
-                    ? 'Pega aquí las filas copiadas desde Excel...'
-                    : '[{"nombre": "Empleado 1", "monto": 100}, ...]';
-                // Clear preview and error
-                document.getElementById('importPreview').classList.add('hidden');
-                document.getElementById('importErrorMsg').classList.add('hidden');
-                parseImportPreview();
-            };
-
-            // Validate the complete monetary text; never silently guess separators.
-            const parseExcelNumber = (value) => {
-                try { return SplitXExcelImport.parseMoney(value); }
-                catch (_) { return NaN; }
-            };
-            const getExcelAmountFormat = () => document.getElementById('excelAmountFormat')?.value || 'auto';
-            const parseExcelText = (rawText) => SplitXExcelImport.parseExcelText(rawText, { format: getExcelAmountFormat() });
-
-            const parseImportPreview = () => {
-                const rawText = document.getElementById('jsonImportInput').value.trim();
-                const previewEl = document.getElementById('importPreview');
-                const previewList = document.getElementById('importPreviewList');
-                const previewCount = document.getElementById('importPreviewCount');
-                const errEl = document.getElementById('importErrorMsg');
-
-                if (!rawText) { previewEl.classList.add('hidden'); return; }
-
-                try {
-                    let employees = [];
-                    if (importMode === 'excel') {
-                        const result = parseExcelText(rawText);
-                        employees = result.employees.map((item, idx) => normalizeImportedEmployee(item, idx));
-                        // Show all rejected rows even when other employees are valid.
-                        if (result.errors.length) {
-                            errEl.textContent = `${result.rows} filas: ${result.valid} válidas, ${result.rejected} rechazadas. Corrige las filas antes de importar.\n${result.errors.slice(0, 10).join('\n')}${result.errors.length > 10 ? '\n... y ' + (result.errors.length - 10) + ' errores más.' : ''}`;
-                            errEl.classList.remove('hidden');
-                        } else errEl.classList.add('hidden');
-                    } else {
-                        const { items } = unwrapJsonImport(JSON.parse(rawText));
-                        employees = items.map((item, idx) => normalizeImportedEmployee(item, idx));
-                    }
-
-                    if (employees.length > 0) {
-                        previewCount.innerText = employees.length;
-                        previewList.innerHTML = employees.slice(0, 8).map(e =>
-                            `<div class="flex justify-between"><span>${escapeHTML(e.employeeNumber ? `${e.employeeNumber} · ${e.employeeName || e.name}` : e.name)}</span><span class="font-bold">${fmt(e.amount)}</span></div>`
-                        ).join('') + (employees.length > 8 ? `<div class="text-green-600 italic">... y ${employees.length - 8} más</div>` : '');
-                        previewEl.classList.remove('hidden');
-                        renderImportValidation(employees);
-                        if (importMode !== 'excel') errEl.classList.add('hidden');
-                    } else {
-                        previewEl.classList.add('hidden');
-                    }
-                } catch(e) {
-                    previewEl.classList.add('hidden');
-                    document.getElementById('importValidation').classList.add('hidden');
-                    if (rawText.length > 10) {
-                        errEl.innerText = "Error: " + e.message;
-                        errEl.classList.remove('hidden');
-                    }
-                }
-            };
-
-            const openImportModal = () => {
-                document.getElementById('importModal').classList.remove('hidden');
-                document.getElementById('jsonImportInput').value = '';
-                document.getElementById('importErrorMsg').classList.add('hidden');
-                document.getElementById('importPreview').classList.add('hidden');
-                document.getElementById('importValidation').classList.add('hidden');
-                importMode = 'excel';
-                document.getElementById('excelAmountFormat').value = 'auto';
-                switchImportTab('excel');
-                // Attach live preview listener
-                const ta = document.getElementById('jsonImportInput');
-                ta.oninput = parseImportPreview;
-                document.getElementById('excelAmountFormat').onchange = parseImportPreview;
-            };
-
-            const closeImportModal = () => {
-                document.getElementById('importModal').classList.add('hidden');
-            };
-
-            const processImport = async () => {
-                const rawText = document.getElementById('jsonImportInput').value.trim();
-                const errEl = document.getElementById('importErrorMsg');
-                
-                try {
-                    let newEmps = [];
-                    let importContext = null;
-
-                    if (importMode === 'excel') {
-                        const result = parseExcelText(rawText);
-                        if (result.errors.length > 0) {
-                            // Fail atomically: do not import only the valid subset.
-                            throw new Error(`Importación bloqueada. ${result.rows} filas: ${result.valid} válidas y ${result.rejected} rechazadas. Corrige las filas y vuelve a intentarlo.\n${result.errors.slice(0, 10).join('\n')}${result.errors.length > 10 ? '\n... y ' + (result.errors.length - 10) + ' errores más.' : ''}`);
-                        }
-                        newEmps = result.employees.map((item, idx) => normalizeImportedEmployee(item, idx));
-                    } else {
-                        const unwrapped = unwrapJsonImport(JSON.parse(rawText));
-                        importContext = unwrapped.context;
-                        newEmps = unwrapped.items.map((item, idx) => normalizeImportedEmployee(item, idx));
-                    }
-
-                    if (newEmps.length > 0) {
-                        if (state.employees.length > 0) {
-                            const choice = await showCustomChoice({
-                                title: 'Colaboradores detectados',
-                                message: `Se detectaron ${newEmps.length} colaboradores en la importación. Ya tienes ${state.employees.length} colaboradores en la lista actual. ¿Cómo deseas proceder?`,
-                                icon: 'fa-users-gear',
-                                type: 'question',
-                                choices: [
-                                    {
-                                        label: 'Cancelar',
-                                        value: 'cancel',
-                                        isPrimary: false
-                                    },
-                                    {
-                                        label: 'Agregar al final',
-                                        value: 'append',
-                                        icon: 'fa-user-plus',
-                                        class: 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
-                                    },
-                                    {
-                                        label: 'Reemplazar lista',
-                                        value: 'replace',
-                                        icon: 'fa-rotate',
-                                        isPrimary: true,
-                                        class: 'bg-blue-600 hover:bg-blue-700 text-white'
-                                    }
-                                ]
-                            });
-
-                            if (!choice || choice === 'cancel') return;
-
-                            if (choice === 'replace') {
-                                state.employees = newEmps;
-                            } else if (choice === 'append') {
-                                state.employees = [...state.employees, ...newEmps];
-                            }
-                        } else {
-                            state.employees = newEmps;
-                        }
-
-                        if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
-                        const importCurrency = String(importContext?.currency || '').toUpperCase();
-                        if (CURRENCY_PRESETS[importCurrency] && state.currency !== importCurrency) setCurrencyPreset(importCurrency);
-                        recordImport({ employees: newEmps, source: importMode === 'excel' ? 'excel' : 'json', context: importContext });
-                        closeImportModal();
-
-                        // Show post-import auto-distribute modal
-                        const totalAmount = state.employees.reduce((sum, e) => sum + getEffectiveEmployeeAmount(e), 0);
-                        const countEl = document.getElementById('postImportCount');
-                        if (countEl) countEl.textContent = `${state.employees.length} empleados · Total: ${fmt(totalAmount)}`;
-                        document.getElementById('postImportModal').classList.remove('hidden');
-                    } else {
-                        throw new Error("No se encontraron empleados válidos.");
-                    }
-
-                } catch (e) {
-                    errEl.innerText = "Error: " + e.message;
-                    errEl.classList.remove('hidden');
-                }
-            };
-
-            const closePostImportModal = (autoDistribute) => {
-                document.getElementById('postImportModal').classList.add('hidden');
-                if (autoDistribute) {
-                    // Clear existing inventory and auto-fill from bank needs
-                    state.inventory = {};
-                    state.denominations.forEach(d => state.inventory[d] = 0);
-                    
-                    // Calculate what's needed and fill directly
-                    const bankData = calculateBankNeeds();
-                    let totalAdded = 0;
-                    state.denominations.forEach(d => {
-                        const quantity = bankData.breakdown[d]?.final || 0;
-                        state.inventory[d] = (state.inventory[d] || 0) + quantity;
-                        totalAdded += quantity * d;
-                    });
-                    
-                    state.mode = 'inventory';
-                    switchTab('inventory');
-                    saveData();
-                    
-                    if (totalAdded > 0) {
-                        showToast(`Reparto automático: ${fmt(totalAdded)} distribuidos a ${state.employees.length} empleados.`, 'success');
-                    } else {
-                        showToast('Empleados importados. No se necesitan billetes adicionales.', 'info');
-                    }
-                } else {
-                    renderAll();
-                    showToast('Empleados importados. Ve a Banco para preparar el efectivo.', 'info');
-                }
-            };
-
-            // --- UI RENDERING ---
-
-            const renderAll = () => {
-                // Compute derived state ONCE per render cycle (avoids 4x-8x recalculation cascade)
-                const coverage = calculateDistribution();
-                const bankData = calculateBankNeeds(coverage);
-                const payrollSummary = getPayrollSummary();
-
-                renderInventory(coverage.leftoverInventory, coverage.results);
-                renderEmployees(coverage.results, coverage.loanFundResult, payrollSummary);
-                renderBank(bankData);
-                renderConfigModal();
-                updateTotals(coverage, bankData, payrollSummary);
-                if (document.getElementById('appearanceLivePreviewCard')) {
-                    renderAppearancePreviewCard();
-                }
-            };
-
-            const renderInventory = (leftoverInventory, processedEmployees) => {
-                const container = document.getElementById('inventoryList');
-                container.innerHTML = '';
-                
-                state.denominations.forEach(denom => {
-                    const div = document.createElement('div');
-                    div.className = "inv-row";
-                    const billStyle = getBillStyle(denom);
-                    const qty = state.inventory[denom] || 0;
-                    const isCoinDenom = isCoin(denom);
-                    const isRound = state.roundCoins !== false && isCoinDenom;
-                    const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
-                    const shapeStyle = isRound ? 'width:32px;height:32px;' : 'width:54px;height:28px;';
-                    const hasImg = !!getBillImage(denom);
-                    const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
-
-                    div.innerHTML = `
-                        <div class="flex items-center gap-2.5">
-                            <div class="bill-chip ${shapeClass}" style="${billStyle};${shapeStyle}">
-                                ${innerHTML}
-                            </div>
-                            <span class="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400">
-                                × <span class="font-bold font-mono text-sm sm:text-base ${qty > 0 ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}">${qty}</span>
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <button onclick="app.adjustInv(${denom}, -1)" class="stepper-btn minus">−</button>
-                            <input type="number"
-                                value="${qty}"
-                                onchange="app.updateInventory(${denom}, this.value)"
-                                class="w-14 text-center border border-slate-200 dark:border-slate-700 rounded-lg py-1 px-1 text-sm font-bold font-mono text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-900 focus:bg-white dark:focus:bg-slate-950 focus:ring-1 focus:ring-blue-500 outline-none transition-colors">
-                            <button onclick="app.adjustInv(${denom}, 1)" class="stepper-btn plus">+</button>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                });
-
-                // Render Smart Advisor
-                if (processedEmployees) {
-                    const advisorData = getSmartAdvisorData(leftoverInventory, processedEmployees);
-                    const advisorEl = document.getElementById('inventoryAdvisor');
-                    
-                    if (advisorData.deficit.length > 0) {
-                        advisorEl.classList.remove('hidden');
-
-                        // Determine Logic for Yellow vs Red
-                        // Rule: If missing denomination < smallest available surplus denomination -> Yellow (Just change)
-                        // Rule: Else -> Red (Real money missing)
-                        
-                        let minSurplus = advisorData.surplus.length > 0 
-                            ? Math.min(...advisorData.surplus.map(s => s.denom)) 
-                            : Infinity;
-                        
-                        // We check each deficit line
-                        let deficitHTML = `<div class="font-semibold flex flex-col gap-1 mt-2">`;
-                        
-                        advisorData.deficit.forEach(d => {
-                            let colorClass = "text-red-600";
-                            let icon = "fa-arrow-trend-down";
-                            
-                            // Yellow Condition: I'm missing a bill SMALLER than the smallest bill I have extra.
-                            // OR I have enough surplus value in general but just wrong bills (simplified check)
-                            if (d.denom < minSurplus && minSurplus !== Infinity) {
-                                colorClass = "text-yellow-600"; 
-                                icon = "fa-rotate"; // Icon indicating "Change/Swap"
-                            }
-
-                            deficitHTML += `<div class="${colorClass}"><i class="fa-solid ${icon} mr-1"></i>Faltan: ${d.count}x${escapeHTML(getCurrencySymbol())}${d.denom}</div>`;
-                        });
-                        deficitHTML += `</div>`;
-
-                        let surplusHTML = advisorData.surplus.length > 0 
-                            ? `<div class="mb-1 text-green-700 font-semibold"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Sobran: ` + advisorData.surplus.map(s => `${s.count}x${escapeHTML(getCurrencySymbol())}${s.denom}`).join(', ') + `</div>`
-                            : `<div class="mb-1 text-slate-500 italic text-[10px]">No hay sobrantes útiles.</div>`;
-                        
-                        advisorEl.innerHTML = `
-                            <p class="font-bold text-orange-800 mb-2 border-b border-orange-200 pb-1">Asesor de Cambio</p>
-                            ${surplusHTML}
-                            ${deficitHTML}
-                            <p class="mt-2 text-[10px] text-orange-700 italic">Consejo: Usa los sobrantes para cubrir los faltantes amarillos.</p>
-                        `;
-                    } else {
-                        advisorEl.classList.add('hidden');
-                    }
-                }
-            };
-
-            const adjustInv = (denom, delta) => {
-                const current = state.inventory[denom] || 0;
-                const newVal = Math.max(0, current + delta);
-                updateInventory(denom, newVal);
-            };
-
-            // Sort modes cycle: status → ref → status
-            const SORT_MODES = [
-                { key: 'status', label: 'Estado', icon: 'fa-check-double',
-                  fn: (a, b) => {
-                      if (a.paid !== b.paid) return a.paid ? 1 : -1;   // paid → bottom
-                      return 0;
-                  }
-                },
-                { key: 'ref',    label: '# Ref',  icon: 'fa-arrow-down-1-9',
-                  fn: (a, b) => {
-                      // find original index
-                      const ai = state.employees.findIndex(e => e.id === a.id);
-                      const bi = state.employees.findIndex(e => e.id === b.id);
-                      return ai - bi;
-                  }
-                },
-            ];
-
-            const cycleSortMode = () => {
-                const idx   = SORT_MODES.findIndex(m => m.key === sortMode);
-                const next  = SORT_MODES[(idx + 1) % SORT_MODES.length];
-                sortMode = next.key;
-                const btn   = document.getElementById('sortBtn');
-                const label = document.getElementById('sortBtnLabel');
-                if (btn) {
-                    btn.style.borderColor = '';
-                    btn.style.color       = '';
-                    btn.style.background  = '';
-                    const icon = btn.querySelector('i');
-                    if (icon) { icon.className = `fa-solid ${next.icon} text-xs`; }
-                }
-                if (label) label.textContent = next.label;
-                renderAll();
-            };
-
-            const setPayrollMode = (mode) => {
-                state.payrollMode = mode === 'deductions' ? 'deductions' : 'normal';
-                saveData();
-            };
-
-            const togglePayrollMode = () => setPayrollMode(state.payrollMode === 'deductions' ? 'normal' : 'deductions');
-
-            const resetOperation = async () => {
-                if (!state.employees.length) {
-                    showToast('No hay empleados ni una operación para reiniciar.', 'info');
-                    return;
-                }
-                const ok = await showCustomConfirm({
-                    title: '¿Reiniciar la operación?',
-                    message: 'Se conservarán los empleados y sus montos, pero se vaciarán Mi Caja, los retiros, límites, pagos y el fondo para préstamos.',
-                    icon: 'fa-rotate-left',
-                    type: 'warning',
-                    confirmText: 'Sí, reiniciar',
-                    cancelText: 'Cancelar'
-                });
-                if (!ok) return;
-
-                state.denominations.forEach(denom => state.inventory[denom] = 0);
-                state.bankLimits = {};
-                state.payrollLoanFund = 0;
-                state.distributionCleared = false;
-                state.employees = state.employees.map(employee => {
-                    const cleanEmployee = { ...employee, paid: false };
-                    delete cleanEmployee._missingAmount;
-                    return cleanEmployee;
-                });
-                state.mode = 'inventory';
-                switchTab('inventory');
-                saveData();
-                showToast('Operación reiniciada. Se conservaron los empleados y sus montos.');
-            };
-
-            const restoreImportSnapshot = async () => {
-                if (!Array.isArray(state.importSnapshot) || !state.importSnapshot.length) {
-                    showToast('Todavía no hay una importación guardada para restaurar.', 'info');
-                    return;
-                }
-                const ok = await showCustomConfirm({
-                    title: '¿Restaurar última importación?',
-                    message: 'Se recuperarán nombres, montos y desglose originales. También se limpiarán Mi Caja, retiros, pagos y el fondo para préstamos.',
-                    icon: 'fa-clock-rotate-left',
-                    type: 'warning',
-                    confirmText: 'Sí, restaurar',
-                    cancelText: 'Cancelar'
-                });
-                if (!ok) return;
-
-                state.employees = JSON.parse(JSON.stringify(state.importSnapshot)).map((employee, index) => ({
-                    ...employee,
-                    id: employee.id ?? Date.now() + index,
-                    paid: false
-                }));
-                state.denominations.forEach(denom => state.inventory[denom] = 0);
-                state.bankLimits = {};
-                state.payrollLoanFund = 0;
-                state.distributionCleared = false;
-                state.payrollMode = state.employees.some(employee => employee.payroll) ? 'deductions' : 'normal';
-                state.mode = 'inventory';
-                switchTab('inventory');
-                saveData();
-                showToast('Última importación restaurada correctamente.');
-            };
-
-            const openOperationsModal = () => {
-                const modal = document.getElementById('operationsModal');
-                if (!modal) return;
-                const hasSnapshot = Array.isArray(state.importSnapshot) && state.importSnapshot.length > 0;
-                const cardRestore = document.getElementById('opCardRestore');
-                const descRestore = document.getElementById('opDescRestore');
-                if (cardRestore) {
-                    if (hasSnapshot) {
-                        cardRestore.classList.remove('opacity-40', 'pointer-events-none');
-                        cardRestore.style.filter = '';
-                        if (descRestore) {
-                            descRestore.textContent = `Recupera la nómina original tal como se importó (${state.importSnapshot.length} empleados)`;
-                        }
-                    } else {
-                        cardRestore.classList.add('opacity-40', 'pointer-events-none');
-                        cardRestore.style.filter = 'grayscale(0.6)';
-                        if (descRestore) {
-                            descRestore.textContent = 'No hay una importación previa registrada en esta sesión';
-                        }
-                    }
-                }
-                const corruptCard = document.getElementById('opCorruptBackupCard');
-                if (corruptCard) {
-                    const hasCorrupt = !!SplitXState.getCorruptBackup(appStorage, SplitXStorage.KEYS, _corruptBackupMem);
-                    corruptCard.classList.toggle('hidden', !hasCorrupt);
-                }
-                modal.classList.remove('hidden');
-            };
-
-            const closeOperationsModal = () => {
-                document.getElementById('operationsModal')?.classList.add('hidden');
-            };
-
-            const openExportModal = () => {
-                document.getElementById('exportModal')?.classList.remove('hidden');
-            };
-
-            const closeExportModal = () => {
-                document.getElementById('exportModal')?.classList.add('hidden');
-            };
-
-            const updatePayrollLoanFund = (value) => {
-                const collected = getPayrollSummary().loans;
-                const result = SplitXCore.clampLoanFund(value, collected, (v) => SplitXExcelImport.parseMoney(v));
-                if (!result.ok) {
-                    showToast(`Fondo de préstamos inválido: ${result.error}`, 'error');
-                    renderAll();
-                    return;
-                }
-                state.payrollLoanFund = result.value;
-                saveData();
-            };
-
-            // Round all employee amounts, removing cents (keeps payroll.net and payroll.afterDiscounts consistent)
-            const roundAllAmounts = async () => {
-                const preview = SplitXCore.roundEmployeeAmounts(state.employees, state.payrollMode);
-                if (preview.count === 0) {
-                    showCustomAlert({
-                        title: 'Sin centavos pendientes',
-                        message: 'Todos los montos de los colaboradores ya son números enteros sin centavos.',
-                        icon: 'fa-circle-check',
-                        type: 'info',
-                        confirmText: 'Entendido'
-                    });
-                    return;
-                }
-                const ok = await showCustomConfirm({
-                    title: 'Cortar centavos',
-                    message: `Se eliminarán los decimales redondeando hacia abajo en ${preview.count} colaborador(es). ¿Deseas continuar?`,
-                    icon: 'fa-scissors',
-                    type: 'warning',
-                    confirmText: 'Sí, cortar centavos',
-                    cancelText: 'Cancelar'
-                });
-                if (!ok) return;
-                const applied = SplitXCore.roundEmployeeAmounts(state.employees, state.payrollMode);
-                state.employees = applied.employees;
-                saveData();
-                showToast(`Centavos eliminados en ${applied.count} colaborador(es).`, 'success');
-            };
-
-            // Update employee field inline
-            const updateEmployee = (id, field, value) => {
-                const targetEmployee = state.employees.find(employee => employee.id === id);
-                if (field === 'amount' && targetEmployee?.payroll) {
-                    showToast('El monto neto importado está protegido. Usa Restaurar importación para recuperar los valores originales.', 'info');
-                    return;
-                }
-                state.employees = state.employees.map(e => {
-                    if (e.id !== id) return e;
-                    if (field === 'amount') {
-                        const parsed = parseFloat(value);
-                        if (isNaN(parsed) || parsed < 0) return e;
-                        const payroll = e.payroll ? { ...e.payroll, net: parsed } : e.payroll;
-                        return { ...e, amount: parsed, payroll };
-                    }
-                    if (field === 'name') {
-                        return value.trim() ? { ...e, name: value.trim() } : e;
-                    }
-                    return e;
-                });
-                saveData();
-            };
-
-            const getBillImage = (denom) => SplitXCurrencies.getBillImage(state, denom);
-            const getBillStyle = (denom) => SplitXCurrencies.getBillStyle(state, denom);
-
-            const renderEmployees = (data, loanFundResult = { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }, precomputedSummary = null) => {
-                const container = document.getElementById('employeeList');
-                const summaryContainer = document.getElementById('payrollSummaryContainer');
-                const payrollSummary = precomputedSummary || getPayrollSummary();
-                const safeSym = escapeHTML(getCurrencySymbol());
-                const showPayrollMode = state.payrollMode === 'deductions' && payrollSummary.count > 0;
-                const restoreImportButton = document.getElementById('restoreImportBtn');
-                if (restoreImportButton) restoreImportButton.disabled = !Array.isArray(state.importSnapshot) || state.importSnapshot.length === 0;
-                document.getElementById('payrollModeNormal')?.classList.toggle('active', state.payrollMode === 'normal');
-                document.getElementById('payrollModeDeductions')?.classList.toggle('active', state.payrollMode === 'deductions');
-                document.getElementById('payrollModeSwitch')?.classList.toggle('hidden', payrollSummary.count === 0);
-
-                if (showPayrollMode) {
-                    const loanFund = Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-                    const remainingCollected = payrollSummary.loans - loanFund;
-                    const fundBreakdown = loanFundResult;
-                    let fundBillsHTML = '';
-                    state.denominations.forEach(denom => {
-                        const count = fundBreakdown.distribution[denom];
-                        if (!count) return;
-                        const billStyle = getBillStyle(denom);
-                        const hasImg = !!getBillImage(denom);
-                        const isCoinDenom = isCoin(denom);
-                        const isRound = state.roundCoins !== false && isCoinDenom;
-                        const shapeClass = isRound ? 'chip-vector-coin' : 'chip-vector-banknote';
-                        const shapeStyle = isRound ? 'width:30px;height:30px;' : 'width:54px;height:28px;';
-                        const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
-                        fundBillsHTML += `<div style="position:relative;display:inline-block;margin:3px 6px 3px 0">
-                            <div class="bill-chip ${shapeClass}" style="${billStyle};${shapeStyle}">
-                                ${innerHTML}
-                            </div>
-                            <span class="bill-badge">${count}</span>
-                        </div>`;
-                    });
-                    const totalLoans = payrollSummary.loans || 0;
-                    const pct = totalLoans > 0 ? Math.min(100, Math.max(0, Math.round((remainingCollected / totalLoans) * 100))) : 100;
-                    const dashOffset = (150.8 * (1 - pct / 100)).toFixed(1);
-
-                    summaryContainer.className = 'payroll-summary-panel';
-                    summaryContainer.innerHTML = `
-                        <div class="flex flex-col gap-2.5">
-                            <!-- Header Card -->
-                            <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3">
-                                <div class="flex flex-col gap-1 min-w-0">
-                                    <div class="flex items-baseline gap-2 flex-wrap">
-                                        <span class="text-2xl font-black text-slate-900 dark:text-slate-100 font-mono">${payrollSummary.loansCount || 0}</span>
-                                        <span class="text-sm font-bold text-slate-800 dark:text-slate-200">Préstamos descontados</span>
-                                        <span class="text-xs text-slate-400 dark:text-slate-400 font-medium">(${payrollSummary.count} colaboradores en nómina)</span>
-                                    </div>
-                                    ${payrollSummary.loans > 0 ? `
-                                        <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                            <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
-                                                <span class="text-slate-400 dark:text-slate-500">Capital:</span> <strong>${fmtNum(payrollSummary.totalPrincipal)}</strong>
-                                            </span>
-                                            <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-300 font-mono">
-                                                <span class="text-amber-500 dark:text-amber-400">Interés recaudado:</span> <strong>${fmtNum(payrollSummary.totalInterest)}</strong>
-                                            </span>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-teal-700 dark:bg-teal-600 text-white shadow-xs shrink-0">
-                                    <i class="fa-solid fa-tag text-[9px]"></i> Resumen de Recaudación
-                                </span>
-                            </div>
-
-                            <!-- Middle 2-Column Grid -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 items-stretch">
-                                <!-- Left: Cascada Contable Detallada -->
-                                <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between h-full">
-                                    <div class="font-mono text-xs">
-                                        <div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
-                                            <span class="font-semibold text-slate-700 dark:text-slate-300">Bruto total:</span>
-                                            <span class="text-right text-slate-800 dark:text-slate-100 font-bold">${fmtNum(payrollSummary.gross)}</span>
-
-                                            <span class="text-slate-600 dark:text-slate-400">Bonificaciones:</span>
-                                            <span class="text-right text-emerald-600 dark:text-emerald-400 font-semibold">+ ${fmtNum(payrollSummary.bonuses || 0)}</span>
-
-                                            <span class="text-slate-600 dark:text-slate-400">Descuentos:</span>
-                                            <span class="text-right text-rose-600 dark:text-rose-400 font-semibold">- ${fmtNum(payrollSummary.discounts || 0)}</span>
-
-                                            <span class="text-slate-600 dark:text-slate-400">Préstamos:</span>
-                                            <span class="text-right text-amber-600 dark:text-amber-400 font-semibold">- ${fmtNum(payrollSummary.loans || 0)}</span>
-                                            ${payrollSummary.loans > 0 ? `
-                                                <span class="text-[11px] text-slate-500 dark:text-slate-400 pl-3">↳ Capital recaudado:</span>
-                                                <span class="text-right text-[11px] text-slate-600 dark:text-slate-300 font-mono">${fmtNum(payrollSummary.totalPrincipal)}</span>
-                                                <span class="text-[11px] text-amber-600 dark:text-amber-400 pl-3 font-medium">↳ Interés recaudado:</span>
-                                                <span class="text-right text-[11px] text-amber-600 dark:text-amber-400 font-mono font-bold">${fmtNum(payrollSummary.totalInterest)}</span>
-                                            ` : ''}
-                                        </div>
-                                        <div class="text-2xl font-black font-mono text-slate-950 dark:text-slate-50 tracking-tight mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-right">
-                                            ${safeSym} ${fmtNum(payrollSummary.net)}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Right: Recaudación restante en banco (Proporcional y Balanceada) -->
-                                <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between gap-4 h-full">
-                                    <div class="flex flex-col justify-between h-full py-1">
-                                        <div>
-                                            <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Recaudación restante</div>
-                                            <div class="font-mono text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-50 mt-1">${safeSym} ${fmtNum(remainingCollected)}</div>
-                                        </div>
-                                        <div class="text-xs font-mono text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-1 rounded-md border border-teal-100 dark:border-teal-800 inline-block w-fit mt-2">
-                                            de ${safeSym} ${fmtNum(totalLoans)} recaudados
-                                        </div>
-                                    </div>
-                                    <div class="relative w-20 h-20 shrink-0 flex items-center justify-center">
-                                        <svg class="w-20 h-20 -rotate-90" viewBox="0 0 60 60">
-                                            <circle cx="30" cy="30" r="24" stroke="#e2e8f0" stroke-width="5" fill="none" class="circle-bg-track" />
-                                            <circle cx="30" cy="30" r="24" stroke="#0d9488" stroke-width="5" stroke-linecap="round" fill="none"
-                                                stroke-dasharray="150.8" stroke-dashoffset="${dashOffset}"
-                                                class="transition-all duration-500 ease-out" />
-                                        </svg>
-                                        <span class="absolute font-mono text-sm font-black text-slate-800 dark:text-slate-100">${pct}%</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Bottom Card: Fondo para nuevos préstamos -->
-                            <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border ${loanFundResult.status === 'error' ? 'border-rose-200 dark:border-rose-900 bg-rose-50/20 dark:bg-rose-950/20' : 'border-slate-200/80 dark:border-slate-800'} shadow-xs flex flex-wrap items-center justify-between gap-3">
-                                <div class="flex flex-col gap-1.5 min-w-0">
-                                    <div class="loan-fund-bills flex flex-wrap items-center gap-2">
-                                        ${fundBillsHTML || `<span class="text-[11px] ${loanFundResult.status === 'error' ? 'text-rose-500 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500 italic'}">${loanFund > 0 ? 'Sin billetes asignados en caja.' : 'Indica un monto para reservar.'}</span>`}
-                                    </div>
-                                    ${loanFundResult.status === 'error'
-                                        ? `<div class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Faltan ${safeSym} ${fmtNum(loanFundResult.missingAmount)} · retirar del banco</div>`
-                                        : loanFund > 0
-                                            ? '<div class="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-[11px]"></i> Fondo cubierto en caja</div>'
-                                            : ''}
-                                </div>
-                                <div class="flex flex-col items-end gap-1 shrink-0">
-                                    <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Fondo para nuevos préstamos</span>
-                                    <input class="loan-fund-input text-right font-mono font-bold w-32 h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none"
-                                        type="number" min="0" max="${totalLoans}" step="1" value="${loanFund}"
-                                        onblur="app.updatePayrollLoanFund(this.value)"
-                                        onkeydown="if(event.key==='Enter'){this.blur()}">
-                                </div>
-                            </div>
-                        </div>`;
-                } else {
-                    summaryContainer.className = 'hidden';
-                    summaryContainer.innerHTML = '';
-                }
-
-                // Apply current sort mode
-                if (data && data.length > 0) {
-                    const mode = SORT_MODES.find(m => m.key === sortMode);
-                    if (mode) data = [...data].sort(mode.fn);
-                    // Sync button label on initial render
-                    const label = document.getElementById('sortBtnLabel');
-                    const icon  = document.getElementById('sortBtn')?.querySelector('i');
-                    if (label) label.textContent = mode ? mode.label : 'Orden';
-                    if (icon && mode) icon.className = `fa-solid ${mode.icon} text-xs`;
-                }
-                
-                if (!data || data.length === 0) {
-                    container.innerHTML = `<div class="text-center py-10 text-slate-400 dark:text-slate-500 flex flex-col items-center">
-                        <i class="fa-solid fa-users-viewfinder text-4xl mb-3 opacity-30"></i>
-                        <p>No hay empleados en la lista.</p>
-                    </div>`;
-                    document.getElementById('employeeCountBadge').innerText = '0';
-                    return;
-                }
-
-                document.getElementById('employeeCountBadge').innerText = data.length;
-                container.innerHTML = '';
-
-                data.forEach((emp, index) => {
-                    const card = createCardEl(emp, index, false);
-                    container.appendChild(card);
-                });
-            };
-
-            const createCardEl = (emp, index, isPreview = false) => SplitXEmployeeCard.createEmployeeCardElement({
-                emp,
-                index,
-                isPreview,
-                state,
-                expandedEmpCards,
-                sheetFields,
-                getEffectiveEmployeeAmount,
-                fmt,
-                fmtNum
-            });
-
-            const renderBank = (precomputedBankData = null) => {
-                const tbody = document.getElementById('bankTableBody');
-                const bankData = precomputedBankData || calculateBankNeeds();
-                tbody.innerHTML = '';
-
-                let totalToWithdraw = 0;
-
-                state.denominations.forEach(denom => {
-                    const rowData = bankData.breakdown[denom] || { ideal: 0, neededAfterCarry: 0, final: 0 };
-                    
-                    const userLimit = state.bankLimits[denom];
-                    const isLimited = (userLimit !== undefined && userLimit !== null && userLimit !== "") && rowData.neededAfterCarry > rowData.final;
-                    
-                    const row = document.createElement('tr');
-                    row.className = "bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60";
-                    row.innerHTML = `
-                        <td class="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">${denom}</td>
-                        <td class="px-2 py-3 text-center text-slate-500 dark:text-slate-400 text-xs">${rowData.neededAfterCarry}</td>
-                        <td class="px-2 py-3 text-center">
-                            <input type="number" 
-                                placeholder="∞" 
-                                value="${userLimit === undefined || userLimit === null ? '' : userLimit}" 
-                                onchange="app.updateBankLimit(${denom}, this.value)"
-                                class="w-16 px-2 py-1 text-center text-sm border rounded bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue-500 outline-none ${isLimited ? 'border-orange-400 text-orange-600 dark:text-orange-400 font-bold' : 'border-slate-200 dark:border-slate-700'}">
-                        </td>
-                        <td class="px-4 py-3 text-right font-bold text-blue-700 dark:text-sky-400">
-                            ${rowData.final}
-                            ${rowData.final > rowData.ideal ? `<span class="text-[10px] text-green-500 dark:text-emerald-400 block">+${rowData.final - rowData.ideal} por ajuste</span>` : ''}
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-
-                    totalToWithdraw += (rowData.final * denom);
-                });
-
-                document.getElementById('bankTotalDisplay').innerText = fmt(totalToWithdraw);
-                const applyButton = document.getElementById('applyBankBtn');
-                if (applyButton) applyButton.disabled = totalToWithdraw <= 0;
-            };
-
-            const configUI = SplitXConfigUI.createConfigUI({
-                getState: () => state,
-                saveData,
-                CURRENCY_PRESETS,
-                BILL_COLORS,
-                isCoin,
-                escapeHTML,
-                sanitizeHexColor,
-                getBillImage,
-                getBillStyle,
-                getCurrencySymbol,
-                createCardEl,
-                showToast,
-                showCustomConfirm
-            });
-            const {
-                renderConfigModal, openConfigModal, switchConfigTab,
-                toggleUseDefaultImages, toggleRoundCoins, setBreakdownFormat,
-                setChipTextColor, setBreakdownSize, setBreakdownColumns,
-                toggleBreakdownGroupByType, toggleBreakdownShowZeros,
-                renderAppearancePreviewCard, renderAppearanceConfig,
-                renderCustomBillsConfig, updateBillColor, resetBillColor,
-                uploadBillImage, clearBillImage, resetAllAppearance, clearAllImages
-            } = configUI;
-
-            const updateTotals = (precomputedCoverage = null, precomputedBankData = null, precomputedSummary = null) => {
-                // Cash in Box
-                let totalBox = 0;
-                state.denominations.forEach(d => totalBox += d * (state.inventory[d] || 0));
-                document.getElementById('totalInventoryDisplay').innerText = fmt(totalBox);
-
-                // Payroll totals
-                const isNormal = state.payrollMode === 'normal';
-                const paidEmps    = state.employees.filter(e => e.paid);
-                const pendingEmps = state.employees.filter(e => !e.paid);
-                let totalPending  = pendingEmps.reduce((s, e) => s + getEffectiveEmployeeAmount(e), 0);
-                const payrollSummary = precomputedSummary || getPayrollSummary();
-                const loanFund = isNormal ? 0 : Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-                totalPending += loanFund;
-                const coverage = precomputedCoverage || calculateDistribution();
-                const employeeMissing = coverage.results.reduce((sum, emp) => sum + (!emp.paid ? (emp._missingAmount || 0) : 0), 0);
-                const totalMissing = employeeMissing + (coverage.loanFundResult.missingAmount || 0);
-
-                // ── KPI Cards ──────────────────────────────
-                // KPI 1: En Caja
-                const kpiCaja = document.getElementById('kpiEnCaja');
-                const kpiCajaSub = document.getElementById('kpiEnCajaSub');
-                if (kpiCaja) {
-                    kpiCaja.innerText = fmt(totalBox);
-                    kpiCaja.style.color = '';
-                    kpiCaja.className = `kpi-value ${totalMissing <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-sky-400'}`;
-                }
-                if (kpiCajaSub) {
-                    if (totalMissing <= 0 && totalPending > 0) {
-                        kpiCajaSub.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-semibold">Sobran ${fmt(totalBox - totalPending)}</span>`;
-                    } else if (totalMissing > 0) {
-                        kpiCajaSub.innerHTML = `<span class="text-rose-600 dark:text-rose-400 font-semibold">Faltan ${fmt(totalMissing)}</span>`;
-                    } else {
-                        kpiCajaSub.innerText = 'Sin nómina pendiente';
-                    }
-                }
-
-                // KPI 2: Pendiente
-                const kpiPend = document.getElementById('kpiPendiente');
-                if (kpiPend) {
-                    kpiPend.innerText = fmt(totalPending);
-                    kpiPend.style.color = '';
-                    kpiPend.className = `kpi-value ${totalPending > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-emerald-600 dark:text-emerald-400'}`;
-                }
-                // totalPayrollDisplay used as subtitle of kpi2
-                const payrollSub = document.getElementById('totalPayrollDisplay');
-                if (payrollSub) {
-                    const label = state.employees.length === 0 ? '0 empleados'
-                        : paidEmps.length > 0 ? `${pendingEmps.length} pend. · ${paidEmps.length} pagados`
-                        : `${state.employees.length} empleados`;
-                    payrollSub.innerText = label;
-                }
-
-                // KPI 3: Cubiertos
-                const kpiCub = document.getElementById('kpiCubiertos');
-                const kpiCubSub = document.getElementById('kpiCubiertosSub');
-                if (state.employees.length === 0) {
-                    if (kpiCub) {
-                        kpiCub.innerText = '0 / 0';
-                        kpiCub.style.color = '';
-                        kpiCub.className = 'kpi-value text-slate-400 dark:text-slate-500';
-                    }
-                    if (kpiCubSub) kpiCubSub.innerText = 'Sin empleados';
-                } else {
-                    // Covered = paid OR fully covered in cash box (status === 'ok')
-                    const covered = coverage.results.filter(e => e.paid || e.status === 'ok').length;
-                    const total   = state.employees.length;
-                    if (kpiCub) {
-                        kpiCub.innerText = `${covered} / ${total}`;
-                        kpiCub.style.color = '';
-                        kpiCub.className = `kpi-value ${covered === total ? 'text-emerald-600 dark:text-emerald-400' : covered > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}`;
-                    }
-                    if (kpiCubSub) {
-                        const pct = total > 0 ? Math.round(covered / total * 100) : 0;
-                        kpiCubSub.innerText = paidEmps.length > 0 ? `${pct}% cubierto · ${paidEmps.length} pag.` : `${pct}% cubierto`;
-                    }
-                }
-
-                // KPI 4: Retirar banco — driven by calculateBankNeeds (reused from renderAll)
-                const bankData = precomputedBankData || calculateBankNeeds(coverage);
-                let toWithdraw = 0;
-                state.denominations.forEach(d => {
-                    if (bankData.breakdown[d]) toWithdraw += bankData.breakdown[d].final * d;
-                });
-                const kpiRet = document.getElementById('kpiRetirar');
-                if (kpiRet) {
-                    kpiRet.innerText = fmt(toWithdraw);
-                    kpiRet.style.color = '';
-                    kpiRet.className = `kpi-value ${toWithdraw > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`;
-                }
-
-                // Progress Bar
-                let percent = totalPending > 0 ? Math.max(0, Math.min(100, ((totalPending - totalMissing) / totalPending) * 100)) : (totalBox > 0 ? 100 : 0);
-                const bar = document.getElementById('cashProgressBar');
-                const statusEl = document.getElementById('cashStatusText');
-                if (bar) bar.style.width = `${percent}%`;
-
-                if (totalPending === 0 && state.employees.length > 0) {
-                    if (statusEl) statusEl.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-semibold">¡Todo Pagado!</span>`;
-                    if (bar) { bar.classList.remove('bg-blue-500','bg-emerald-500'); bar.classList.add('bg-emerald-500'); }
-                } else if (totalMissing <= 0) {
-                    if (statusEl) statusEl.innerHTML = `<span class="text-emerald-600 dark:text-emerald-400 font-semibold">Caja cubierta ✓</span>`;
-                    if (bar) { bar.classList.remove('bg-rose-500','bg-emerald-500'); bar.classList.add('bg-blue-500'); }
-                } else {
-                    if (statusEl) statusEl.innerHTML = `<span class="text-rose-600 dark:text-rose-400 font-semibold">Faltan ${fmt(totalMissing)}</span>`;
-                    if (bar) { bar.classList.remove('bg-blue-500','bg-emerald-500'); bar.classList.add('bg-rose-500'); }
-                }
-            };
-
-            // Switch left panel tab (inventory / bank)
-            const switchTab = (tabName) => {
-                const invView = document.getElementById('view-inventory');
-                const bankView = document.getElementById('view-bank');
-                const tabInv = document.getElementById('tab-inventory');
-                const tabBank = document.getElementById('tab-bank');
-
-                if (tabName === 'inventory') {
-                    invView.classList.remove('hidden');
-                    bankView.classList.add('hidden');
-                    tabInv.classList.add('active');   tabInv.classList.remove('inactive');
-                    tabBank.classList.add('inactive'); tabBank.classList.remove('active');
-                } else {
-                    invView.classList.add('hidden');
-                    bankView.classList.remove('hidden');
-                    tabInv.classList.add('inactive');   tabInv.classList.remove('active');
-                    tabBank.classList.add('active');    tabBank.classList.remove('inactive');
-                    renderBank();
-                }
-            };
-
-            // Mobile view switcher (bottom nav + segmented control)
-            const switchMobileView = (view) => {
-                const nomPanel  = document.getElementById('panel-nomina');
-                const cajaPanel = document.getElementById('panel-caja');
-                const segNom    = document.getElementById('seg-nomina');
-                const segCaja   = document.getElementById('seg-caja');
-                const bnavNom   = document.getElementById('bnav-nomina');
-                const bnavCaja  = document.getElementById('bnav-caja');
-                const bnavBanco = document.getElementById('bnav-banco');
-
-                if (view === 'nomina') {
-                    nomPanel.classList.add('active');    cajaPanel.classList.remove('active');
-                    if (segNom)  { segNom.classList.add('active');    segCaja.classList.remove('active'); }
-                    if (bnavNom) { bnavNom.classList.add('active'); bnavCaja.classList.remove('active'); bnavBanco.classList.remove('active'); }
-                } else {
-                    cajaPanel.classList.add('active');   nomPanel.classList.remove('active');
-                    if (segCaja) { segCaja.classList.add('active');   segNom.classList.remove('active'); }
-                    if (bnavCaja) { bnavCaja.classList.add('active'); bnavNom.classList.remove('active'); bnavBanco.classList.remove('active'); }
-                }
-            };
-
-            // Mobile Add Employee Drawer
-            const openAddDrawer = () => {
-                document.getElementById('addDrawerBackdrop').classList.add('open');
-                document.getElementById('addDrawer').classList.add('open');
-                setTimeout(() => document.getElementById('empNameMobile').focus(), 320);
-            };
-            const closeAddDrawer = () => {
-                document.getElementById('addDrawerBackdrop').classList.remove('open');
-                document.getElementById('addDrawer').classList.remove('open');
-            };
-            const addEmployeeMobile = () => {
-                const nameInput = document.getElementById('empNameMobile');
-                const amtInput  = document.getElementById('empAmountMobile');
-                let name   = nameInput.value.trim();
-                let valStr = amtInput.value.trim();
-                if (!name && !valStr) return;
-                if (name && !valStr) {
-                    const match = name.match(/^[\d\.\-\)\s]*([a-zA-Z\u00C0-\u00FF\s]+)[,\s]+(\d+(\.\d+)?)/);
-                    if (match) { name = match[1].trim(); valStr = match[2]; }
-                }
-                if (name && valStr) {
-                    const parsed = SplitXCore.parseManualAmount(valStr, (v) => SplitXExcelImport.parseMoney(v));
-                    if (!parsed.ok) {
-                        showToast(parsed.error, 'error');
-                        return;
-                    }
-                    state.employees.push({
-                        id: SplitXCore.nextEmployeeId(),
-                        name,
-                        amount: parsed.amount,
-                        paid: false,
-                        isManual: true,
-                        isEdited: false,
-                        originalData: null
-                    });
-                    nameInput.value = ''; amtInput.value = '';
-                    saveData();
-                    closeAddDrawer();
-                    switchMobileView('nomina');
-                }
-            };
-
-            // --- EDIT EMPLOYEE MODAL LOGIC ---
-            const editModal = SplitXEditModal.createEditModal({
-                getState: () => state,
-                saveData,
-                fmt,
-                getCurrencySymbol,
-                escapeHTML,
-                isCoin,
-                getBillStyle,
-                getBillImage,
-                getIdealBreakdown,
-                showToast,
-                showCustomConfirm
-            });
-            const {
-                openEditModal, toggleLoanDetailsPanel, calcLoanFromDetails,
-                calcLoanFromInterestAmount, closeEditModal, setModalAdjustmentType,
-                updateModalCalculations, syncNetFromCalculated, saveEmployeeModal,
-                revertEmployeeToOriginal
-            } = editModal;
-
-            const setupEventListeners = () => {
-                document.getElementById('empAmount').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') addEmployee();
-                });
-                document.getElementById('empName').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') document.getElementById('empAmount').focus();
-                });
-                const mobileAmt = document.getElementById('empAmountMobile');
-                if (mobileAmt) mobileAmt.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') addEmployeeMobile();
-                });
-                const mobileNm = document.getElementById('empNameMobile');
-                if (mobileNm) mobileNm.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') document.getElementById('empAmountMobile').focus();
-                });
-
-                // Delegated events for employee cards (no inline onclick string interpolation)
-                const empList = document.getElementById('employeeList');
-                if (empList) {
-                    empList.addEventListener('click', (e) => {
-                        const target = e.target.closest('[data-card-action]');
-                        if (!target) return;
-                        const action = target.dataset.cardAction;
-                        const rawId = target.dataset.empId;
-                        if (!rawId) return;
-                        const emp = state.employees.find(x => String(x.id) === rawId);
-                        if (!emp) return;
-                        e.stopPropagation();
-                        if (action === 'toggle-paid') togglePaid(emp.id);
-                        else if (action === 'toggle-details') toggleCardDetails(emp.id, e);
-                        else if (action === 'edit') openEditModal(emp.id);
-                        else if (action === 'remove') removeEmployee(emp.id);
-                    });
-                }
-
-                // Delegated events for import history modal (prevents DOM XSS via entry.id)
-                const histList = document.getElementById('historyList');
-                if (histList) {
-                    histList.addEventListener('click', (e) => {
-                        const target = e.target.closest('[data-history-action]');
-                        if (!target) return;
-                        const action = target.dataset.historyAction;
-                        const id = target.dataset.historyId;
-                        if (!id) return;
-                        if (action === 'load') loadHistoryEntry(id);
-                        else if (action === 'delete') deleteHistoryEntry(id);
-                    });
-                }
-            };
-
-            return {
-                init,
-                addEmployee,
-                addEmployeeMobile,
-                removeEmployee,
-                togglePaid,
-                updateInventory,
-                adjustInv,
-                resetAll,
-                exportFullBackup,
-                importFullBackup,
-                purgeDocumentPii,
-                downloadCorruptBackup,
-                discardCorruptBackup,
-                switchTab,
-                switchMobileView,
-                openAddDrawer,
-                closeAddDrawer,
-                updateBankLimit,
-                applyBankToInventory,
-                clearBankLimits,
-                addDenomination,
-                removeDenom,
-                resetDenominations,
-                setCurrencyPreset,
-                setCurrencySymbol,
-                renderConfigModal,
-                exportToCSV,
-                exportToExcel,
-                exportToPDF,
-                openImportModal,
-                openHistoryModal,
-                closeHistoryModal,
-                loadHistoryEntry,
-                deleteHistoryEntry,
-                retrySaImport,
-                hideStaleBanner,
-                openSheetStudio,
-                openDocumentStudio,
-                closeImportModal,
-                closePostImportModal,
-                processImport,
-                switchImportTab,
-                roundAllAmounts,
-                cycleSortMode,
-                togglePayrollMode,
-                setPayrollMode,
-                toggleCardDetails,
-                resetOperation,
-                restoreImportSnapshot,
-                openOperationsModal,
-                closeOperationsModal,
-                openExportModal,
-                closeExportModal,
-                updatePayrollLoanFund,
-                updateEmployee,
-                openEditModal,
-                closeEditModal,
-                setModalAdjustmentType,
-                updateModalCalculations,
-                syncNetFromCalculated,
-                saveEmployeeModal,
-                revertEmployeeToOriginal,
-                toggleLoanDetailsPanel,
-                calcLoanFromDetails,
-                calcLoanFromInterestAmount,
-                openConfigModal,
-                switchConfigTab,
-                renderAppearanceConfig,
-                renderCustomBillsConfig,
-                setBreakdownFormat,
-                setChipTextColor,
-                setBreakdownSize,
-                setBreakdownColumns,
-                toggleBreakdownGroupByType,
-                toggleBreakdownShowZeros,
-                toggleUseDefaultImages,
-                toggleRoundCoins,
-                updateBillColor,
-                resetBillColor,
-                uploadBillImage,
-                clearBillImage,
-                resetAllAppearance,
-                clearAllImages,
-                toggleTheme,
-                applyTheme,
-                showCustomAlert,
-                showCustomConfirm,
-                showCustomChoice,
-                closeCustomDialog
-            };
-        })();
-
-        window.app = app;
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', app.init, { once: true });
-        } else {
-            app.init();
-        }
-    </script>
+    <script src="js/SplitXApp.js"></script>
     <div id="sheetStudio" hidden></div>
     <div id="documentStudio" hidden></div>
 </body>

@@ -46,7 +46,7 @@ SplitX es una aplicación estática sin *bundler* JS. Cada módulo usa formato *
 
 ```text
 SplitX/
-├── index.html                    # Entrada única de la app, vistas, modales y orquestación de UI
+├── index.html                    # HTML puro de la app (0 <style>, 0 <script> inline, 0 handlers on*=)
 ├── document-studio.html          # Fragmento HTML (sin <html>/<body>) cargado vía fetch() en #documentStudio
 ├── css/
 │   ├── app.css                   # Estilos de componentes, temas y animaciones extraídos de index.html
@@ -62,6 +62,9 @@ SplitX/
 │   ├── SplitXCurrencies.js       # Presets de moneda, estilos de billetes y sanitización XSS/CSS/imágenes
 │   ├── SplitXBackup.js           # Respaldo íntegro splitx-backup/v1, validación atómica y purga de PII
 │   ├── SplitXBridge.js           # Puente cross-origin postMessage con Sistema de Asistencia (SA)
+│   ├── SplitXEarlyBoot.js        # Arranque externo de la cola temprana de SA (sin <script> inline)
+│   ├── SplitXActionDelegation.js # Delegación declarativa de eventos por lista blanca (data-sx-*)
+│   ├── SplitXApp.js              # Orquestador principal de la interfaz extraído de index.html
 │   ├── SplitXImport.js           # Normalización de empleados y validación del payload de nómina
 │   ├── SplitXExcelImport.js      # Parseo regional estricto (parseMoney: auto/en/es), detección de encabezados y TSV
 │   ├── SplitXImportHistory.js    # Historial de últimas 10 importaciones con límite de cuota
@@ -82,7 +85,7 @@ SplitX/
 ├── qa/chip-formulas/             # Suite aislada de QA para el constructor de fórmulas por chips
 ├── docs/employee-documents.md    # Guía funcional y límites de Documentos personalizados
 ├── package.json                  # Scripts de pruebas, verificación de tipos y compilación CSS
-├── jsconfig.json                 # Configuración de verificación estática checkJs (18 de 22 módulos)
+├── jsconfig.json                 # Configuración de verificación estática checkJs (20 de 25 módulos)
 ├── tailwind.config.js            # Configuración de Tailwind CLI v3 (escanea index.html y js/**/*.js)
 ├── CNAME                         # Dominio personalizado de GitHub Pages (splitx.erlin.do)
 └── .github/workflows/            # CI: test.yml (Test Suite) y qa-chip-formulas.yml
@@ -121,14 +124,13 @@ node -e "const c=require('crypto'); fetch('<URL_INMUTABLE>').then(r=>r.arrayBuff
 
 ### Política CSP (*Content Security Policy*)
 
-GitHub Pages no permite enviar cabeceras HTTP personalizadas desde el repositorio. Si sirves SplitX detrás de un proxy propio (Cloudflare, Nginx, Caddy):
+GitHub Pages no permite enviar cabeceras HTTP personalizadas desde el repositorio. Como `index.html` ya no tiene `<script>` inline ni handlers `on*=` (todo corre por delegación `data-sx-*` en `SplitXActionDelegation.js`), si sirves SplitX detrás de un proxy propio (Cloudflare, Nginx, Caddy) puedes aplicar directamente una **CSP estricta sin `'unsafe-inline'` en `script-src`**:
 
-- **CSP viable hoy** (mientras existan handlers `onclick` inline en `index.html`):
-  ```http
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'
-  ```
-  *(Nota: `connect-src 'self'` es obligatorio para que `DocumentStudio.js` pueda hacer `fetch('document-studio.html')`.)*
-- **CSP objetivo:** una vez completada la migración de los handlers inline restantes a delegación de eventos (seguimiento en [Issue #28](https://github.com/ERCamilo/SplitX/issues/28)), retirar `'unsafe-inline'` de `script-src`.
+```http
+Content-Security-Policy: default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'
+```
+
+*(Nota: `connect-src 'self'` es obligatorio para que `DocumentStudio.js` cargue `document-studio.html`, y la suite E2E [`tests/e2e/mobile-payroll.e2e.js`](tests/e2e/mobile-payroll.e2e.js) ya verifica `script-src 'self'` en Chromium real.)*
 
 ---
 
@@ -151,7 +153,7 @@ GitHub Pages no permite enviar cabeceras HTTP personalizadas desde el repositori
 npm test
 
 # 2. Verificación estática de tipos JS (TypeScript checkJs estricto en jsconfig.json;
-#    actualmente cubre 18 de los 22 módulos en js/ — 100% de los módulos de dominio y seguridad)
+#    actualmente cubre 20 de los 25 módulos en js/ — 100% de los módulos de dominio y seguridad)
 npm run typecheck
 
 # 3. Recompilar Tailwind CSS minificado tras cambiar clases en index.html o js/*.js

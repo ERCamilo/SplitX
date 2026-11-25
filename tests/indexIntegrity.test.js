@@ -18,15 +18,20 @@ describe('index.html structural & script integrity', () => {
         }
     });
 
-    test('inline JavaScript Logic block parses cleanly with zero syntax or duplicate-const errors', () => {
-        const match = html.match(/<!-- JavaScript Logic -->\s*<script>([\s\S]*?)<\/script>/);
-        assert.ok(match, 'inline JavaScript Logic script block must exist');
-        assert.doesNotThrow(() => new Function(match[1]), 'inline script must parse without SyntaxError');
+    test('index.html has zero inline <script> blocks and js/SplitXApp.js parses cleanly (strict CSP)', () => {
+        const inlineScripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
+        assert.equal(inlineScripts.length, 0, 'index.html must not contain inline <script> blocks');
+
+        for (const rel of ['js/SplitXEarlyBoot.js', 'js/SplitXActionDelegation.js', 'js/SplitXApp.js']) {
+            const full = path.join(ROOT, rel);
+            assert.ok(fs.existsSync(full), `missing extracted script: ${rel}`);
+            const code = fs.readFileSync(full, 'utf8');
+            assert.doesNotThrow(() => new Function(code), `${rel} must parse without SyntaxError`);
+        }
     });
 
-    test('extracted catalogs, dialogs, cards and exporters are not duplicated inline in index.html', () => {
-        const match = html.match(/<!-- JavaScript Logic -->\s*<script>([\s\S]*?)<\/script>/);
-        const body = match ? match[1] : '';
+    test('extracted catalogs, dialogs, cards and exporters are not duplicated in js/SplitXApp.js', () => {
+        const body = fs.readFileSync(path.join(ROOT, 'js', 'SplitXApp.js'), 'utf8');
         assert.equal((body.match(/\bconst\s+DEFAULT_BILL_IMAGES\b/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+CURRENCY_PRESETS\b/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+BILL_COLORS\b/g) || []).length, 0);
@@ -43,9 +48,10 @@ describe('index.html structural & script integrity', () => {
     });
 
     test('history modal actions use delegated data-history-action instead of inline onclick interpolation', () => {
-        assert.equal(/onclick="app\.(loadHistoryEntry|deleteHistoryEntry)\(/.test(html), false, 'must not interpolate entry.id into inline onclick');
-        assert.match(html, /data-history-action="load"/);
-        assert.match(html, /data-history-action="delete"/);
+        const appJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXApp.js'), 'utf8');
+        assert.equal(/onclick="app\.(loadHistoryEntry|deleteHistoryEntry)\(/.test(appJs), false, 'must not interpolate entry.id into inline onclick');
+        assert.match(appJs, /data-history-action="load"/);
+        assert.match(appJs, /data-history-action="delete"/);
     });
 
     test('external pinned CDN resources enforce SRI (sha384), crossorigin=anonymous and referrerpolicy=no-referrer', () => {
@@ -99,10 +105,11 @@ describe('index.html structural & script integrity', () => {
     });
 
     test('index.html handles corrupt-backup persistence failure and exposes download/discard controls (#9)', () => {
-        assert.match(html, /SplitXState\.loadOrRecoverState\(/);
+        const appJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXApp.js'), 'utf8');
+        assert.match(appJs, /SplitXState\.loadOrRecoverState\(/);
         assert.match(html, /id="opCorruptBackupCard"/);
-        assert.match(html, /app\.downloadCorruptBackup\(\)/);
-        assert.match(html, /app\.discardCorruptBackup\(\)/);
+        assert.match(html, /data-sx-click="downloadCorruptBackup"/);
+        assert.match(html, /data-sx-click="discardCorruptBackup"/);
     });
 
     test('app CSS, ConfigUI and EditModal are extracted out of index.html (#28)', () => {
@@ -115,8 +122,7 @@ describe('index.html structural & script integrity', () => {
         assert.ok(fs.existsSync(path.join(ROOT, 'css', 'app.css')), 'css/app.css must exist');
         assert.equal(/<style>[\s\S]{100,}<\/style>/.test(head), false, 'large inline <style> block must be extracted to css/app.css');
 
-        const match = html.match(/<!-- JavaScript Logic -->\s*<script>([\s\S]*?)<\/script>/);
-        const body = match ? match[1] : '';
+        const body = fs.readFileSync(path.join(ROOT, 'js', 'SplitXApp.js'), 'utf8');
         assert.equal((body.match(/\bconst\s+renderConfigModal\s*=/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+renderCustomBillsConfig\s*=/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+openEditModal\s*=/g) || []).length, 0);
@@ -125,6 +131,19 @@ describe('index.html structural & script integrity', () => {
         const jsconfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'jsconfig.json'), 'utf8'));
         assert.ok(jsconfig.include.includes('js/SplitXConfigUI.js'));
         assert.ok(jsconfig.include.includes('js/SplitXEditModal.js'));
+        assert.ok(jsconfig.include.includes('js/SplitXActionDelegation.js'));
+        assert.ok(jsconfig.include.includes('js/SplitXEarlyBoot.js'));
+    });
+
+    test('zero inline on* HTML event handlers remain in index.html, SplitXApp.js, or SplitXConfigUI.js (strict CSP)', () => {
+        const offenders = [];
+        for (const rel of ['index.html', 'js/SplitXApp.js', 'js/SplitXConfigUI.js']) {
+            const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+            for (const m of src.matchAll(/\bon[a-z]+\s*=\s*"[^"]*"/gi)) {
+                offenders.push(`${rel}: ${m[0].slice(0, 100)}`);
+            }
+        }
+        assert.deepEqual(offenders, [], `inline event handlers must be migrated to data-sx-* delegation:\n${offenders.join('\n')}`);
     });
 
     test('every icon-only button in index.html, SplitXEmployeeCard and SplitXConfigUI declares an aria-label', () => {
