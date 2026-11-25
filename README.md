@@ -82,7 +82,7 @@ SplitX/
 ├── qa/chip-formulas/             # Suite aislada de QA para el constructor de fórmulas por chips
 ├── docs/employee-documents.md    # Guía funcional y límites de Documentos personalizados
 ├── package.json                  # Scripts de pruebas, verificación de tipos y compilación CSS
-├── jsconfig.json                 # Configuración de verificación estática checkJs (13 de 22 módulos)
+├── jsconfig.json                 # Configuración de verificación estática checkJs (18 de 22 módulos)
 ├── tailwind.config.js            # Configuración de Tailwind CLI v3 (escanea index.html y js/**/*.js)
 ├── CNAME                         # Dominio personalizado de GitHub Pages (splitx.erlin.do)
 └── .github/workflows/            # CI: test.yml (Test Suite) y qa-chip-formulas.yml
@@ -117,7 +117,7 @@ node -e "const c=require('crypto'); fetch('<URL_INMUTABLE>').then(r=>r.arrayBuff
 - **Degradación controlada ante caída de CDN:**
   - *Exportar Excel (`.xlsx`)* y *Exportar PDF* capturan el fallo de carga sin lanzar excepciones no manejadas ni perder datos, mostrando una alerta clara (verificado en [`tests/storageCurrenciesExport.test.js`](tests/storageCurrenciesExport.test.js)).
   - *Importar `.docx`* en Documentos informa que el conversor DOCX no está disponible; la edición manual y `.txt` siguen operativas.
-  - Si falla *Font Awesome*, los botones con texto siguen siendo legibles; algunos botones de solo ícono dependen todavía del tooltip `title` (pendiente completar sus `aria-label` junto con la limpieza de UI).
+  - Si falla *Font Awesome*, los botones con texto siguen siendo legibles y los botones de solo ícono en `index.html`, `SplitXEmployeeCard.js` y `SplitXConfigUI.js` exponen `aria-label` (verificado por prueba automática en `tests/indexIntegrity.test.js`).
 
 ### Política CSP (*Content Security Policy*)
 
@@ -151,7 +151,7 @@ GitHub Pages no permite enviar cabeceras HTTP personalizadas desde el repositori
 npm test
 
 # 2. Verificación estática de tipos JS (TypeScript checkJs estricto en jsconfig.json;
-#    actualmente cubre 13 de los 22 módulos en js/ — el resto sigue en Issue #28)
+#    actualmente cubre 18 de los 22 módulos en js/ — 100% de los módulos de dominio y seguridad)
 npm run typecheck
 
 # 3. Recompilar Tailwind CSS minificado tras cambiar clases en index.html o js/*.js
@@ -175,8 +175,10 @@ npm run test:e2e
 
 ### Cobertura móvil (actual y pendiente)
 
-- **Cubierto hoy en CI (`Test Suite` → job `ui`):** [`tests/e2e/employee-documents.e2e.js`](tests/e2e/employee-documents.e2e.js) valida el viewport móvil `390×844` (apertura desde la barra principal, ausencia de scroll horizontal, visibilidad del editor y vista previa).
-- **Cobertura pendiente (seguimiento en [Issue #28](https://github.com/ERCamilo/SplitX/issues/28)):** añadir pruebas E2E a `390×844` para la pantalla principal de nómina (barra inferior móvil, formulario deslizante de agregar empleado, tarjetas expandibles y modal de operaciones/respaldo).
+- **Cubierto hoy en CI (`Test Suite` → job `ui` a `390×844`):**
+  - [`tests/e2e/mobile-payroll.e2e.js`](tests/e2e/mobile-payroll.e2e.js): pantalla principal de nómina (sin desborde horizontal, FAB y drawer móvil de agregar empleado, marcado de pago por `aria-label`, navegación inferior *Nómina / Mi Caja / Banco* y modal de *Operaciones / Respaldo*).
+  - [`tests/e2e/employee-documents.e2e.js`](tests/e2e/employee-documents.e2e.js): apertura de *Documentos personalizados* desde la barra móvil, sin scroll horizontal, editor y vista previa.
+- **Cobertura pendiente:** flujos táctiles avanzados del Estudio de Hojas (arrastre de chips de fórmulas en pantalla táctil).
 
 ---
 

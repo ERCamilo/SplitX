@@ -11,10 +11,15 @@
     "types": []
   },
   "include": [
+    "js/CashOptimizer.js",
     "js/SheetBuilder.js",
     "js/SplitXSheetFields.js",
     "js/SplitXImportHistory.js",
     "js/SplitXExcelImport.js",
+    "js/SplitXImport.js",
+    "js/SplitXBridge.js",
+    "js/SplitXCore.js",
+    "js/SplitXDocuments.js",
     "js/SplitXStorage.js",
     "js/SplitXState.js",
     "js/SplitXCurrencies.js",

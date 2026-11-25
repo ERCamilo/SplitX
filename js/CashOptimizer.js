@@ -1,15 +1,17 @@
+// @ts-check
 /**
  * Bounded denomination search for one cash assignment.
  *
  * Exact for the configured state/work budgets; otherwise returns the current
  * greedy allocation unchanged. This module neither spends cash nor mutates stock.
  */
-(function (root, factory) {
+(function (/** @type {any} */ root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.CashOptimizer = factory();
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    /** @param {number | string} n */
     const minor = (n) => {
         const x = Number(n);
         const cents = Math.round(x * 100);
@@ -17,11 +19,18 @@
             Math.abs(x * 100 - cents) > 1e-6) throw new Error('Amount must have at most two decimal places.');
         return cents;
     };
+    /** @param {number} a @param {number} b */
     const gcd = (a, b) => {
         while (b) { const t = a % b; a = b; b = t; }
         return a;
     };
 
+    /**
+     * @param {number} amount
+     * @param {number[]} denominations
+     * @param {Record<number, number>} inventory
+     * @param {{ maxStates?: number, maxWork?: number, maxUpdates?: number }} [options]
+     */
     const solveCash = (amount, denominations, inventory, options = {}) => {
         const target = minor(amount);
         if (target < 0) throw new Error('Negative payment is invalid.');
@@ -38,6 +47,7 @@
 
         const greedy = () => {
             let left = target;
+            /** @type {Record<number, number>} */
             const distribution = {};
             for (const p of pairs) {
                 if (left <= 0) break;
@@ -61,6 +71,7 @@
         const maxUpdates = options.maxUpdates ?? 180000;
         if (limit > maxStates || !Number.isSafeInteger(limit)) return original;
 
+        /** @type {Array<{ key: number, count: number, weight: number }>} */
         const chunks = [];
         for (const p of active) {
             let remaining = Math.min(p.stock, Math.floor(target / p.cents)), power = 1;
@@ -78,6 +89,7 @@
         notes[0] = 0;
         // Paths are immutable snapshots: unlike overwritten DP predecessor arrays,
         // they cannot accidentally reuse the same finite-stock denomination.
+        /** @type {Array<{ previous: any, key: number, count: number } | null>} */
         const paths = new Array(limit + 1);
         paths[0] = null;
         let updates = 0;
@@ -99,6 +111,7 @@
         while (best > 0 && notes[best] < 0) best--;
         if (best * unit <= baselineCovered) return original;
 
+        /** @type {Record<number, number>} */
         const distribution = {};
         for (let node = paths[best]; node; node = node.previous) {
             distribution[node.key] = (distribution[node.key] || 0) + node.count;

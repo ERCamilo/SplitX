@@ -122,4 +122,24 @@ describe('index.html structural & script integrity', () => {
         assert.ok(jsconfig.include.includes('js/SplitXConfigUI.js'));
         assert.ok(jsconfig.include.includes('js/SplitXEditModal.js'));
     });
+
+    test('every icon-only button in index.html, SplitXEmployeeCard and SplitXConfigUI declares an aria-label', () => {
+        const missing = [];
+        for (const rel of ['index.html', 'js/SplitXEmployeeCard.js', 'js/SplitXConfigUI.js']) {
+            const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+            for (const m of src.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/gi)) {
+                const attrs = m[1];
+                const inner = m[2];
+                if (!/fa-/.test(inner)) continue;
+                const visibleText = inner
+                    .replace(/<i\b[^>]*>[\s\S]*?<\/i>/gi, '')
+                    .replace(/<[^>]+>/g, '')
+                    .trim();
+                if (!visibleText && !/\baria-label\s*=/.test(attrs)) {
+                    missing.push(`${rel}: ${m[0].replace(/\s+/g, ' ').slice(0, 120)}`);
+                }
+            }
+        }
+        assert.deepEqual(missing, [], `icon-only buttons missing aria-label:\n${missing.join('\n')}`);
+    });
 });

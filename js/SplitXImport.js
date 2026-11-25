@@ -1,8 +1,9 @@
+// @ts-check
 /**
  * SplitXImport.js
  * Normalización de empleados importados (JSON / bridge) al formato interno de SplitX.
  */
-(function (root, factory) {
+(function (/** @type {any} */ root, factory) {
     if (typeof exports === 'object' && typeof module !== 'undefined') {
         module.exports = factory();
     } else {
@@ -18,10 +19,19 @@
         return _importIdSeq;
     };
 
-    // sheetFields: SplitXSheetFields (opcional). parseNumber: parser de números estilo Excel ("1,300.00").
+    /**
+     * sheetFields: SplitXSheetFields (opcional). parseNumber: parser de números estilo Excel ("1,300.00").
+     * @param {{ sheetFields?: any, parseNumber: (s: string) => number }} deps
+     */
     const createImporter = ({ sheetFields = null, parseNumber }) => {
         const parseExcelNumber = parseNumber;
-        const parseImportNumber = (value, fallback = 0) => {
+        /**
+         * @template {number | null} T
+         * @param {unknown} value
+         * @param {T} [fallback]
+         * @returns {number | T}
+         */
+        const parseImportNumber = (value, fallback = /** @type {T} */ (0)) => {
             if (value === undefined || value === null || value === '') return fallback;
             const parsed = typeof value === 'number' ? value : parseExcelNumber(String(value));
             if (!Number.isFinite(parsed) || !Number.isSafeInteger(Math.round(parsed * 100)) ||
@@ -33,9 +43,12 @@
         };
 
         // Una lista de conceptos vacía no cuenta como dato de nómina.
+        /** @param {unknown} v */
         const hasValue = (v) => (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && v !== '');
+        /** @param {Record<string, any>} item */
         const hasPayrollFields = (item) => ['bruto', 'gross', 'bonificaciones', 'bonuses', 'descuentos', 'discounts', 'prestamos', 'loans', 'bonusDetails', 'deductionDetails', 'loanBreakdown'].some(key => hasValue(item[key]));
 
+        /** @param {any} item @param {number} idx */
         const normalizeImportedEmployee = (item, idx) => {
             if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error(`Elemento #${idx + 1}: debe ser un objeto con los datos del colaborador.`);
             const name = item.nombre || item.name;
@@ -44,9 +57,9 @@
             const importedAmount = item.monto ?? item.amount;
             const hasDetails = hasPayrollFields(item);
             const gross = parseImportNumber(item.bruto ?? item.gross, null);
-            const bonuses = parseImportNumber(item.bonificaciones ?? item.bonuses ?? sheetFields?.sumDetailAmounts(item.bonusDetails), 0);
-            const discounts = parseImportNumber(item.descuentos ?? item.discounts ?? sheetFields?.sumDetailAmounts(item.deductionDetails), 0);
-            const loans = parseImportNumber(item.prestamos ?? item.loans ?? sheetFields?.sumLoanAmounts(item.loanBreakdown), 0);
+            const bonuses = /** @type {number} */ (parseImportNumber(item.bonificaciones ?? item.bonuses ?? sheetFields?.sumDetailAmounts(item.bonusDetails), 0));
+            const discounts = /** @type {number} */ (parseImportNumber(item.descuentos ?? item.discounts ?? sheetFields?.sumDetailAmounts(item.deductionDetails), 0));
+            const loans = /** @type {number} */ (parseImportNumber(item.prestamos ?? item.loans ?? sheetFields?.sumLoanAmounts(item.loanBreakdown), 0));
             // Capital, interés y saldo se derivan del desglose por préstamo cuando no vienen explícitos.
             const loanFromBreakdown = sheetFields ? sheetFields.summarizeLoans(item) : null;
             const prestamoCapital = parseImportNumber(item.prestamoCapital ?? item.loanPrincipal ?? item.loanDetails?.principal ?? loanFromBreakdown?.principal, null);
@@ -72,6 +85,7 @@
 
             if (amount === null || amount === undefined || isNaN(amount) || amount < 0) throw new Error(`Elemento #${idx + 1}: Monto inválido.`);
 
+            /** @type {Record<string, any>} */
             const employee = {
                 id: nextImportId(),
                 name,

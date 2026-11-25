@@ -1,18 +1,21 @@
+// @ts-check
 /**
  * SplitXCore.js
  * Lógica pura de distribución de efectivo, resumen de nómina y planificador de banco.
  * Sin DOM: recibe getState() y fmt() para poder probarse en Node.
  */
-(function (root, factory) {
+(function (/** @type {any} */ root, factory) {
     if (typeof exports === 'object' && typeof module !== 'undefined') {
         module.exports = factory(require('./CashOptimizer.js'));
     } else {
         root.SplitXCore = factory(root.CashOptimizer);
     }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (CashOptimizer) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, /** @param {any} CashOptimizer */ function (CashOptimizer) {
     'use strict';
 
+    /** @param {{ getState: () => any, fmt?: (n: number) => string }} deps */
     const createCore = ({ getState, fmt = (n) => String(n) }) => {
+        /** @param {any} emp @returns {number} */
         const getEffectiveEmployeeAmount = (emp) => {
             const state = getState();
             // When in 'normal' mode and employee has payroll breakdown, ignore loan deductions:
@@ -25,7 +28,7 @@
         const getPayrollSummary = () => {
             const state = getState();
             const isNormal = state.payrollMode === 'normal';
-            return state.employees.reduce((summary, emp) => {
+            return state.employees.reduce((/** @type {any} */ summary, /** @type {any} */ emp) => {
                 if (!emp.payroll) {
                     summary.net += emp.amount || 0;
                     return summary;
@@ -85,11 +88,13 @@
             });
         };
 
+        /** @param {number} amount */
         const getIdealBreakdown = (amount) => {
             const state = getState();
+            /** @type {Record<number, number>} */
             const distribution = {};
             let remaining = Math.max(0, Number(amount) || 0);
-            state.denominations.forEach(denom => {
+            state.denominations.forEach((/** @type {number} */ denom) => {
                 const count = Math.floor(remaining / denom);
                 if (count > 0) {
                     distribution[denom] = count;
@@ -102,16 +107,18 @@
 
         // Allocate without mutating employees; keep the original greedy policy as
         // the safe fallback whenever exact search exceeds its bounded resource budget.
+        /** @param {number} amount @param {number[]} denominations @param {Record<number | string, number>} inventory @param {boolean} [optimize] */
         const allocateAvailable = (amount, denominations, inventory, optimize = false) => {
             if (optimize && CashOptimizer && typeof CashOptimizer.solveCash === 'function') {
                 try {
                     const plan = CashOptimizer.solveCash(amount, denominations, inventory);
                     Object.entries(plan.distribution).forEach(([denom, count]) => {
-                        inventory[denom] = (inventory[denom] || 0) - count;
+                        inventory[denom] = (inventory[denom] || 0) - Number(count);
                     });
-                    return { distribution: plan.distribution, remainder: plan.remainder };
+                    return { distribution: /** @type {Record<number, number>} */ (plan.distribution), remainder: /** @type {number} */ (plan.remainder) };
                 } catch (_) { /* preserved/legacy data can still use the old greedy fallback */ }
             }
+            /** @type {Record<number, number>} */
             const distribution = {};
             let remainder = amount;
             denominations.forEach(denom => {
@@ -127,16 +134,21 @@
         };
 
         // 1. Calculate Distribution and Return LEFTOVER Inventory (Practical Approach)
+        /** @param {boolean} [optimize] */
         const calculateDistributionPass = (optimize = false) => {
             const state = getState();
             // We create a deep copy of inventory to simulate payments
+            /** @type {Record<number | string, number>} */
             let currentInventory = { ...state.inventory };
             const isNormal = state.payrollMode === 'normal';
 
-            const results = state.employees.map(emp => {
+            const results = state.employees.map((/** @type {any} */ emp) => {
+                /** @type {Record<number, number>} */
                 let distribution = {};
                 let status = 'ok';
+                /** @type {number | undefined} */
                 let missingAmount; // solo se define para empleados no pagados
+                /** @type {string[]} */
                 let notes = [];
                 const targetAmount = getEffectiveEmployeeAmount(emp);
 
@@ -173,7 +185,7 @@
             // Treat the new-loan reserve as one more pending cash assignment (only in deductions / Nómina mode).
             const payrollSummary = getPayrollSummary();
             const loanFundAmount = isNormal ? 0 : Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-            const loanFundResult = { amount: loanFundAmount, distribution: {}, status: 'ok', missingAmount: 0 };
+            const loanFundResult = { amount: loanFundAmount, distribution: /** @type {Record<number, number>} */ ({}), status: 'ok', missingAmount: 0 };
             const fundAllocation = allocateAvailable(loanFundAmount, state.denominations, currentInventory, optimize);
             loanFundResult.distribution = fundAllocation.distribution;
             const fundRemaining = fundAllocation.remainder;
@@ -192,32 +204,34 @@
         const calculateDistribution = () => {
             const baseline = calculateDistributionPass(false);
             if (!CashOptimizer || typeof CashOptimizer.solveCash !== 'function') return baseline;
-            const baselineMissing = baseline.results.reduce((n, e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
+            const baselineMissing = baseline.results.reduce((/** @type {number} */ n, /** @type {any} */ e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
                 + baseline.loanFundResult.missingAmount;
             if (baselineMissing <= 0) return baseline;
             const candidate = calculateDistributionPass(true);
-            const newlyShort = candidate.results.some((e, i) => !e.paid &&
+            const newlyShort = candidate.results.some((/** @type {any} */ e, /** @type {number} */ i) => !e.paid &&
                 (baseline.results[i]._missingAmount || 0) === 0 && (e._missingAmount || 0) > 0);
             if (newlyShort || (baseline.loanFundResult.missingAmount === 0 && candidate.loanFundResult.missingAmount > 0))
                 return baseline;
-            const candidateMissing = candidate.results.reduce((n, e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
+            const candidateMissing = candidate.results.reduce((/** @type {number} */ n, /** @type {any} */ e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
                 + candidate.loanFundResult.missingAmount;
             return candidateMissing < baselineMissing - 0.001 ? candidate : baseline;
         };
 
         // 2. Bank Planner (Calculates needs ONLY for Unpaid employees)
+            /** @param {any} [precomputedCoverage] */
             const calculateBankNeeds = (precomputedCoverage = null) => {
                 const state = getState();
+                /** @type {Record<number, number>} */
                 let tempTotalBreakdown = {};
-                state.denominations.forEach(d => tempTotalBreakdown[d] = 0);
+                state.denominations.forEach((/** @type {number} */ d) => tempTotalBreakdown[d] = 0);
 
                 // Plan only the portions that could not be covered with cash in the box.
                 const coverage = precomputedCoverage || calculateDistribution();
-                const pendingEmployees = coverage.results.filter(e => !e.paid && e._missingAmount > 0);
+                const pendingEmployees = coverage.results.filter((/** @type {any} */ e) => !e.paid && e._missingAmount > 0);
 
-                pendingEmployees.forEach(emp => {
+                pendingEmployees.forEach((/** @type {any} */ emp) => {
                     let rem = emp._missingAmount;
-                    state.denominations.forEach(denom => {
+                    state.denominations.forEach((/** @type {number} */ denom) => {
                         let count = Math.floor(rem / denom);
                         if (count > 0) {
                             tempTotalBreakdown[denom] += count;
@@ -229,15 +243,16 @@
                 // Cash reserve withdrawn to make new employee loans.
                 const { loanFundResult } = coverage;
                 const loanFundBreakdown = getIdealBreakdown(loanFundResult.missingAmount).distribution;
-                state.denominations.forEach(denom => {
+                state.denominations.forEach((/** @type {number} */ denom) => {
                     tempTotalBreakdown[denom] += loanFundBreakdown[denom] || 0;
                 });
 
                 // Apply Limits & Cascade
+                /** @type {Record<number, { ideal: number, neededAfterCarry: number, final: number }>} */
                 let finalOrder = {};
                 let carryOverAmount = 0;
 
-                state.denominations.forEach(denom => {
+                state.denominations.forEach((/** @type {number} */ denom) => {
                     let needed = tempTotalBreakdown[denom];
                     if (carryOverAmount > 0) {
                         let extraNeeded = Math.floor(carryOverAmount / denom);
@@ -273,11 +288,13 @@
             return _lastGeneratedId;
         };
 
+        /** @param {unknown} val */
         const sanitizeInventoryQty = (val) => {
             const n = Number.parseInt(String(val ?? ''), 10);
             return Number.isFinite(n) && n > 0 ? n : 0;
         };
 
+        /** @param {unknown} valStr @param {((s: string) => number) | null} [parseMoneyFn] */
         const parseManualAmount = (valStr, parseMoneyFn = null) => {
             const raw = String(valStr ?? '').trim();
             if (!raw) return { ok: false, error: 'Ingresa un monto válido.' };
@@ -301,15 +318,17 @@
             }
         };
 
+        /** @param {unknown} rawValue @param {number} collectedLoans @param {((s: string) => number) | null} [parseMoneyFn] */
         const clampLoanFund = (rawValue, collectedLoans, parseMoneyFn = null) => {
             const maxLoans = Math.max(0, Number(collectedLoans) || 0);
             const text = String(rawValue ?? '').trim();
             if (!text) return { ok: true, value: 0 };
             const parsed = parseManualAmount(text, parseMoneyFn);
             if (!parsed.ok) return { ok: false, error: parsed.error };
-            return { ok: true, value: Math.min(parsed.amount, maxLoans) };
+            return { ok: true, value: Math.min(/** @type {number} */ (parsed.amount), maxLoans) };
         };
 
+        /** @param {any[]} employees @param {string} [payrollMode] */
         const roundEmployeeAmounts = (employees, payrollMode = 'normal') => {
             const list = Array.isArray(employees) ? employees : [];
             let count = 0;

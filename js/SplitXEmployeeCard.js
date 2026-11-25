@@ -418,18 +418,18 @@
                 <div class="emp-actions-bar">
                     <button type="button" ${act('remove')}
                         class="w-6 h-6 rounded-md flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all -mr-1 -mt-1"
-                        title="Eliminar empleado">
+                        title="Eliminar empleado" aria-label="Eliminar empleado">
                         <i class="fa-solid fa-xmark text-xs"></i>
                     </button>
                     <div class="flex flex-col items-center gap-1.5 mt-auto">
                         <button type="button" ${act('edit')}
                             class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-750 transition-all border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 bg-white dark:bg-slate-800 shadow-2xs"
-                            title="Editar datos y nómina">
+                            title="Editar datos y nómina" aria-label="Editar datos y nómina">
                             <i class="fa-solid fa-pen text-[11px]"></i>
                         </button>
                         <button type="button" ${act('toggle-paid')}
                             class="w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-2xs ${isPaid ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700' : 'text-slate-300 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}"
-                            title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
+                            title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}" aria-label="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
                             <i class="fa-solid fa-check text-xs"></i>
                         </button>
                     </div>

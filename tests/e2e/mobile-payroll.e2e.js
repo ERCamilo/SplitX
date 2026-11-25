@@ -1,0 +1,59 @@
+const { describe, test } = require('node:test');
+const assert = require('node:assert/strict');
+const { startServer } = require('./server.js');
+const { loadPlaywright } = require('./helpers.js');
+
+describe('mobile payroll workflow at 390x844', () => {
+    test('adds employee via mobile drawer, switches bottom nav views, and opens operations/backup modal', async () => {
+        const server = await startServer();
+        const browser = await loadPlaywright().chromium.launch();
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        const errors = [];
+        page.on('pageerror', (e) => errors.push(e.message));
+        await page.route('**/*', (route) => (route.request().url().startsWith(server.url) ? route.continue() : route.abort()));
+
+        try {
+            await page.goto(`${server.url}/index.html`, { waitUntil: 'load' });
+            await page.evaluate(() => localStorage.clear());
+            await page.reload({ waitUntil: 'load' });
+
+            const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2);
+            assert.equal(noOverflow, true, 'initial mobile payroll view must not overflow horizontally');
+
+            // 1. Add employee via mobile FAB + drawer
+            await page.locator('button.fab[aria-label="Agregar empleado"]').click();
+            await page.waitForSelector('#addDrawer.open');
+            await page.fill('#empNameMobile', 'María Móvil');
+            await page.fill('#empAmountMobile', '2500');
+            await page.locator('#addDrawer button:has-text("Agregar a la Nómina")').click();
+
+            await page.waitForFunction(() => document.getElementById('employeeList')?.textContent?.includes('María Móvil'));
+            assert.match(await page.textContent('#employeeList'), /María Móvil/);
+
+            // 2. Toggle paid via delegated accessible button
+            await page.locator('#employeeList button[aria-label="Marcar como pagado"]').first().click();
+            await page.waitForSelector('#employeeList button[aria-label="Marcar como pendiente"]');
+
+            // 3. Navigate bottom bar: Mi Caja -> Banco -> Nómina
+            await page.locator('#bnav-caja').click();
+            assert.equal(await page.locator('#bnav-caja').evaluate(el => el.classList.contains('active')), true);
+            await page.locator('#bnav-banco').click();
+            assert.equal(await page.locator('#view-bank').isVisible(), true);
+            await page.locator('#bnav-nomina').click();
+            assert.equal(await page.locator('#employeeList').isVisible(), true);
+
+            // 4. Open & close Operations / Backup modal via accessible aria-label buttons
+            await page.locator('nav button[aria-label="Operaciones de nómina"]').click();
+            await page.waitForSelector('#operationsModal:not(.hidden)');
+            assert.match(await page.textContent('#operationsModal'), /Guardar Respaldo/);
+            assert.match(await page.textContent('#operationsModal'), /Purgar Datos Personales/);
+            await page.locator('#operationsModal button[aria-label="Cerrar operaciones"]').click();
+            await page.waitForSelector('#operationsModal.hidden', { state: 'attached' });
+
+            assert.deepEqual(errors, []);
+        } finally {
+            await browser.close();
+            await server.close();
+        }
+    });
+});

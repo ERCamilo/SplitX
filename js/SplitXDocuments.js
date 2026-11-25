@@ -1,8 +1,9 @@
+// @ts-check
 /**
  * Document templates for SplitX. Pure formatting and employee data resolution;
  * no external requests and no modification of payroll or SA records.
  */
-(function (root, factory) {
+(function (/** @type {any} */ root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.SplitXDocuments = factory();
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
@@ -16,8 +17,10 @@
         { key: 'monthlySalary', label: 'Sueldo mensual contractual', type: 'money' },
         { key: 'address', label: 'Dirección', type: 'text' }
     ];
-    const escape = value => String(value ?? '').replace(/[&<>"']/g,
-        c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\u0027':'&#39;'}[c]));
+    /** @type {Record<string, string>} */
+    const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\u0027': '&#39;' };
+    /** @param {unknown} value */
+    const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ESC_MAP[c] || c);
     const example = () => ({
         id: 'carta-ingreso', name: 'Carta de ingreso',
         html: '<h2 style="text-align:center">CONSTANCIA DE INGRESO</h2>' +
@@ -33,18 +36,28 @@
             '<p style="margin-top:50px">__________________________________</p>' +
             '<p>Firma autorizada</p>'
     });
-    const defaultState = () => ({ version: 1, activeId: 'carta-ingreso', templates: [example()], people: {} });
-    const validKey = key => /^[A-Za-z_][A-Za-z0-9_:]*$/.test(key);
+    const defaultState = () => ({
+        version: 1,
+        activeId: 'carta-ingreso',
+        templates: [example()],
+        /** @type {Record<string, Record<string, string>>} */
+        people: {}
+    });
+    /** @param {string} html */
     const placeholders = html => {
-        const values = new Set(), re = /\{\{\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\}\}/g;
+        /** @type {Set<string>} */
+        const values = new Set();
+        const re = /\{\{\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\}\}/g;
         for (const match of String(html || '').matchAll(re)) values.add(match[1]);
         return [...values];
     };
+    /** @param {any} input */
     const safeState = input => {
         const state = defaultState();
         if (!input || typeof input !== 'object') return state;
         const list = Array.isArray(input.templates) ? input.templates : [];
         const seen = new Set();
+        /** @type {Array<{ id: string, name: string, html: string }>} */
         const accepted = [];
         for (const template of list.slice(0, MAX_TEMPLATES)) {
             if (!template || typeof template.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(template.id) ||
@@ -57,13 +70,15 @@
         if (accepted.length) state.templates = accepted;
         state.activeId = state.templates.some(t=>t.id===input.activeId) ? input.activeId : state.templates[0].id;
         if (input.people && typeof input.people === 'object' && !Array.isArray(input.people)) {
+            /** @type {Record<string, Record<string, string>>} */
             const people = {};
             for (const [employeeKey,values] of Object.entries(input.people).slice(0,3000)) {
                 if (!/^[A-Za-z0-9:_-]{1,100}$/.test(employeeKey) ||
                     !values || typeof values !== 'object' || Array.isArray(values)) continue;
+                const valObj = /** @type {Record<string, unknown>} */ (values);
                 people[employeeKey] = {};
                 for (const {key} of PERSON_FIELDS) {
-                    const raw = values[key];
+                    const raw = valObj[key];
                     if (typeof raw === 'string' && raw.length <= 300) people[employeeKey][key] = raw;
                 }
             }
@@ -71,17 +86,20 @@
         }
         return state;
     };
+    /** @param {any} employee */
     const personKey = employee =>
         employee?.sourceEmployeeId ? 'source:'+String(employee.sourceEmployeeId) :
         employee?.employeeNumber ? 'project:'+String(employee.exportContext?.projectId || 'none')+':no:'+String(employee.employeeNumber) :
         employee?.id !== undefined ? 'id:'+String(employee.id) : null;
 
+    /** @param {unknown} value @param {string} [currency] */
     const numberMoney = (value, currency='DOP') => {
         const n = typeof value === 'number' ? value : Number(value);
         if (!Number.isFinite(n)) return '';
         try { return new Intl.NumberFormat('es-DO', {style:'currency',currency,minimumFractionDigits:2}).format(n); }
         catch (_) { return n.toLocaleString('es-DO',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+currency; }
     };
+    /** @param {unknown} raw */
     const dateString = raw => {
         const value=String(raw||'').trim();
         const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -92,18 +110,22 @@
     };
     /**
      * @param {string} html Sanitized template HTML containing {{placeholder}} values
-     * @param {object} employee One imported SplitX employee
+     * @param {any} employee One imported SplitX employee
      * @param {Array<{key:string,label:string,type:string,get:function}>} fields
-     * @param {object} values User-authored values for the specific employee
-     * @param {object} config
+     * @param {Record<string, unknown>} [values] User-authored values for the specific employee
+     * @param {{ today?: string, index?: number, resolveField?: (k: string) => any }} [config]
      */
     const render = (html, employee, fields, values={}, config={}) => {
-        const missing = new Set(), fieldByKey = new Map((fields||[]).map(f=>[f.key,f]));
+        /** @type {Set<string>} */
+        const missing = new Set();
+        const fieldByKey = new Map((fields||[]).map(f=>[f.key,f]));
         const currency = employee?.exportContext?.currency || 'DOP';
         const d = new Date();
         const now = config.today || [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
         const output = String(html||'').replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\}\}/g, (_,key) => {
-            let raw, type='text', label=key;
+            /** @type {any} */
+            let raw;
+            let type='text', label=key;
             const local = PERSON_FIELDS.find(f=>f.key===key);
             if (key === 'today') { raw=now;type='date';label='Fecha actual'; }
             else if (local) { raw=values[key];type=local.type;label=local.label; }
@@ -135,6 +157,7 @@
     };
     // Imported Word documents are not trusted HTML. Strip scripts, URLs,
     // foreign nodes, inline events, images and unapproved CSS before editing.
+    /** @param {string} html @param {any} documentObject */
     const sanitize = (html, documentObject) => {
         if (!documentObject || !documentObject.createElement) throw new Error('Se requiere un documento del navegador.');
         // Parsing HTML as a detached, inert document avoids loading images
@@ -144,6 +167,7 @@
         const outer=parsed.body;
         const allowed = new Set(['P','DIV','BR','H1','H2','H3','H4','B','STRONG','I','EM','U','S','UL','OL','LI','BLOCKQUOTE','SPAN','TABLE','THEAD','TBODY','TR','TH','TD','HR']);
         const blocked = new Set(['SCRIPT','STYLE','IFRAME','SVG','MATH','OBJECT','EMBED','FORM','INPUT','BUTTON','LINK','META','IMG','VIDEO','AUDIO']);
+        /** @param {any} parent */
         const cleanNodes = parent => {
             for (const node of [...parent.childNodes]) {
                 if (node.nodeType===8) {node.remove();continue;}

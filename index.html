@@ -80,16 +80,16 @@
                     <button onclick="app.openHistoryModal()" title="Últimas nóminas importadas" aria-label="Historial de nóminas" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
                         <i class="fa-solid fa-clock-rotate-left text-sm"></i>
                     </button>
-                    <button onclick="app.openExportModal()" title="Exportar nómina (Excel, PDF, CSV)" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
+                    <button onclick="app.openExportModal()" title="Exportar nómina (Excel, PDF, CSV)" aria-label="Exportar nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
                         <i class="fa-solid fa-file-export text-sm"></i>
                     </button>
-                    <button id="themeToggleBtn" onclick="app.toggleTheme()" title="Cambiar tema claro/oscuro" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all">
+                    <button id="themeToggleBtn" onclick="app.toggleTheme()" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro u oscuro" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all">
                         <i class="fa-solid fa-moon text-sm"></i>
                     </button>
-                    <button onclick="app.openConfigModal()" title="Ajustes de sistema y diseño" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
+                    <button onclick="app.openConfigModal()" title="Ajustes de sistema y diseño" aria-label="Ajustes de sistema y diseño" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
                         <i class="fa-solid fa-gear text-sm"></i>
                     </button>
-                    <button onclick="app.openOperationsModal()" title="Operaciones de nómina (Reiniciar / Restaurar / Limpiar)" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all">
+                    <button onclick="app.openOperationsModal()" title="Operaciones de nómina (Reiniciar / Restaurar / Limpiar)" aria-label="Operaciones de nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all">
                         <i class="fa-solid fa-rotate-left text-sm"></i>
                     </button>
                 </div>
@@ -101,7 +101,7 @@
     <div id="storageBanner" class="hidden bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
         <span id="storageBannerText"><strong>Almacenamiento bloqueado:</strong> Los datos solo se conservan mientras esta pestaña permanezca abierta.</span>
-        <button onclick="this.parentElement.classList.add('hidden')" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
+        <button onclick="this.parentElement.classList.add('hidden')" aria-label="Ocultar aviso de almacenamiento" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
             <i class="fa-solid fa-xmark"></i>
         </button>
     </div>
@@ -292,7 +292,7 @@
                             <button id="payrollModeNormal" onclick="app.setPayrollMode('normal')" class="active" title="Sin Préstamos: Bruto + Bonificaciones - Descuentos">Sin Préstamos</button>
                             <button id="payrollModeDeductions" onclick="app.setPayrollMode('deductions')" title="Con Préstamos: Descontar préstamos en nómina">Con Préstamos</button>
                         </div>
-                        <button onclick="app.openImportModal()" class="toolbar-btn blue sm:hidden" title="Importar datos">
+                        <button onclick="app.openImportModal()" class="toolbar-btn blue sm:hidden" title="Importar datos" aria-label="Importar datos">
                             <i class="fa-solid fa-file-import text-xs"></i>
                         </button>
                         <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
@@ -319,7 +319,7 @@
     <!-- ═══════════════════════════════════════════
          MOBILE FAB
     ═══════════════════════════════════════════ -->
-    <button class="fab" onclick="app.openAddDrawer()" title="Agregar empleado">
+    <button class="fab" onclick="app.openAddDrawer()" title="Agregar empleado" aria-label="Agregar empleado">
         <i class="fa-solid fa-plus"></i>
     </button>
 
@@ -375,7 +375,7 @@
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-blue-600 dark:text-sky-400"></i> Ajustes de Sistema
                 </h3>
-                <button onclick="document.getElementById('configModal').classList.add('hidden')" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button onclick="document.getElementById('configModal').classList.add('hidden')" aria-label="Cerrar ajustes" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -642,7 +642,7 @@
             <!-- Header -->
             <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Operaciones de Nómina</h3>
-                <button onclick="app.closeOperationsModal()" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button onclick="app.closeOperationsModal()" aria-label="Cerrar operaciones" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -743,7 +743,7 @@
             <!-- Header -->
             <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Exportar Nómina</h3>
-                <button onclick="app.closeExportModal()" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button onclick="app.closeExportModal()" aria-label="Cerrar exportación" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -795,7 +795,7 @@
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100">Importar Empleados</h3>
-                <button onclick="app.closeImportModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button onclick="app.closeImportModal()" aria-label="Cerrar importación" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -949,7 +949,7 @@
                         <p class="text-[11px] text-slate-400 dark:text-slate-400 truncate font-mono" id="editModalSubtitle">ID: #0</p>
                     </div>
                 </div>
-                <button onclick="app.closeEditModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all shrink-0">
+                <button onclick="app.closeEditModal()" aria-label="Cerrar edición de empleado" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all shrink-0">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>

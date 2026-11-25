@@ -75,7 +75,7 @@
                     chip.className = `px-3 py-1.5 rounded-lg text-xs font-bold font-mono flex items-center gap-2 border shadow-2xs ${isCoinDenom ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/80' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800/80'}`;
                     chip.innerHTML = `
                         <span>${deps.escapeHTML(state.currencySymbol || '')} ${d} ${isCoinDenom ? '<span class="text-[9px] font-sans font-normal opacity-70">🪙</span>' : '<span class="text-[9px] font-sans font-normal opacity-70">💵</span>'}</span>
-                        <button onclick="app.removeDenom(${d})" class="text-slate-400 hover:text-rose-500 transition-colors -mr-1" title="Eliminar denominación"><i class="fa-solid fa-xmark text-xs"></i></button>
+                        <button onclick="app.removeDenom(${d})" class="text-slate-400 hover:text-rose-500 transition-colors -mr-1" title="Eliminar denominación" aria-label="Eliminar denominación ${d}"><i class="fa-solid fa-xmark text-xs"></i></button>
                     `;
                     container.appendChild(chip);
                 });
@@ -239,14 +239,14 @@
                             oninput="app.updateBillColor(${denom}, this.value)"
                             class="w-8 h-7 rounded cursor-pointer border border-slate-200 dark:border-slate-700 p-0.5 bg-white dark:bg-slate-800 shrink-0"
                             title="Cambiar color del billete ${sym} ${denom}">
-                        ${customColor ? `<button onclick="app.resetBillColor(${denom})" class="text-xs text-slate-400 hover:text-red-500 px-1" title="Restaurar color original"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
+                        ${customColor ? `<button onclick="app.resetBillColor(${denom})" class="text-xs text-slate-400 hover:text-red-500 px-1" title="Restaurar color original" aria-label="Restaurar color original de ${denom}"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                         <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors inline-flex items-center gap-1" title="Cargar imagen personalizada">
                             <i class="fa-solid fa-upload"></i> ${customImage ? 'Cambiar' : 'Subir'}
                             <input type="file" accept="image/*" class="hidden" onchange="app.uploadBillImage(${denom}, this)">
                         </label>
-                        ${customImage ? `<button onclick="app.clearBillImage(${denom})" class="text-xs text-rose-500 hover:text-rose-700 px-2 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60" title="Quitar imagen personalizada"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        ${customImage ? `<button onclick="app.clearBillImage(${denom})" class="text-xs text-rose-500 hover:text-rose-700 px-2 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/60" title="Quitar imagen personalizada" aria-label="Quitar imagen personalizada de ${denom}"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </div>
                 `;
                 container.appendChild(row);

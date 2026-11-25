@@ -1,8 +1,9 @@
+// @ts-check
 /**
  * SplitXBridge.js
  * Módulo de integración segura postMessage entre Sistema de Asistencia y SplitX.
  */
-(function (root, factory) {
+(function (/** @type {any} */ root, factory) {
     if (typeof exports === 'object' && typeof module !== 'undefined') {
         module.exports = factory();
     } else if (typeof define === 'function' && define.amd) {
@@ -13,12 +14,14 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    /** @param {string | undefined | null} hostname */
     const isLocalHostname = (hostname) => !hostname || /^(localhost|127\.0\.0\.1)$/i.test(hostname);
 
     // Orígenes de Sistema de Asistencia: su dominio y la copia en GitHub Pages
     // (https://ercamilo.github.io/-Sistema-de-asistencia/; el origen no incluye la ruta).
     const SA_ORIGINS = ['https://asistencia.erlin.do', 'https://ercamilo.github.io'];
 
+    /** @param {string} origin @param {{ allowLocal?: boolean }} [opts] */
     const isAllowedSplitXOrigin = (origin, { allowLocal = true } = {}) => {
         if (!origin) return false;
         if (SA_ORIGINS.includes(origin)) return true;
@@ -27,6 +30,7 @@
         return false;
     };
 
+    /** @param {any} eventSource @param {any} expectedOpener */
     const isAuthorizedSource = (eventSource, expectedOpener) => {
         // En navegador, si existe window.opener, el emisor debe ser exactamente window.opener
         if (expectedOpener && eventSource) {
@@ -35,6 +39,7 @@
         return true;
     };
 
+    /** @param {any} event */
     const replyReady = (event) => {
         if (event.source && typeof event.source.postMessage === 'function') {
             try {
@@ -54,15 +59,18 @@
      * Sistema de Asistencia deja de enviar PING a los 10 s; si SplitX solo escucha
      * tras window.onload, la nómina nunca llega y se muestran los datos viejos.
      * Esta cola responde READY al instante y guarda el payload hasta que attach() lo procese.
+     * @param {any} [windowRef]
      */
     const installEarlyQueue = (windowRef = (typeof window !== 'undefined' ? window : null)) => {
         if (!windowRef || typeof windowRef.addEventListener !== 'function') return null;
         if (windowRef.__splitxEarlyQueue) return windowRef.__splitxEarlyQueue;
         const policy = { allowLocal: isLocalHostname(windowRef.location?.hostname) };
         const queue = {
+            /** @type {Array<{ origin: string, source: any, data: any }>} */
             messages: [],
             active: true,
             contacted: false,
+            /** @param {any} event */
             listener: (event) => {
                 if (!queue.active) return;
                 if (!isAllowedSplitXOrigin(event.origin, policy)) return;
@@ -86,23 +94,38 @@
         return queue;
     };
 
+    /**
+     * @param {{
+     *   getState?: () => any,
+     *   setState?: (s: any) => void,
+     *   saveData?: () => void,
+     *   setCurrencyPreset?: (code: string) => void,
+     *   normalizeEmployee?: (item: any, idx: number) => any,
+     *   showCustomChoice?: (opts: any) => Promise<string>,
+     *   showToast?: (msg: string, type?: string) => void,
+     *   onImported?: ((info: any) => void) | null,
+     *   windowRef?: any
+     * }} [options]
+     */
     const createSplitXBridge = (options = {}) => {
         const {
             getState = () => ({ employees: [] }),
             setState = () => {},
             saveData = () => {},
             setCurrencyPreset = () => {},
-            normalizeEmployee = (item, idx) => item,
+            normalizeEmployee = (item, _idx) => item,
             showCustomChoice = async () => 'replace',
             showToast = () => {},
             onImported = null,
             windowRef = (typeof window !== 'undefined' ? window : null)
         } = options;
 
+        /** @type {Set<string>} */
         const processedTransfers = new Set();
         let gotPayload = false;
         const originPolicy = { allowLocal: isLocalHostname(windowRef?.location?.hostname) };
 
+        /** @param {any} event */
         const handleMessage = async (event) => {
             // 1. Validación de origen permitido
             if (!isAllowedSplitXOrigin(event.origin, originPolicy)) {
@@ -233,7 +256,7 @@
                     }
                 }
 
-                if (state.employees.some(e => e.payroll)) {
+                if (state.employees.some((/** @type {any} */ e) => e.payroll)) {
                     state.payrollMode = 'deductions';
                 }
 
@@ -259,18 +282,19 @@
 
                 return { handled: true, success: true, count: newEmps.length };
             } catch (err) {
+                const errMsg = err instanceof Error ? err.message : String(err);
                 // Un import fallido no consume el transferId: el emisor puede reintentar
                 if (transferId) processedTransfers.delete(transferId);
                 console.error('SplitXBridge postMessage error:', err);
-                showToast(`❌ Error al importar nómina: ${err.message}`, 'error');
+                showToast(`❌ Error al importar nómina: ${errMsg}`, 'error');
                 if (event.source && typeof event.source.postMessage === 'function') {
                     event.source.postMessage({
                         type: 'SPLITX_IMPORT_ERROR',
                         transferId: transferId || null,
-                        error: err.message
+                        error: errMsg
                     }, event.origin);
                 }
-                return { handled: true, error: err.message };
+                return { handled: true, error: errMsg };
             }
         };
 
