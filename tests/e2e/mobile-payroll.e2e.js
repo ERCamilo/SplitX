@@ -17,8 +17,21 @@ describe('mobile payroll workflow at 390x844', () => {
             await page.evaluate(() => localStorage.clear());
             await page.reload({ waitUntil: 'load' });
 
-            const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 2);
-            assert.equal(noOverflow, true, 'initial mobile payroll view must not overflow horizontally');
+            const layout = await page.evaluate(() => {
+                const offenders = [];
+                for (const el of document.querySelectorAll('*')) {
+                    const r = el.getBoundingClientRect();
+                    if (r.width > 0 && r.right > window.innerWidth + 2) {
+                        offenders.push(`${el.tagName}#${el.id || ''}.${String(el.className || '').slice(0, 40)} right=${Math.round(r.right)}`);
+                        if (offenders.length >= 5) break;
+                    }
+                }
+                return { scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth, offenders };
+            });
+            assert.ok(
+                layout.scrollWidth <= layout.innerWidth + 2,
+                `initial mobile payroll view overflowed horizontally: scrollWidth=${layout.scrollWidth} innerWidth=${layout.innerWidth} offenders=${JSON.stringify(layout.offenders)}`
+            );
 
             // 1. Add employee via mobile FAB + drawer
             await page.locator('button.fab[aria-label="Agregar empleado"]').click();
