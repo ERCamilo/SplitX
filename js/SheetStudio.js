@@ -254,7 +254,7 @@
                     ? keys.map((k) => smartRowFor(k, { type: 'number' }, 2))
                     : ['bonuses', 'discounts', 'loans'].map((k) => smartRowFor(k, { type: 'number' }, 2));
                 return cardBase('Sobre detallado', [nameRow(), { cells: [cT([F('gross', 'label')]), cN([F('gross')])] }, ...detail, totalRow(),
-                    { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] }, folioRow()]);
+                { whenEmpty: 'hide', cells: [cT([F('loanBalanceAfter', 'label')], { size: 7.5 }), cN([F('loanBalanceAfter')], { size: 7.5 })] }, folioRow()]);
             }
         },
         { id: 'table-standard', type: 'table', name: 'Firma estándar', hint: 'Días, sueldo por día, bruto y monto entregado', build: () => defaultTableTemplate() },
@@ -424,7 +424,7 @@
         out.active.A = pick('cards', act.A);
         out.active.B = pick('table', act.B);
         if (typeof d.colors === 'boolean') out.colors = d.colors;
-        if (typeof d.logo === 'string' && d.logo.startsWith('data:image/')) out.logo = d.logo;
+        if (typeof d.logo === 'string' && /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i.test(d.logo) && d.logo.length <= 500000) out.logo = d.logo;
         if (Array.isArray(d.recent)) out.recent = d.recent.filter((r) => typeof r === 'string').slice(0, 8);
         const po = d.printOpts || {};
         out.printOpts = {
@@ -1100,7 +1100,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             el.innerHTML = `<button type="button" class="ss-btn primary" id="ssVarsBtn" data-act="vars-open" style="width:100%">+ Variables propias (${state.store.variables.length})</button><div class="ss-search"><input id="ssSearch" class="ss-inp" type="search" placeholder="Buscar chip…" value="${esc(q)}" data-bind="query" aria-label="Buscar chip"></div>
               ${groups.length ? groups.map((g) => `<details class="ss-group" data-group="${esc(g.name)}" ${q || state.open[g.name] ? 'open' : ''}>
                 <summary>${esc(g.name)} <span class="count">${g.items.length}</span></summary><div class="ss-chips">${g.items.join('')}</div></details>`).join('')
-                : '<p class="ss-hint">Ningún chip coincide.</p>'}
+                    : '<p class="ss-hint">Ningún chip coincide.</p>'}
               <p class="ss-hint" style="margin-top:auto">Suelta un campo <strong>sobre la tarjeta</strong> para crear su fila completa, o <strong>dentro de una celda</strong> para armar una fórmula.</p>`;
         };
 
@@ -1123,7 +1123,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
                 <p class="ss-hint">Úsalas en sobres y hojas de firmas. No modifican los importes originales de SA. Puedes combinarlas con campos importados en fórmulas.</p>
                 <div id="ssVarsList" style="display:flex;flex-direction:column;gap:5px;margin:12px 0;max-height:180px;overflow:auto">
                   ${state.store.variables.length ? state.store.variables.map(v =>
-                    `<div class="ss-row-btns" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--border,#ddd);padding:5px 0">
+                `<div class="ss-row-btns" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--border,#ddd);padding:5px 0">
                       <span><strong>${esc(v.label)}</strong> <small>(${esc(v.id)}) · ${v.kind === 'formula' ? 'Cálculo' : 'Valor fijo'}${Object.keys(v.overrides || {}).length ? ' · ' + Object.keys(v.overrides).length + ' excepciones' : ''}</small></span>
                       <span><button class="ss-btn sm" data-act="vars-edit" data-v="${esc(v.id)}" type="button">Editar</button>
                       <button class="ss-btn sm ${state.variableDeleteConfirm === v.id ? 'danger' : ''}" data-act="vars-delete" data-v="${esc(v.id)}" type="button">${state.variableDeleteConfirm === v.id ? 'Confirmar' : 'Eliminar'}</button></span>
@@ -1160,14 +1160,14 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             });
             variableSeedChips = null;
         };
-        const closeVariablesDialog = () => { $('#ssVarsDialog')?.remove(); formulaBuilder=null; variableSeedChips=null; state.variableEdit = null; state.variableDeleteConfirm = null; };
+        const closeVariablesDialog = () => { $('#ssVarsDialog')?.remove(); formulaBuilder = null; variableSeedChips = null; state.variableEdit = null; state.variableDeleteConfirm = null; };
         const variableError = message => { const el = $('#ssVarsMsg'); if (el) el.textContent = message; };
         const saveVariable = () => {
             try {
                 const enteredId = $('#ssVarId').value.trim();
                 const label = $('#ssVarLabel').value.trim();
-                const suggested = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0,32);
-                const id = enteredId || (suggested.match(/^[a-z]/) ? suggested : 'variable_' + suggested).slice(0,32);
+                const suggested = label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 32);
+                const id = enteredId || (suggested.match(/^[a-z]/) ? suggested : 'variable_' + suggested).slice(0, 32);
                 const kind = $('#ssVarKind').value;
                 const original = state.store.variables.find(v => v.id === id);
                 const next = { id, label: $('#ssVarLabel').value.trim(), kind };
@@ -1510,9 +1510,9 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             if (state.sheet === 'A') {
                 html += `<div class="ss-field">Tarjetas ${segHTML('lay.mode', L.mode, [['grid', 'Cuántas por hoja'], ['size', 'Tamaño en mm']])}</div>
                   <div class="ss-grid2">${L.mode === 'grid'
-                    ? `<label class="ss-field">Columnas<input id="ssCols" class="ss-inp ss-num" type="number" min="1" max="6" data-bind="lay.cols" data-type="number" value="${esc(L.cols)}"></label>
+                        ? `<label class="ss-field">Columnas<input id="ssCols" class="ss-inp ss-num" type="number" min="1" max="6" data-bind="lay.cols" data-type="number" value="${esc(L.cols)}"></label>
                        <label class="ss-field">Filas<input id="ssRows" class="ss-inp ss-num" type="number" min="1" max="12" data-bind="lay.rows" data-type="number" value="${esc(L.rows)}"></label>`
-                    : `<label class="ss-field">Ancho (mm)<input id="ssCW" class="ss-inp ss-num" type="number" min="20" max="300" data-bind="lay.cardWidth" data-type="number" value="${esc(L.cardWidth || 90)}"></label>
+                        : `<label class="ss-field">Ancho (mm)<input id="ssCW" class="ss-inp ss-num" type="number" min="20" max="300" data-bind="lay.cardWidth" data-type="number" value="${esc(L.cardWidth || 90)}"></label>
                        <label class="ss-field">Alto (mm)<input id="ssCH" class="ss-inp ss-num" type="number" min="15" max="300" data-bind="lay.cardHeight" data-type="number" value="${esc(L.cardHeight || 55)}"></label>`}
                     <label class="ss-field">Margen (mm)<input id="ssMargin" class="ss-inp ss-num" type="number" min="0" max="40" data-bind="lay.margin" data-type="number" value="${esc(L.margin)}"></label>
                     <label class="ss-field">Separación (mm)<input id="ssGap" class="ss-inp ss-num" type="number" min="0" max="20" data-bind="lay.gap" data-type="number" value="${esc(L.gap)}"></label></div>
@@ -1775,7 +1775,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             return '';
         };
 
-        const moveIn = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return i; [arr[i], arr[j]] = [arr[j], arr[i]]; return j; };
+        const moveIn = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return i;[arr[i], arr[j]] = [arr[j], arr[i]]; return j; };
         const pair = (v) => v.split(':').map((x) => (/^-?\d+$/.test(x) ? +x : x));
 
         const print = () => {
@@ -1811,7 +1811,7 @@ table.ss-sig td { padding:.2em .45em; vertical-align:middle; overflow:hidden; }
             sheet: (v) => { state.sheet = v; state.store.sheet = v; state.sel = null; state.pop = null; touch(); },
             'vars-from-cell': () => {
                 const cell = selCell();
-                if (!cell || !cell.chips.length || cell.chips.some(c => !['field','number','op','paren'].includes(c.kind)))
+                if (!cell || !cell.chips.length || cell.chips.some(c => !['field', 'number', 'op', 'paren'].includes(c.kind)))
                     return toast('Selecciona una celda con un cálculo numérico para guardarlo como variable');
                 variableSeedChips = clone(cell.chips);
                 state.variableEdit = null;

@@ -37,8 +37,8 @@
                 const gross = emp.payroll.gross || 0;
                 const bonuses = emp.payroll.bonuses || 0;
                 const discounts = emp.payroll.discounts || 0;
-                const afterDiscounts = (emp.payroll.afterDiscounts !== undefined && emp.payroll.afterDiscounts !== null) 
-                    ? emp.payroll.afterDiscounts 
+                const afterDiscounts = (emp.payroll.afterDiscounts !== undefined && emp.payroll.afterDiscounts !== null)
+                    ? emp.payroll.afterDiscounts
                     : (gross + bonuses - discounts);
                 const loans = emp.payroll.loans || 0;
                 const netWithLoans = emp.amount !== undefined ? emp.amount : (afterDiscounts - loans);
@@ -132,11 +132,11 @@
             // We create a deep copy of inventory to simulate payments
             let currentInventory = { ...state.inventory };
             const isNormal = state.payrollMode === 'normal';
-        
+
             const results = state.employees.map(emp => {
                 let distribution = {};
                 let status = 'ok';
-                    let missingAmount; // solo se define para empleados no pagados
+                let missingAmount; // solo se define para empleados no pagados
                 let notes = [];
                 const targetAmount = getEffectiveEmployeeAmount(emp);
 
@@ -145,11 +145,11 @@
                     // We DO NOT deduct from currentInventory because payment is done.
                     let remaining = targetAmount;
                     for (let denom of state.denominations) {
-                         let count = Math.floor(remaining / denom);
-                         if (count > 0) {
-                             distribution[denom] = count;
-                             remaining = parseFloat((remaining - (count * denom)).toFixed(2));
-                         }
+                        let count = Math.floor(remaining / denom);
+                        if (count > 0) {
+                            distribution[denom] = count;
+                            remaining = parseFloat((remaining - (count * denom)).toFixed(2));
+                        }
                     }
                 } else {
                     // The improved strategy is evaluated against the old plan
@@ -206,64 +206,154 @@
         };
 
         // 2. Bank Planner (Calculates needs ONLY for Unpaid employees)
-        const calculateBankNeeds = () => {
-            const state = getState();
-            let tempTotalBreakdown = {};
-            state.denominations.forEach(d => tempTotalBreakdown[d] = 0);
+            const calculateBankNeeds = (precomputedCoverage = null) => {
+                const state = getState();
+                let tempTotalBreakdown = {};
+                state.denominations.forEach(d => tempTotalBreakdown[d] = 0);
 
-            // Plan only the portions that could not be covered with cash in the box.
-            const coverage = calculateDistribution();
-            const pendingEmployees = coverage.results.filter(e => !e.paid && e._missingAmount > 0);
+                // Plan only the portions that could not be covered with cash in the box.
+                const coverage = precomputedCoverage || calculateDistribution();
+                const pendingEmployees = coverage.results.filter(e => !e.paid && e._missingAmount > 0);
 
-            pendingEmployees.forEach(emp => {
-                let rem = emp._missingAmount;
-                state.denominations.forEach(denom => {
-                    let count = Math.floor(rem / denom);
-                    if (count > 0) {
-                        tempTotalBreakdown[denom] += count;
-                        rem = parseFloat((rem - (count * denom)).toFixed(2));
-                    }
+                pendingEmployees.forEach(emp => {
+                    let rem = emp._missingAmount;
+                    state.denominations.forEach(denom => {
+                        let count = Math.floor(rem / denom);
+                        if (count > 0) {
+                            tempTotalBreakdown[denom] += count;
+                            rem = parseFloat((rem - (count * denom)).toFixed(2));
+                        }
+                    });
                 });
-            });
 
-            // Cash reserve withdrawn to make new employee loans.
-            const { loanFundResult } = coverage;
-            const loanFundBreakdown = getIdealBreakdown(loanFundResult.missingAmount).distribution;
-            state.denominations.forEach(denom => {
-                tempTotalBreakdown[denom] += loanFundBreakdown[denom] || 0;
-            });
+                // Cash reserve withdrawn to make new employee loans.
+                const { loanFundResult } = coverage;
+                const loanFundBreakdown = getIdealBreakdown(loanFundResult.missingAmount).distribution;
+                state.denominations.forEach(denom => {
+                    tempTotalBreakdown[denom] += loanFundBreakdown[denom] || 0;
+                });
 
-            // Apply Limits & Cascade
-            let finalOrder = {};
-            let carryOverAmount = 0;
+                // Apply Limits & Cascade
+                let finalOrder = {};
+                let carryOverAmount = 0;
 
-            state.denominations.forEach(denom => {
-                let needed = tempTotalBreakdown[denom];
-                if (carryOverAmount > 0) {
-                    let extraNeeded = Math.floor(carryOverAmount / denom);
-                    needed += extraNeeded;
-                    carryOverAmount = parseFloat((carryOverAmount - (extraNeeded * denom)).toFixed(2));
-                }
-                let limit = state.bankLimits[denom];
-                let actualLimit = (limit === undefined || limit === null || limit === "") ? Infinity : parseInt(limit);
+                state.denominations.forEach(denom => {
+                    let needed = tempTotalBreakdown[denom];
+                    if (carryOverAmount > 0) {
+                        let extraNeeded = Math.floor(carryOverAmount / denom);
+                        needed += extraNeeded;
+                        carryOverAmount = parseFloat((carryOverAmount - (extraNeeded * denom)).toFixed(2));
+                    }
+                    let limit = state.bankLimits[denom];
+                    let actualLimit = (limit === undefined || limit === null || limit === "") ? Infinity : parseInt(limit);
 
-                let take = Math.min(needed, actualLimit);
-                finalOrder[denom] = {
-                    ideal: tempTotalBreakdown[denom], 
-                    neededAfterCarry: needed, 
-                    final: take
-                };
+                    let take = Math.min(needed, actualLimit);
+                    finalOrder[denom] = {
+                        ideal: tempTotalBreakdown[denom],
+                        neededAfterCarry: needed,
+                        final: take
+                    };
 
-                let diffCount = needed - take;
-                if (diffCount > 0) carryOverAmount += (diffCount * denom);
-            });
-        
-            return { breakdown: finalOrder, remainder: carryOverAmount };
+                    let diffCount = needed - take;
+                    if (diffCount > 0) carryOverAmount += (diffCount * denom);
+                });
+
+                return { breakdown: finalOrder, remainder: carryOverAmount };
+            };
+
+
+            return { getEffectiveEmployeeAmount, getPayrollSummary, getIdealBreakdown, calculateDistribution, calculateBankNeeds };
         };
 
+        // Pure domain helpers extracted from index.html for testability and safety.
+        let _lastGeneratedId = 0;
+        const nextEmployeeId = () => {
+            const now = Date.now();
+            _lastGeneratedId = now > _lastGeneratedId ? now : _lastGeneratedId + 1;
+            return _lastGeneratedId;
+        };
 
-        return { getEffectiveEmployeeAmount, getPayrollSummary, getIdealBreakdown, calculateDistribution, calculateBankNeeds };
-    };
+        const sanitizeInventoryQty = (val) => {
+            const n = Number.parseInt(String(val ?? ''), 10);
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        };
 
-    return { createCore };
-});
+        const parseManualAmount = (valStr, parseMoneyFn = null) => {
+            const raw = String(valStr ?? '').trim();
+            if (!raw) return { ok: false, error: 'Ingresa un monto válido.' };
+            try {
+                let amount;
+                if (typeof parseMoneyFn === 'function') {
+                    amount = parseMoneyFn(raw);
+                } else {
+                    const n = Number(raw);
+                    if (!Number.isFinite(n) || Math.abs(n * 100 - Math.round(n * 100)) > 1e-6) {
+                        throw new Error('Monto inválido o con más de dos decimales.');
+                    }
+                    amount = Math.round(n * 100) / 100;
+                }
+                if (!Number.isFinite(amount) || amount < 0) {
+                    return { ok: false, error: 'El monto no puede ser negativo.' };
+                }
+                return { ok: true, amount };
+            } catch (err) {
+                return { ok: false, error: err instanceof Error ? err.message : 'Monto inválido.' };
+            }
+        };
+
+        const clampLoanFund = (rawValue, collectedLoans, parseMoneyFn = null) => {
+            const maxLoans = Math.max(0, Number(collectedLoans) || 0);
+            const text = String(rawValue ?? '').trim();
+            if (!text) return { ok: true, value: 0 };
+            const parsed = parseManualAmount(text, parseMoneyFn);
+            if (!parsed.ok) return { ok: false, error: parsed.error };
+            return { ok: true, value: Math.min(parsed.amount, maxLoans) };
+        };
+
+        const roundEmployeeAmounts = (employees, payrollMode = 'normal') => {
+            const list = Array.isArray(employees) ? employees : [];
+            let count = 0;
+            const next = list.map(emp => {
+                const hasPayroll = !!(emp && emp.payroll);
+                const curAmount = Number(emp?.amount) || 0;
+                const curAfter = hasPayroll && emp.payroll.afterDiscounts !== undefined && emp.payroll.afterDiscounts !== null
+                    ? Number(emp.payroll.afterDiscounts)
+                    : null;
+                const effective = (payrollMode === 'normal' && curAfter !== null) ? curAfter : curAmount;
+                const amountHasCents = curAmount !== Math.floor(curAmount);
+                const afterHasCents = curAfter !== null && curAfter !== Math.floor(curAfter);
+                if (effective === Math.floor(effective) && !amountHasCents && !afterHasCents) {
+                    return emp;
+                }
+                count += 1;
+                const newAmount = Math.floor(curAmount);
+                if (!hasPayroll) return { ...emp, amount: newAmount };
+                const newAfter = curAfter !== null ? Math.floor(curAfter) : emp.payroll.afterDiscounts;
+                const calcNet = emp.payroll.calculatedNet;
+                const diff = (calcNet !== undefined && calcNet !== null)
+                    ? Math.round((newAmount - calcNet) * 100) / 100
+                    : emp.payroll.difference;
+                return {
+                    ...emp,
+                    amount: newAmount,
+                    payroll: {
+                        ...emp.payroll,
+                        afterDiscounts: newAfter,
+                        net: newAmount,
+                        difference: diff,
+                        reconciled: diff === null || diff === undefined ? emp.payroll.reconciled : Math.abs(diff) <= 0.01
+                    }
+                };
+            });
+            return { employees: next, count };
+        };
+
+        return {
+            createCore,
+            nextEmployeeId,
+            sanitizeInventoryQty,
+            parseManualAmount,
+            clampLoanFund,
+            roundEmployeeAmounts
+        };
+    });

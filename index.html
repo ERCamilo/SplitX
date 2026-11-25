@@ -14,9 +14,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="js/SplitXStorage.js"></script>
+    <script src="js/SplitXCurrencies.js"></script>
     <script src="js/SplitXState.js"></script>
     <script src="js/SplitXImportHistory.js"></script>
     <script src="js/CashOptimizer.js"></script>
@@ -24,6 +23,7 @@
     <script src="js/SplitXSheetFields.js"></script>
     <script src="js/SplitXImport.js"></script>
     <script src="js/SplitXExcelImport.js"></script>
+    <script src="js/SplitXExport.js"></script>
     <script src="js/SheetBuilder.js"></script>
     <script src="js/SplitXVariables.js"></script>
     <script src="js/SplitXFormulaBuilder.js"></script>
@@ -978,10 +978,10 @@
         </div>
     </nav>
 
-    <!-- Storage Warning Banner (shown only when localStorage is blocked) -->
+    <!-- Storage Warning Banner (shown when localStorage is blocked or quota is exceeded) -->
     <div id="storageBanner" class="hidden bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
-        <span><strong>Almacenamiento bloqueado:</strong> El archivo está abierto desde OneDrive o una red compartida. Los datos <strong>no se guardan</strong> al cerrar la pestaña. Para guardar permanentemente, copia el archivo a una carpeta local de tu PC (ej. Escritorio).</span>
+        <span id="storageBannerText"><strong>Almacenamiento bloqueado:</strong> Los datos solo se conservan mientras esta pestaña permanezca abierta.</span>
         <button onclick="this.parentElement.classList.add('hidden')" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
             <i class="fa-solid fa-xmark"></i>
         </button>
@@ -1641,11 +1641,15 @@
                         <i class="fa-solid fa-code mr-1"></i> JSON
                     </button>
                 </div>
-                <div id="importInfo-excel" class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-100 dark:border-blue-900 mb-3">
-                    <p class="text-[10px] font-mono text-blue-600 dark:text-sky-400 uppercase tracking-wide mb-1 font-bold">Formato Excel (copiar y pegar)</p>
-                    <p class="text-xs text-blue-800 dark:text-sky-200 mb-1">Copia las filas directamente desde Excel. Columnas separadas por tabulaciones:</p>
-                    <code class="text-[10px] font-mono text-blue-600 dark:text-sky-300 block whitespace-pre bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ ... │ Monto Neto</code>
-                    <p class="text-[10px] text-blue-600 dark:text-sky-400 mt-1">✓ Se usa la <strong>última columna</strong> como monto neto.</p>
+                <div id="importInfo-excel" class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-100 dark:border-blue-900 mb-3 space-y-1.5">
+                    <p class="text-[10px] font-mono text-blue-600 dark:text-sky-400 uppercase tracking-wide font-bold">Formato Excel (copiar y pegar columnas separadas por Tab)</p>
+                    <p class="text-[11px] text-blue-800 dark:text-sky-200"><strong>1. Simple (3 columnas):</strong></p>
+                    <code class="text-[10px] font-mono text-blue-700 dark:text-sky-300 block whitespace-pre overflow-x-auto bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ Monto Neto</code>
+                    <p class="text-[11px] text-blue-800 dark:text-sky-200"><strong>2. Nómina completa (mismo orden del Excel exportado por SplitX):</strong></p>
+                    <code class="text-[10px] font-mono text-blue-700 dark:text-sky-300 block whitespace-pre overflow-x-auto bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ Bruto │ Bonif. │ Desc. │ Despues desc. │ Prestamos │ Neto</code>
+                    <p class="text-[10px] text-blue-600 dark:text-sky-400 leading-snug">
+                        ✓ También acepta 7 columnas sin <em>Despues desc.</em> o <strong>pegar con encabezados</strong> (en cualquier orden) directamente desde la hoja exportada por SplitX; las columnas de denominaciones y filas de totales se omiten automáticamente.
+                    </p>
                 </div>
                 <div id="excelFormatRow" class="flex items-center gap-2 mb-3">
                     <label for="excelAmountFormat" class="text-xs font-medium text-slate-600 dark:text-slate-300">Formato de montos</label>
@@ -1926,360 +1930,15 @@
     <!-- JavaScript Logic -->
     <script>
         const app = (() => {
-            // Default currency image paths per currency code
-            const DEFAULT_BILL_IMAGES = {
-                DOP: {
-                    2000: 'imagenes/DOP/billetes/2000pesos.jpg',
-                    1000: 'imagenes/DOP/billetes/1000pesos.jpg',
-                    500:  'imagenes/DOP/billetes/500pesos.jpg',
-                    200:  'imagenes/DOP/billetes/200pesos.jpg',
-                    100:  'imagenes/DOP/billetes/100pesos.jpg',
-                    50:   'imagenes/DOP/billetes/50pesos.jpg',
-                    25:   'imagenes/DOP/monedas/25pesos.jpg',
-                    10:   'imagenes/DOP/monedas/10pesos.jpg',
-                    5:    'imagenes/DOP/monedas/5pesos.jpg',
-                    1:    'imagenes/DOP/monedas/1peso.jpg',
-                }
-            };
-
-            // Global Currency Presets Catalog
-            const CURRENCY_PRESETS = {
-                DOP: {
-                    code: 'DOP',
-                    flag: '🇩🇴',
-                    name: 'Rep. Dominicana',
-                    currencyName: 'Peso Dominicano',
-                    symbol: 'RD$',
-                    denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
-                    coinDenoms: [25, 10, 5, 1],
-                    images: {
-                        2000: 'imagenes/DOP/billetes/2000pesos.jpg',
-                        1000: 'imagenes/DOP/billetes/1000pesos.jpg',
-                        500:  'imagenes/DOP/billetes/500pesos.jpg',
-                        200:  'imagenes/DOP/billetes/200pesos.jpg',
-                        100:  'imagenes/DOP/billetes/100pesos.jpg',
-                        50:   'imagenes/DOP/billetes/50pesos.jpg',
-                        25:   'imagenes/DOP/monedas/25pesos.jpg',
-                        10:   'imagenes/DOP/monedas/10pesos.jpg',
-                        5:    'imagenes/DOP/monedas/5pesos.jpg',
-                        1:    'imagenes/DOP/monedas/1peso.jpg',
-                    },
-                    colors: {
-                        2000: '#4A90E2',
-                        1000: '#E05A6D',
-                        500:  '#26A69A',
-                        200:  '#D81B60',
-                        100:  '#F57C00',
-                        50:   '#8E44AD',
-                        25:   '#b8952a',
-                        10:   '#607d8b',
-                        5:    '#8d6e63',
-                        1:    '#a0784c'
-                    }
-                },
-                USD: {
-                    code: 'USD',
-                    flag: '🇺🇸',
-                    name: 'EE.UU. / Dólar Global',
-                    currencyName: 'Dólar Estadounidense',
-                    symbol: '$',
-                    denominations: [100, 50, 20, 10, 5, 2, 1, 0.25, 0.10, 0.05, 0.01],
-                    coinDenoms: [1, 0.25, 0.10, 0.05, 0.01],
-                    colors: {
-                        100: '#14532d',
-                        50: '#166534',
-                        20: '#15803d',
-                        10: '#16a34a',
-                        5: '#22c55e',
-                        2: '#4ade80',
-                        1: '#86efac',
-                        0.25: '#94a3b8',
-                        0.10: '#cbd5e1',
-                        0.05: '#cbd5e1',
-                        0.01: '#b45309'
-                    }
-                },
-                EUR: {
-                    code: 'EUR',
-                    flag: '🇪🇺',
-                    name: 'Zona Euro',
-                    currencyName: 'Euro',
-                    symbol: '€',
-                    denominations: [200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10, 0.05],
-                    coinDenoms: [2, 1, 0.50, 0.20, 0.10, 0.05],
-                    colors: {
-                        200: '#ca8a04',
-                        100: '#15803d',
-                        50: '#ea580c',
-                        20: '#1d4ed8',
-                        10: '#dc2626',
-                        5: '#64748b',
-                        2: '#b45309',
-                        1: '#d97706',
-                        0.50: '#eab308',
-                        0.20: '#eab308',
-                        0.10: '#eab308',
-                        0.05: '#b45309'
-                    }
-                },
-                MXN: {
-                    code: 'MXN',
-                    flag: '🇲🇽',
-                    name: 'México',
-                    currencyName: 'Peso Mexicano',
-                    symbol: '$',
-                    denominations: [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.50],
-                    coinDenoms: [10, 5, 2, 1, 0.50],
-                    colors: {
-                        1000: '#0369a1',
-                        500: '#15803d',
-                        200: '#4d7c0f',
-                        100: '#b91c1c',
-                        50: '#c026d3',
-                        20: '#0284c7',
-                        10: '#d97706',
-                        5: '#ca8a04',
-                        2: '#ca8a04',
-                        1: '#ca8a04',
-                        0.50: '#94a3b8'
-                    }
-                },
-                COP: {
-                    code: 'COP',
-                    flag: '🇨🇴',
-                    name: 'Colombia',
-                    currencyName: 'Peso Colombiano',
-                    symbol: '$',
-                    denominations: [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50],
-                    coinDenoms: [1000, 500, 200, 100, 50],
-                    colors: {
-                        100000: '#1e3a8a',
-                        50000: '#6b21a8',
-                        20000: '#ea580c',
-                        10000: '#be123c',
-                        5000: '#047857',
-                        2000: '#0284c7',
-                        1000: '#b45309',
-                        500: '#b45309',
-                        200: '#64748b',
-                        100: '#64748b',
-                        50: '#94a3b8'
-                    }
-                },
-                BRL: {
-                    code: 'BRL',
-                    flag: '🇧🇷',
-                    name: 'Brasil',
-                    currencyName: 'Real Brasileño',
-                    symbol: 'R$',
-                    denominations: [200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.25, 0.10, 0.05],
-                    coinDenoms: [1, 0.50, 0.25, 0.10, 0.05],
-                    colors: {
-                        200: '#78716c',
-                        100: '#0284c7',
-                        50: '#ea580c',
-                        20: '#ca8a04',
-                        10: '#dc2626',
-                        5: '#7c3aed',
-                        2: '#0d9488',
-                        1: '#d97706',
-                        0.50: '#94a3b8',
-                        0.25: '#b45309',
-                        0.10: '#b45309',
-                        0.05: '#b45309'
-                    }
-                },
-                CLP: {
-                    code: 'CLP',
-                    flag: '🇨🇱',
-                    name: 'Chile',
-                    currencyName: 'Peso Chileno',
-                    symbol: '$',
-                    denominations: [20000, 10000, 5000, 2000, 1000, 500, 100, 50, 10],
-                    coinDenoms: [500, 100, 50, 10],
-                    colors: {
-                        20000: '#ea580c',
-                        10000: '#0284c7',
-                        5000: '#be123c',
-                        2000: '#7c3aed',
-                        1000: '#15803d',
-                        500: '#b45309',
-                        100: '#ca8a04',
-                        50: '#ca8a04',
-                        10: '#94a3b8'
-                    }
-                },
-                PEN: {
-                    code: 'PEN',
-                    flag: '🇵🇪',
-                    name: 'Perú',
-                    currencyName: 'Sol Peruano',
-                    symbol: 'S/',
-                    denominations: [200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10],
-                    coinDenoms: [5, 2, 1, 0.50, 0.20, 0.10],
-                    colors: {
-                        200: '#7e22ce',
-                        100: '#0284c7',
-                        50: '#991b1b',
-                        20: '#ea580c',
-                        10: '#15803d',
-                        5: '#b45309',
-                        2: '#ca8a04',
-                        1: '#ca8a04',
-                        0.50: '#94a3b8',
-                        0.20: '#94a3b8',
-                        0.10: '#94a3b8'
-                    }
-                },
-                ARS: {
-                    code: 'ARS',
-                    flag: '🇦🇷',
-                    name: 'Argentina',
-                    currencyName: 'Peso Argentino',
-                    symbol: '$',
-                    denominations: [20000, 10000, 2000, 1000, 500, 200, 100],
-                    coinDenoms: [100],
-                    colors: {
-                        20000: '#1e3a8a',
-                        10000: '#0369a1',
-                        2000: '#0f766e',
-                        1000: '#ea580c',
-                        500: '#15803d',
-                        200: '#0284c7',
-                        100: '#7c3aed'
-                    }
-                },
-                RUB: {
-                    code: 'RUB',
-                    flag: '🇷🇺',
-                    name: 'Rusia',
-                    currencyName: 'Rublo Ruso',
-                    symbol: '₽',
-                    denominations: [5000, 2000, 1000, 500, 200, 100, 50, 10, 5, 2, 1],
-                    coinDenoms: [10, 5, 2, 1],
-                    colors: {
-                        5000: '#b91c1c',
-                        2000: '#1d4ed8',
-                        1000: '#047857',
-                        500: '#7c3aed',
-                        200: '#16a34a',
-                        100: '#ea580c',
-                        50: '#0284c7',
-                        10: '#b45309',
-                        5: '#ca8a04',
-                        2: '#94a3b8',
-                        1: '#94a3b8'
-                    }
-                },
-                JPY: {
-                    code: 'JPY',
-                    flag: '🇯🇵',
-                    name: 'Japón',
-                    currencyName: 'Yen Japonés',
-                    symbol: '¥',
-                    denominations: [10000, 5000, 2000, 1000, 500, 100, 50, 10, 5, 1],
-                    coinDenoms: [500, 100, 50, 10, 5, 1],
-                    colors: {
-                        10000: '#78716c',
-                        5000: '#7c3aed',
-                        2000: '#15803d',
-                        1000: '#0284c7',
-                        500: '#ca8a04',
-                        100: '#94a3b8',
-                        50: '#94a3b8',
-                        10: '#b45309',
-                        5: '#ca8a04',
-                        1: '#cbd5e1'
-                    }
-                },
-                GBP: {
-                    code: 'GBP',
-                    flag: '🇬🇧',
-                    name: 'Reino Unido',
-                    currencyName: 'Libra Esterlina',
-                    symbol: '£',
-                    denominations: [50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01],
-                    coinDenoms: [2, 1, 0.50, 0.20, 0.10, 0.05, 0.02, 0.01],
-                    colors: {
-                        50: '#b91c1c',
-                        20: '#6b21a8',
-                        10: '#ea580c',
-                        5: '#0284c7',
-                        2: '#b45309',
-                        1: '#ca8a04',
-                        0.50: '#94a3b8',
-                        0.20: '#94a3b8',
-                        0.10: '#94a3b8',
-                        0.05: '#94a3b8',
-                        0.02: '#b45309',
-                        0.01: '#b45309'
-                    }
-                },
-                CHF: {
-                    code: 'CHF',
-                    flag: '🇨🇭',
-                    name: 'Suiza',
-                    currencyName: 'Franco Suizo',
-                    symbol: 'CHF',
-                    denominations: [1000, 200, 100, 50, 20, 10, 5, 2, 1, 0.50, 0.20, 0.10, 0.05],
-                    coinDenoms: [5, 2, 1, 0.50, 0.20, 0.10, 0.05],
-                    colors: {
-                        1000: '#7c3aed',
-                        200: '#78716c',
-                        100: '#0284c7',
-                        50: '#16a34a',
-                        20: '#dc2626',
-                        10: '#ca8a04',
-                        5: '#94a3b8',
-                        2: '#94a3b8',
-                        1: '#94a3b8',
-                        0.50: '#94a3b8',
-                        0.20: '#ca8a04',
-                        0.10: '#ca8a04',
-                        0.05: '#ca8a04'
-                    }
-                },
-                INR: {
-                    code: 'INR',
-                    flag: '🇮🇳',
-                    name: 'India',
-                    currencyName: 'Rupia India',
-                    symbol: '₹',
-                    denominations: [500, 200, 100, 50, 20, 10, 5, 2, 1],
-                    coinDenoms: [20, 10, 5, 2, 1],
-                    colors: {
-                        500: '#78716c',
-                        200: '#ea580c',
-                        100: '#6366f1',
-                        50: '#06b6d4',
-                        20: '#ca8a04',
-                        10: '#78350f',
-                        5: '#ca8a04',
-                        2: '#94a3b8',
-                        1: '#94a3b8'
-                    }
-                },
-                PHP: {
-                    code: 'PHP',
-                    flag: '🇵🇭',
-                    name: 'Filipinas',
-                    currencyName: 'Peso Filipino',
-                    symbol: '₱',
-                    denominations: [1000, 500, 200, 100, 50, 20, 10, 5, 1],
-                    coinDenoms: [20, 10, 5, 1],
-                    colors: {
-                        1000: '#0284c7',
-                        500: '#ca8a04',
-                        200: '#15803d',
-                        100: '#7c3aed',
-                        50: '#dc2626',
-                        20: '#ea580c',
-                        10: '#94a3b8',
-                        5: '#94a3b8',
-                        1: '#94a3b8'
-                    }
-                }
-            };
+            const {
+                DEFAULT_BILL_IMAGES,
+                CURRENCY_PRESETS,
+                BILL_COLORS,
+                escapeHTML,
+                sanitizeCurrencySymbol,
+                sanitizeHexColor
+            } = SplitXCurrencies;
+            const escHtml = escapeHTML;
 
             const isCoin = (denom) => {
                 const d = Number(denom);
@@ -2390,11 +2049,10 @@
             // --- IMPORT HISTORY (últimas nóminas importadas) ---
             let saBridge = null;
             const historyStorage = {
-                getItem: (k) => localStorage.getItem(k),
-                setItem: (k, v) => localStorage.setItem(k, v)
+                getItem: (k) => appStorage.get(k),
+                setItem: (k, v) => appStorage.set(k, v)
             };
             const loadHistory = () => (typeof SplitXImportHistory === 'undefined' ? [] : SplitXImportHistory.load(historyStorage));
-            const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
             // Guarda la importación en el historial y la marca como la nómina cargada.
             const recordImport = ({ employees, source, context = null, period = null, currency = null }) => {
@@ -2486,7 +2144,7 @@
             const loadHistoryEntry = async (id) => {
                 const entry = loadHistory().find(e => e.id === id);
                 if (!entry) return showToast('Esa nómina ya no está en el historial.', 'error');
-                const newEmps = SplitXImportHistory.restoreEmployees(entry).map((e, idx) => ({ ...e, id: Date.now() + idx }));
+                const newEmps = SplitXImportHistory.restoreEmployees(entry).map((e) => ({ ...e, id: SplitXCore.nextEmployeeId() }));
                 let choice = 'replace';
                 if (state.employees.length > 0) {
                     const d = SplitXImportHistory.describeEntry(entry);
@@ -2534,35 +2192,38 @@
                 renderHistoryList();
             };
 
-            // Storage helper — falls back to in-memory if localStorage is blocked (e.g. file:// from OneDrive)
-            let _memStore = null;
-            let _storageWarned = false;
-            const storageGet = (key) => {
-                try { return localStorage.getItem(key); } catch(e) { return _memStore; }
-            };
-            const storageSet = (key, val) => {
-                try {
-                    localStorage.setItem(key, val);
-                } catch(e) {
-                    _memStore = val;
-                    if (!_storageWarned) {
-                        _storageWarned = true;
-                        console.warn('SplitX: localStorage bloqueado (archivo abierto desde OneDrive o red). Los datos solo se guardan mientras la pestaña esté abierta. Para guardar permanentemente, copia el archivo a una carpeta local.');
-                        const banner = document.getElementById('storageBanner');
-                        if (banner) banner.classList.remove('hidden');
+            // Unified storage adapter (SplitXStorage): multi-key memory fallback + quota vs blocked diagnostics
+            let _storageWarnedReason = null;
+            const appStorage = SplitXStorage.createStorage({
+                onError: ({ reason }) => {
+                    if (_storageWarnedReason === reason) return;
+                    _storageWarnedReason = reason;
+                    const banner = document.getElementById('storageBanner');
+                    const textEl = document.getElementById('storageBannerText');
+                    if (reason === 'quota') {
+                        console.warn('SplitX: cuota de localStorage agotada. Los cambios recientes están solo en memoria.');
+                        if (textEl) {
+                            textEl.innerHTML = '<strong>Almacenamiento lleno (cuota agotada):</strong> No hay espacio libre en este navegador para guardar cambios. Elimina imágenes personalizadas pesadas o entradas antiguas del historial.';
+                        }
+                    } else {
+                        console.warn('SplitX: localStorage bloqueado. Los datos solo se guardan mientras la pestaña esté abierta.');
+                        if (textEl) {
+                            textEl.innerHTML = '<strong>Almacenamiento bloqueado:</strong> El navegador impide guardar datos locales (ej. archivo abierto desde OneDrive/red o modo privado). Los datos <strong>no se guardarán</strong> al cerrar la pestaña.';
+                        }
                     }
+                    if (banner) banner.classList.remove('hidden');
                 }
-            };
-            const storageRemove = (key) => {
-                try { localStorage.removeItem(key); } catch(e) { _memStore = null; }
-            };
+            });
+            const storageGet = (key) => appStorage.get(key);
+            const storageSet = (key, val) => appStorage.set(key, val);
+            const storageRemove = (key) => appStorage.remove(key);
 
             const loadData = () => {
-                const saved = storageGet('Split_data');
+                const saved = storageGet(SplitXStorage.KEYS.DATA);
                 const loaded = SplitXState.parseSavedState(saved);
                 if (!loaded.ok) {
                     // Keep corrupt user data for explicit recovery, instead of crashing on startup.
-                    storageSet('Split_data_corrupt_backup', loaded.backup);
+                    storageSet(SplitXStorage.KEYS.CORRUPT_BACKUP, loaded.backup);
                     console.error('SplitX: invalid stored state; original contents preserved as Split_data_corrupt_backup');
                     setTimeout(() => showToast('Datos guardados dañados. Se conservó una copia de recuperación y se inició sin esos datos.', 'error'), 0);
                 }
@@ -2570,7 +2231,7 @@
                     const parsed = loaded.data;
                     state = { ...state, ...parsed };
                     if (!state.currency) state.currency = 'DOP';
-                    if (!state.currencySymbol) state.currencySymbol = 'RD$';
+                    state.currencySymbol = sanitizeCurrencySymbol(state.currencySymbol || 'RD$');
                     if (!state.coinDenoms) state.coinDenoms = [25, 10, 5, 1];
                     if (state.useDefaultImages === undefined) state.useDefaultImages = true;
                     if (state.roundCoins === undefined) state.roundCoins = true;
@@ -2580,7 +2241,7 @@
                     if (state.breakdownSize === undefined) state.breakdownSize = 'normal';
                     if (state.breakdownFormat === undefined) state.breakdownFormat = 'badge';
                     if (!state.chipTextColor) state.chipTextColor = 'dark_tone';
-                    if (state.theme === undefined) {
+                    if (parsed.theme !== 'dark' && parsed.theme !== 'light') {
                         state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                     }
                     if (Array.isArray(state.employees)) {
@@ -2800,13 +2461,6 @@
                     buttons
                 });
             };
-            const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            }[ch]));
 
             // Printable sheets (envelope cards + signature sheet). Created on first open.
             let sheetStudio = null;
@@ -2946,22 +2600,24 @@
                 }
 
                 if (name && valStr) {
-                    const amount = parseFloat(valStr);
-                    if (!isNaN(amount)) {
-                        state.employees.push({
-                            id: Date.now(),
-                            name,
-                            amount,
-                            paid: false,
-                            isManual: true,
-                            isEdited: false,
-                            originalData: null
-                        });
-                        nameInput.value = '';
-                        amtInput.value = '';
-                        nameInput.focus();
-                        saveData();
+                    const parsed = SplitXCore.parseManualAmount(valStr, (v) => SplitXExcelImport.parseMoney(v));
+                    if (!parsed.ok) {
+                        showToast(parsed.error, 'error');
+                        return;
                     }
+                    state.employees.push({
+                        id: SplitXCore.nextEmployeeId(),
+                        name,
+                        amount: parsed.amount,
+                        paid: false,
+                        isManual: true,
+                        isEdited: false,
+                        originalData: null
+                    });
+                    nameInput.value = '';
+                    amtInput.value = '';
+                    nameInput.focus();
+                    saveData();
                 }
             };
 
@@ -2978,7 +2634,7 @@
             };
 
             const updateInventory = (denom, val) => {
-                state.inventory[denom] = parseInt(val) || 0;
+                state.inventory[denom] = SplitXCore.sanitizeInventoryQty(val);
                 saveData();
             };
 
@@ -3020,7 +2676,7 @@
                 const preset = CURRENCY_PRESETS[key];
                 if (!preset) return;
                 state.currency = preset.code;
-                state.currencySymbol = preset.symbol;
+                state.currencySymbol = sanitizeCurrencySymbol(preset.symbol);
                 state.denominations = [...preset.denominations];
                 state.coinDenoms = [...preset.coinDenoms];
                 
@@ -3040,20 +2696,17 @@
                 });
 
                 saveData();
-                renderConfigModal();
                 renderAppearanceConfig();
                 renderCustomBillsConfig();
-                renderAll();
                 showToast(`Moneda cambiada a ${preset.name} (${preset.symbol})`, 'success');
             };
 
             const setCurrencySymbol = (sym) => {
-                const val = (sym || '').trim() || '$';
+                const val = sanitizeCurrencySymbol(sym);
                 state.currencySymbol = val;
                 saveData();
-                renderConfigModal();
                 renderAppearanceConfig();
-                renderAll();
+                renderCustomBillsConfig();
                 showToast(`Símbolo de moneda actualizado a "${val}"`, 'success');
             };
 
@@ -3074,10 +2727,8 @@
                 if (state.inventory[val] === undefined) state.inventory[val] = 0;
                 input.value = '';
                 saveData();
-                renderConfigModal();
                 renderAppearanceConfig();
                 renderCustomBillsConfig();
-                renderAll();
                 showToast(`Denominación ${val} agregada correctamente`, 'success');
             };
 
@@ -3089,24 +2740,22 @@
                 state.denominations = state.denominations.filter(d => Number(d) !== Number(denom));
                 delete state.inventory[denom];
                 saveData();
-                renderConfigModal();
                 renderAppearanceConfig();
                 renderCustomBillsConfig();
-                renderAll();
                 showToast(`Denominación ${denom} eliminada`, 'success');
             };
 
             const resetAll = async () => {
                 const ok = await showCustomConfirm({
                     title: '¿Borrar todos los datos?',
-                    message: 'Esta acción restablecerá por completo la aplicación a su estado de fábrica. Se borrarán todos los empleados, inventario, caja y configuraciones guardadas.',
+                    message: 'Esta acción restablecerá por completo la aplicación a su estado de fábrica en este navegador. Se borrarán empleados, inventario, caja, historial de importaciones, plantillas de hojas y documentos personalizados (incluidas cédulas y direcciones).',
                     icon: 'fa-trash-can',
                     type: 'danger',
                     confirmText: 'Sí, borrar todo',
                     cancelText: 'Cancelar'
                 });
                 if (ok) {
-                    storageRemove('Split_data');
+                    appStorage.clearAll();
                     location.reload();
                 }
             };
@@ -3119,688 +2768,21 @@
                     if (state.inventory[d] === undefined) state.inventory[d] = 0;
                 });
                 saveData();
-                renderConfigModal();
                 renderAppearanceConfig();
                 renderCustomBillsConfig();
-                renderAll();
                 showToast(`Denominaciones restauradas al preset ${preset.code}`, 'success');
             };
 
-            const exportToCSV = () => {
-                const { denoms, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw } = buildExportData();
-                const hasPayroll = payrollSummary.count > 0;
-                let csv = hasPayroll
-                    ? "No.,Nombre,Bruto,Bonificaciones,Descuentos,Despues descuentos,Prestamos,Neto,Pagado,Detalle,Estado\n"
-                    : "No.,Nombre,Monto,Pagado,Detalle,Estado\n";
-
-                empRows.forEach((row) => {
-                    let details = [];
-                    denoms.forEach(d => {
-                        if (row[d] > 0) details.push(`${row[d]}x${d}`);
-                    });
-                    const paidStatus = row.paid ? "SI" : "NO";
-                    if (hasPayroll) {
-                        const p = row.payroll || {};
-                        csv += `${row.idx},"${row.name}",${p.gross ?? ''},${p.bonuses ?? ''},${p.discounts ?? ''},${p.afterDiscounts ?? ''},${p.loans ?? ''},${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
-                    } else {
-                        csv += `${row.idx},"${row.name}",${row.amount},"${paidStatus}","${details.join(' + ')}",${row.status}\n`;
-                    }
-                });
-
-                if (loanFundAmount > 0) {
-                    let fundDetails = [];
-                    denoms.forEach(d => {
-                        if (loanFundResult.distribution[d] > 0) fundDetails.push(`${loanFundResult.distribution[d]}x${d}`);
-                    });
-                    if (hasPayroll) {
-                        csv += `★,"FONDO PARA NUEVOS PRESTAMOS (RESERVA)",,,,,,"${loanFundAmount}","NO","${fundDetails.join(' + ')}",${loanFundResult.status}\n`;
-                    } else {
-                        csv += `★,"FONDO PARA NUEVOS PRESTAMOS (RESERVA)",${loanFundAmount},"NO","${fundDetails.join(' + ')}",${loanFundResult.status}\n`;
-                    }
-                }
-
-                // Summary rows
-                csv += `\n"--- RESUMEN FINANCIERO Y SOLICITUD BANCARIA ---"\n`;
-                csv += `"Concepto","Monto (${getCurrencySymbol()})"\n`;
-                if (hasPayroll) {
-                    csv += `"Total Sueldo Bruto",${payrollSummary.gross}\n`;
-                    csv += `"Total Bonificaciones",${payrollSummary.bonuses}\n`;
-                    csv += `"Total Descuentos",${payrollSummary.discounts}\n`;
-                    csv += `"Total Préstamos Descontados en Nómina",${payrollSummary.loans}\n`;
-                    csv += `"Fondo Reservado para Nuevos Préstamos",${loanFundAmount}\n`;
-                    csv += `"Recaudación Restante en Empresa",${payrollSummary.loans - loanFundAmount}\n`;
-                    csv += `"Total Neto Nómina a Pagar",${payrollSummary.net}\n`;
-                } else {
-                    csv += `"Total Nómina",${empRows.reduce((s, e) => s + e.amount, 0)}\n`;
-                    if (loanFundAmount > 0) csv += `"Fondo Nuevos Préstamos",${loanFundAmount}\n`;
-                }
-                csv += `"TOTAL A RETIRAR DEL BANCO (NÓMINA + RESERVA)",${totalToWithdraw}\n`;
-                
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.setAttribute('hidden', '');
-                a.setAttribute('href', url);
-                a.setAttribute('download', `nomina_SplitX_${new Date().toISOString().slice(0,10)}.csv`);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            };
-
-            // ── Helper: build complete export dataset from current state ──────────
-            const buildExportData = () => {
-                const { results, loanFundResult } = calculateDistribution();
-                const denoms = state.denominations; // sorted high→low
-                const bankData = calculateBankNeeds();
-                const payrollSummary = getPayrollSummary();
-
-                // 1. Summary: total bills per denomination (pending employees + loan fund reserve)
-                const summary = {};
-                denoms.forEach(d => summary[d] = 0);
-                results.forEach(emp => {
-                    if (!emp.paid) {
-                        denoms.forEach(d => {
-                            if (emp.distribution[d]) summary[d] += emp.distribution[d];
-                        });
-                    }
-                });
-
-                // Add loan fund reserve bills to consolidated cash breakdown
-                if (loanFundResult?.distribution) {
-                    denoms.forEach(d => {
-                        if (loanFundResult.distribution[d]) summary[d] += loanFundResult.distribution[d];
-                    });
-                }
-
-                // 2. Loan Fund Summary
-                const loanFundAmount = loanFundResult?.amount || 0;
-                const loanFundDistribution = loanFundResult?.distribution || {};
-                const loanFundMissing = loanFundResult?.missingAmount || 0;
-
-                // 3. Bank withdrawal needs (solicitud al banco)
-                let totalToWithdraw = 0;
-                const bankSummary = {};
-                denoms.forEach(d => {
-                    const qty = bankData.breakdown[d]?.final || 0;
-                    bankSummary[d] = qty;
-                    totalToWithdraw += (qty * d);
-                });
-
-                // 4. Per-employee rows
-                const empRows = results.map((emp, idx) => {
-                    const effAmount = getEffectiveEmployeeAmount(emp);
-                    const row = { idx: idx + 1, name: emp.name, amount: effAmount, paid: emp.paid, status: emp.status, payroll: emp.payroll };
-                    denoms.forEach(d => row[d] = emp.distribution[d] || 0);
-                    return row;
-                });
-
-                return {
-                    denoms,
-                    summary,
-                    empRows,
-                    payrollSummary,
-                    loanFundResult,
-                    loanFundAmount,
-                    loanFundMissing,
-                    loanFundDistribution,
-                    bankData,
-                    bankSummary,
-                    totalToWithdraw
-                };
-            };
-
-            // ── Export Excel (.xlsx) ──────────────────────────────────────────
-            const exportToExcel = () => {
-                if (typeof XLSX === 'undefined') {
-                    showCustomAlert({
-                        title: 'Librería Excel no disponible',
-                        message: 'No se pudo cargar la librería SheetJS (XLSX). Por favor verifica tu conexión a internet o recarga la página.',
-                        icon: 'fa-circle-exclamation',
-                        type: 'error',
-                        confirmText: 'Entendido'
-                    });
-                    return;
-                }
-                const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw, bankSummary } = buildExportData();
-                const hasPayroll = payrollSummary.count > 0;
-                const wb = XLSX.utils.book_new();
-                const today = new Date().toLocaleDateString('es-DO');
-                const sym = getCurrencySymbol();
-
-                // ── Sheet 1: Resumen y Banco ──
-                const s1Data = [
-                    ['DISTRIBUCIÓN DE NÓMINA Y PEDIDO AL BANCO - SPLIT X'],
-                    [`Fecha: ${today}`],
-                    [],
-                    ['1. RESUMEN DE BILLETES Y MONEDAS PARA PAGO EN CAJA'],
-                    [`Denominación (${sym})`, 'Cantidad de Billetes', `Valor Total (${sym})`],
-                ];
-                let grandTotal = 0;
-                denoms.forEach(d => {
-                    const qty = summary[d] || 0;
-                    const val = qty * d;
-                    grandTotal += val;
-                    s1Data.push([d, qty, val]);
-                });
-                s1Data.push(['TOTAL NÓMINA EN CAJA', '', grandTotal]);
-                s1Data.push([]);
-
-                // Solicitud al banco
-                s1Data.push(['2. SOLICITUD DE RETIRO AL BANCO (VENTANILLA)']);
-                s1Data.push([`Denominación (${sym})`, 'Cantidad a Retirar', `Valor Total (${sym})`]);
-                denoms.forEach(d => {
-                    const qty = bankSummary[d] || 0;
-                    const val = qty * d;
-                    s1Data.push([d, qty, val]);
-                });
-                s1Data.push(['TOTAL A SOLICITAR AL BANCO', '', totalToWithdraw]);
-                s1Data.push([]);
-
-                if (hasPayroll || loanFundAmount > 0) {
-                    s1Data.push(['3. RESUMEN DE PRÉSTAMOS Y RESERVAS']);
-                    s1Data.push(['Concepto', '', `Monto (${sym})`]);
-                    s1Data.push(['Sueldo Bruto Total', '', payrollSummary.gross]);
-                    s1Data.push(['Bonificaciones Totales', '', payrollSummary.bonuses]);
-                    s1Data.push(['Descuentos Totales', '', payrollSummary.discounts]);
-                    s1Data.push(['Préstamos Descontados en Nómina', '', payrollSummary.loans]);
-                    s1Data.push(['Fondo Reservado para Nuevos Préstamos', '', loanFundAmount]);
-                    s1Data.push(['Recaudación Restante en Empresa', '', payrollSummary.loans - loanFundAmount]);
-                    s1Data.push(['Total Neto a Pagar a Empleados', '', payrollSummary.net]);
-                    s1Data.push(['Total Efectivo a Retirar del Banco', '', totalToWithdraw]);
-                }
-
-                const ws1 = XLSX.utils.aoa_to_sheet(s1Data);
-                ws1['!cols'] = [{ wch: 36 }, { wch: 22 }, { wch: 22 }];
-                XLSX.utils.book_append_sheet(wb, ws1, 'Resumen y Banco');
-
-                // ── Sheet 2: Distribución por Empleado ──
-                const payrollHeaders = hasPayroll ? ['Bruto', 'Bonif.', 'Desc.', 'Despues desc.', 'Prestamos', 'Neto'] : [`Monto (${sym})`];
-                const headerRow = ['#', 'Nombre', ...payrollHeaders, ...denoms.map(d => `${sym}${d}`), 'Estado', 'Pagado'];
-                const s2Data = [
-                    ['DISTRIBUCIÓN DETALLADA POR EMPLEADO'],
-                    [`Fecha: ${today}`],
-                    [],
-                    headerRow,
-                ];
-
-                empRows.forEach(emp => {
-                    const payrollValues = hasPayroll
-                        ? [
-                            emp.payroll?.gross ?? '',
-                            emp.payroll?.bonuses ?? '',
-                            emp.payroll?.discounts ?? '',
-                            emp.payroll?.afterDiscounts ?? '',
-                            emp.payroll?.loans ?? '',
-                            emp.amount,
-                        ]
-                        : [emp.amount];
-                    const row = [
-                        emp.idx,
-                        emp.name,
-                        ...payrollValues,
-                        ...denoms.map(d => emp[d] || 0),
-                        emp.status === 'ok' ? 'OK' : 'Incompleto',
-                        emp.paid ? 'Sí' : 'No',
-                    ];
-                    s2Data.push(row);
-                });
-
-                if (loanFundAmount > 0) {
-                    const fundValues = hasPayroll ? ['', '', '', '', '', loanFundAmount] : [loanFundAmount];
-                    s2Data.push([
-                        '★',
-                        'FONDO NUEVOS PRÉSTAMOS (RESERVA)',
-                        ...fundValues,
-                        ...denoms.map(d => loanFundResult.distribution[d] || 0),
-                        loanFundResult.status === 'ok' ? 'OK' : 'Incompleto',
-                        'No'
-                    ]);
-                }
-
-                // Totals row
-                const totalRow = hasPayroll
-                    ? ['', 'TOTAL NÓMINA', payrollSummary.gross, payrollSummary.bonuses, payrollSummary.discounts, payrollSummary.afterDiscounts, payrollSummary.loans, payrollSummary.net]
-                    : ['', 'TOTAL', empRows.reduce((s,e) => s + e.amount, 0)];
-                denoms.forEach(d => totalRow.push(empRows.reduce((s,e) => s + (e[d]||0), 0) + (loanFundResult.distribution[d] || 0)));
-                totalRow.push('', '');
-                s2Data.push([]);
-                s2Data.push(totalRow);
-
-                const ws2 = XLSX.utils.aoa_to_sheet(s2Data);
-                const col2widths = [{ wch: 5 }, { wch: 32 }];
-                payrollHeaders.forEach(() => col2widths.push({ wch: 14 }));
-                denoms.forEach(() => col2widths.push({ wch: 9 }));
-                col2widths.push({ wch: 12 }, { wch: 8 });
-                ws2['!cols'] = col2widths;
-
-                XLSX.utils.book_append_sheet(wb, ws2, 'Distribución Empleados');
-
-                // ── Sheet 3: Boleta de Solicitud Bancaria ──
-                const s3Data = [
-                    ['SOLICITUD DE RETIRO DE EFECTIVO AL BANCO'],
-                    [`Fecha: ${today}`],
-                    ['Entidad / Empresa: Nómina Split X'],
-                    [],
-                    [`Denominación (${sym})`, 'Cantidad Solicitada', `Valor Total (${sym})`],
-                ];
-                denoms.forEach(d => {
-                    const qty = bankSummary[d] || 0;
-                    s3Data.push([d, qty, qty * d]);
-                });
-                s3Data.push([]);
-                s3Data.push(['TOTAL GENERAL A RETIRAR', '', totalToWithdraw]);
-                s3Data.push([]);
-                s3Data.push(['Firma Autorizada:', '___________________________', '']);
-
-                const ws3 = XLSX.utils.aoa_to_sheet(s3Data);
-                ws3['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 25 }];
-                XLSX.utils.book_append_sheet(wb, ws3, 'Pedido al Banco');
-
-                XLSX.writeFile(wb, `nomina_SplitX_${today.replace(/\//g,'-')}.xlsx`);
-            };
-
-            // ── Export PDF ────────────────────────────────────────────────────
-            const exportToPDF = () => {
-                if (typeof window.jspdf === 'undefined') {
-                    showCustomAlert({
-                        title: 'Librería PDF no disponible',
-                        message: 'No se pudo cargar la librería jsPDF. Por favor verifica tu conexión a internet o recarga la página.',
-                        icon: 'fa-circle-exclamation',
-                        type: 'error',
-                        confirmText: 'Entendido'
-                    });
-                    return;
-                }
-                const { jsPDF } = window.jspdf;
-                const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount } = buildExportData();
-                const today = new Date().toLocaleDateString();
-
-                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-                const pageW = doc.internal.pageSize.getWidth();
-                const pageH = doc.internal.pageSize.getHeight();
-
-                const fmtNum = (n, dec = 2) => (Number(n) || 0).toLocaleString(undefined, {
-                    minimumFractionDigits: dec,
-                    maximumFractionDigits: dec
-                });
-
-                // ════════════════════════════════════════════════════════════════════
-                // ─── PÁGINA 1: Resumen de Billetes y Monedas en Caja ────────────────
-                // ════════════════════════════════════════════════════════════════════
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.setTextColor(30, 41, 59);
-                doc.text('DISTRIBUCIÓN DE EFECTIVO — Split X', pageW / 2, 20, { align: 'center' });
-
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                doc.setTextColor(100, 116, 139);
-                doc.text(`Fecha: ${today}`, pageW / 2, 26, { align: 'center' });
-
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(11);
-                doc.setTextColor(30, 41, 59);
-                doc.text('BILLETES Y MONEDAS EN CAJA (PAGOS + RESERVA DE PRÉSTAMOS)', pageW / 2, 36, { align: 'center' });
-
-                const summaryBody = [];
-                let grandTotalCash = 0;
-                denoms.forEach(d => {
-                    const qty = summary[d] || 0;
-                    const val = qty * d;
-                    grandTotalCash += val;
-                    if (qty > 0) {
-                        summaryBody.push([
-                            `$ ${fmtNum(d, 0)}`,
-                            qty.toLocaleString(),
-                            `$ ${fmtNum(val)}`,
-                        ]);
-                    }
-                });
-                summaryBody.push([
-                    { content: 'TOTAL GENERAL', styles: { fontStyle: 'bold' } },
-                    { content: '', styles: { fontStyle: 'bold' } },
-                    { content: `$ ${fmtNum(grandTotalCash)}`, styles: { fontStyle: 'bold' } },
-                ]);
-
-                const table1Width = 190;
-                doc.autoTable({
-                    head: [['Denominación', 'Cantidad', 'Total']],
-                    body: summaryBody,
-                    startY: 42,
-                    tableWidth: table1Width,
-                    margin: { left: (pageW - table1Width) / 2 },
-                    styles: { font: 'helvetica', fontSize: 9.5, cellPadding: 3.5 },
-                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center' },
-                    columnStyles: {
-                        0: { halign: 'left', cellWidth: 60 },
-                        1: { halign: 'center', cellWidth: 65 },
-                        2: { halign: 'right', cellWidth: 65 },
-                    },
-                    alternateRowStyles: { fillColor: [248, 250, 252] },
-                });
-
-                // ════════════════════════════════════════════════════════════════════
-                // ─── PÁGINA 2: Resumen de Pagos y Préstamos ─────────────────────────
-                // ════════════════════════════════════════════════════════════════════
-                doc.addPage('a4', 'landscape');
-
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.setTextColor(30, 41, 59);
-                doc.text('RESUMEN DE PAGOS Y PRÉSTAMOS — Split X', pageW / 2, 18, { align: 'center' });
-
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                doc.setTextColor(100, 116, 139);
-                doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
-
-                // Tabla 1: Resumen de Pagos en Cascada
-                const isNormalMode = state.payrollMode === 'normal';
-                const cascadeBody = isNormalMode ? [
-                    [
-                        '1. Sueldo Bruto Total',
-                        `$ ${fmtNum(payrollSummary.gross)}`,
-                        `$ ${fmtNum(payrollSummary.gross)}`
-                    ],
-                    [
-                        '2. (+) Bonificaciones',
-                        `+$ ${fmtNum(payrollSummary.bonuses)}`,
-                        `$ ${fmtNum((payrollSummary.gross || 0) + (payrollSummary.bonuses || 0))}`
-                    ],
-                    [
-                        '3. (-) Descuentos',
-                        `-$ ${fmtNum(payrollSummary.discounts)}`,
-                        `$ ${fmtNum(payrollSummary.afterDiscounts)}`
-                    ],
-                    [
-                        { content: '4. (=) Total Neto a Pagar (Modo Normal: Préstamos Omitidos)', styles: { fontStyle: 'bold' } },
-                        { content: `$ ${fmtNum(payrollSummary.afterDiscounts)}`, styles: { fontStyle: 'bold' } },
-                        { content: `$ ${fmtNum(payrollSummary.net || empRows.reduce((s,e)=>s+e.amount,0))} (Neto a Pagar)`, styles: { fontStyle: 'bold', textColor: [37, 99, 235] } }
-                    ],
-                ] : [
-                    [
-                        '1. Sueldo Bruto Total',
-                        `$ ${fmtNum(payrollSummary.gross)}`,
-                        `$ ${fmtNum(payrollSummary.gross)}`
-                    ],
-                    [
-                        '2. (+) Bonificaciones',
-                        `+$ ${fmtNum(payrollSummary.bonuses)}`,
-                        `$ ${fmtNum((payrollSummary.gross || 0) + (payrollSummary.bonuses || 0))}`
-                    ],
-                    [
-                        '3. (-) Descuentos',
-                        `-$ ${fmtNum(payrollSummary.discounts)}`,
-                        `$ ${fmtNum(payrollSummary.afterDiscounts)}`
-                    ],
-                    [
-                        { content: '4. (-) Préstamos Cobrados', styles: { fontStyle: 'bold' } },
-                        { content: `-$ ${fmtNum(payrollSummary.loans)}`, styles: { fontStyle: 'bold' } },
-                        { content: `$ ${fmtNum(payrollSummary.net || empRows.reduce((s,e)=>s+e.amount,0))} (Neto a Pagar)`, styles: { fontStyle: 'bold', textColor: [37, 99, 235] } }
-                    ],
-                ];
-
-                doc.autoTable({
-                    head: [['Concepto', 'Monto', 'Total Acumulado']],
-                    body: cascadeBody,
-                    startY: 32,
-                    tableWidth: 268,
-                    margin: { left: 14, right: 14 },
-                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
-                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', halign: 'center' },
-                    columnStyles: {
-                        0: { halign: 'left', cellWidth: 100 },
-                        1: { halign: 'right', cellWidth: 84 },
-                        2: { halign: 'right', cellWidth: 84 },
-                    },
-                    alternateRowStyles: { fillColor: [248, 250, 252] },
-                });
-
-                // Tabla 2: Resumen de Préstamos
-                const table2StartY = Math.max(doc.lastAutoTable?.finalY || 80, 80) + 18;
-
-                const loanAuditBody = isNormalMode ? [
-                    [
-                        'Estado del módulo de préstamos',
-                        'Modo Normal activo (préstamos no deducidos en este pago)'
-                    ],
-                    [
-                        'Total préstamos en cartera registrados',
-                        `$ ${fmtNum(payrollSummary.loansScheduled || payrollSummary.loans)}`
-                    ],
-                    [
-                        'Fondo reservado para nuevos préstamos',
-                        `$ ${fmtNum(loanFundAmount)}`
-                    ],
-                    [
-                        { content: 'Deuda pendiente en cartera (Total saldo)', styles: { fontStyle: 'bold' } },
-                        { content: `$ ${fmtNum(payrollSummary.totalRemainingBalance)}`, styles: { fontStyle: 'bold' } }
-                    ],
-                ] : [
-                    [
-                        'Préstamos programados para este pago',
-                        `$ ${fmtNum(payrollSummary.loansScheduled || payrollSummary.loans)}`
-                    ],
-                    [
-                        '(-) Préstamos no cobrados (editados o cancelados)',
-                        `-$ ${fmtNum(payrollSummary.loansUncollected)}`
-                    ],
-                    [
-                        { content: '(=) Préstamos cobrados en este pago', styles: { fontStyle: 'bold' } },
-                        { content: `$ ${fmtNum(payrollSummary.loans)}`, styles: { fontStyle: 'bold' } }
-                    ],
-                    [
-                        'Interés ganado en los préstamos',
-                        `$ ${fmtNum(payrollSummary.totalInterest)}`
-                    ],
-                    [
-                        'Fondo reservado para nuevos préstamos',
-                        `$ ${fmtNum(loanFundAmount)}`
-                    ],
-                    [
-                        { content: 'Deuda restante por cobrar (Total pendiente)', styles: { fontStyle: 'bold' } },
-                        { content: `$ ${fmtNum(payrollSummary.totalRemainingBalance)}`, styles: { fontStyle: 'bold' } }
-                    ],
-                ];
-
-                doc.autoTable({
-                    head: [[isNormalMode ? 'Cartera de Préstamos' : 'Resumen de Préstamos', 'Monto Total']],
-                    body: loanAuditBody,
-                    startY: table2StartY,
-                    tableWidth: 268,
-                    margin: { left: 14, right: 14 },
-                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
-                    headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold', halign: 'center' },
-                    columnStyles: {
-                        0: { halign: 'left', cellWidth: 170 },
-                        1: { halign: 'right', cellWidth: 98 },
-                    },
-                    alternateRowStyles: { fillColor: [240, 253, 250] },
-                });
-
-                // ════════════════════════════════════════════════════════════════════
-                // ─── PÁGINA 3: Distribución de Efectivo por Empleado ────────────────
-                // ════════════════════════════════════════════════════════════════════
-                doc.addPage('a4', 'landscape');
-
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.setTextColor(30, 41, 59);
-                doc.text('DISTRIBUCIÓN DE EFECTIVO POR EMPLEADO — Split X', pageW / 2, 18, { align: 'center' });
-
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                doc.setTextColor(100, 116, 139);
-                doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
-
-                // Build pure cash distribution columns
-                const empHead = [['#', 'Nombre del Empleado', 'Sueldo Neto', ...denoms.map(d => `$${d}`)]];
-                const empBody = empRows.map(emp => [
-                    emp.idx,
-                    emp.name,
-                    `$ ${fmtNum(emp.amount)}`,
-                    ...denoms.map(d => emp[d] > 0 ? emp[d] : '—'),
-                ]);
-
-                if (loanFundAmount > 0) {
-                    empBody.push([
-                        '★',
-                        'FONDO PARA NUEVOS PRÉSTAMOS',
-                        `$ ${fmtNum(loanFundAmount)}`,
-                        ...denoms.map(d => loanFundResult.distribution[d] > 0 ? loanFundResult.distribution[d] : '—'),
-                    ]);
-                }
-
-                // Totals row
-                const totalsRow = [
-                    { content: '', styles: { fontStyle: 'bold' } },
-                    { content: 'TOTALES', styles: { fontStyle: 'bold' } },
-                    { content: `$ ${fmtNum(empRows.reduce((s,e) => s + e.amount, 0) + loanFundAmount)}`, styles: { fontStyle: 'bold' } },
-                    ...denoms.map(d => ({
-                        content: (empRows.reduce((s,e) => s + (e[d]||0), 0) + (loanFundResult.distribution[d] || 0)) || '—',
-                        styles: { fontStyle: 'bold' },
-                    })),
-                ];
-                empBody.push(totalsRow);
-
-                // Wide and comfortable column widths for denominations
-                const totalCols = 3 + denoms.length;
-                const fixedW = {
-                    0: 10,  // #
-                    1: 66,  // Nombre
-                    2: 34,  // Sueldo Neto
-                };
-                const usedFixed = 10 + 66 + 34;
-                const denomColW = Math.max(12, Math.floor((268 - usedFixed) / denoms.length));
-                const colStyles = {};
-                colStyles[0] = { halign: 'center', cellWidth: fixedW[0] };
-                colStyles[1] = { halign: 'left', cellWidth: fixedW[1] };
-                colStyles[2] = { halign: 'right', cellWidth: fixedW[2] };
-                denoms.forEach((d, i) => {
-                    colStyles[3 + i] = { halign: 'center', cellWidth: denomColW };
-                });
-
-                doc.autoTable({
-                    head: empHead,
-                    body: empBody,
-                    startY: 30,
-                    margin: { left: 14, right: 14 },
-                    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'ellipsize' },
-                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 8.5 },
-                    columnStyles: colStyles,
-                    alternateRowStyles: { fillColor: [248, 250, 252] },
-                    didParseCell: (data) => {
-                        // Highlight paid rows in soft gray
-                        if (data.section === 'body') {
-                            const emp = empRows[data.row.index];
-                            if (emp && emp.paid) {
-                                data.cell.styles.textColor = [148, 163, 184];
-                            }
-                        }
-                        // Last row = totals
-                        if (data.section === 'body' && data.row.index === empBody.length - 1) {
-                            data.cell.styles.fillColor = [30, 41, 59];
-                            data.cell.styles.textColor = [255, 255, 255];
-                        }
-                    },
-                });
-
-                // ════════════════════════════════════════════════════════════════════
-                // ─── PÁGINA 4: Detalle Individual de Préstamos por Empleado ─────────
-                // ════════════════════════════════════════════════════════════════════
-                // ════════════════════════════════════════════════════════════════════
-                // ─── PÁGINA 4: Detalle Individual de Préstamos por Empleado ─────────
-                // ════════════════════════════════════════════════════════════════════
-                doc.addPage('a4', 'landscape');
-
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.setTextColor(30, 41, 59);
-                doc.text('DETALLE INDIVIDUAL DE PRÉSTAMOS — Split X', pageW / 2, 18, { align: 'center' });
-
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                doc.setTextColor(100, 116, 139);
-                doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
-
-                // Detect employees with loans or list all employees if none specifically marked
-                let loanEmployees = empRows.filter(e => {
-                    const ld = e.payroll?.loanDetails || {};
-                    const loanAmount = (e.payroll?.loans || 0);
-                    return loanAmount > 0 || (ld.principal > 0) || (ld.remainingBalance > 0) || (ld.interestAmount > 0);
-                });
-
-                // If no specific loan filter matches, show all employees so table is never empty
-                const displayRows = loanEmployees.length > 0 ? loanEmployees : empRows;
-
-                const loanEmpHead = [['#', 'Nombre del Empleado', 'Cuota Cobrada', 'Capital Amortizado', 'Interés Cobrado', 'Deuda Restante (Saldo)']];
-                const loanEmpBody = displayRows.map((emp, i) => {
-                    const ld = emp.payroll?.loanDetails || {};
-                    const loanVal = emp.payroll?.loans || 0;
-                    return [
-                        i + 1,
-                        emp.name,
-                        loanVal > 0 ? `$ ${fmtNum(loanVal)}` : '$ 0.00',
-                        ld.principal ? `$ ${fmtNum(ld.principal)}` : '—',
-                        ld.interestAmount ? `$ ${fmtNum(ld.interestAmount)}` : '—',
-                        ld.remainingBalance ? `$ ${fmtNum(ld.remainingBalance)}` : '—',
-                    ];
-                });
-
-                // Totals row for loans
-                const totalPrincipal = displayRows.reduce((s, e) => s + (e.payroll?.loanDetails?.principal || 0), 0);
-                loanEmpBody.push([
-                    { content: '', styles: { fontStyle: 'bold' } },
-                    { content: 'TOTALES', styles: { fontStyle: 'bold' } },
-                    { content: `$ ${fmtNum(payrollSummary.loans)}`, styles: { fontStyle: 'bold' } },
-                    { content: totalPrincipal > 0 ? `$ ${fmtNum(totalPrincipal)}` : '—', styles: { fontStyle: 'bold' } },
-                    { content: `$ ${fmtNum(payrollSummary.totalInterest)}`, styles: { fontStyle: 'bold' } },
-                    { content: `$ ${fmtNum(payrollSummary.totalRemainingBalance)}`, styles: { fontStyle: 'bold' } },
-                ]);
-
-                const loanTableW = 250;
-                doc.autoTable({
-                    head: loanEmpHead,
-                    body: loanEmpBody,
-                    startY: 32,
-                    tableWidth: loanTableW,
-                    margin: { left: (pageW - loanTableW) / 2 },
-                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
-                    headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold', halign: 'center' },
-                    columnStyles: {
-                        0: { halign: 'center', cellWidth: 14 },
-                        1: { halign: 'left', cellWidth: 78 },
-                        2: { halign: 'right', cellWidth: 38 },
-                        3: { halign: 'right', cellWidth: 38 },
-                        4: { halign: 'right', cellWidth: 38 },
-                        5: { halign: 'right', cellWidth: 44 },
-                    },
-                    alternateRowStyles: { fillColor: [240, 253, 250] },
-                    didParseCell: (data) => {
-                        if (data.section === 'body' && data.row.index === loanEmpBody.length - 1) {
-                            data.cell.styles.fillColor = [15, 118, 110];
-                            data.cell.styles.textColor = [255, 255, 255];
-                        }
-                    }
-                });
-
-                const finYLoans = (doc.lastAutoTable?.finalY || 80) + 12;
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8.5);
-                doc.setTextColor(100, 116, 139);
-                doc.text(`Colaboradores con descuento de préstamo: ${loanEmployees.length} de ${empRows.length}  •  Fondo para nuevos préstamos: $ ${fmtNum(loanFundAmount)}`, pageW / 2, finYLoans, { align: 'center' });
-
-                // Page numbers across all pages
-                const pageCount = doc.internal.getNumberOfPages();
-                for (let i = 1; i <= pageCount; i++) {
-                    doc.setPage(i);
-                    doc.setFontSize(8);
-                    doc.setTextColor(148, 163, 184);
-                    doc.text(`Página ${i} de ${pageCount}  •  Split X`, pageW / 2, pageH - 6, { align: 'center' });
-                }
-
-                doc.save(`distribucion_SplitX_${today.replace(/\//g,'-')}.pdf`);
-            };
+            const exporter = SplitXExport.createExporter({
+                getState: () => state,
+                getCurrencySymbol,
+                calculateDistribution,
+                calculateBankNeeds,
+                getPayrollSummary,
+                getEffectiveEmployeeAmount,
+                showCustomAlert
+            });
+            const { buildExportData, exportToCSV, exportToExcel, exportToPDF } = exporter;
 
             let importMode = 'excel'; // 'excel' | 'json'
 
@@ -3853,7 +2835,7 @@
                     let employees = [];
                     if (importMode === 'excel') {
                         const result = parseExcelText(rawText);
-                        employees = result.employees;
+                        employees = result.employees.map((item, idx) => normalizeImportedEmployee(item, idx));
                         // Show all rejected rows even when other employees are valid.
                         if (result.errors.length) {
                             errEl.textContent = `${result.rows} filas: ${result.valid} válidas, ${result.rejected} rechazadas. Corrige las filas antes de importar.\n${result.errors.slice(0, 10).join('\n')}${result.errors.length > 10 ? '\n... y ' + (result.errors.length - 10) + ' errores más.' : ''}`;
@@ -3918,12 +2900,7 @@
                             // Fail atomically: do not import only the valid subset.
                             throw new Error(`Importación bloqueada. ${result.rows} filas: ${result.valid} válidas y ${result.rejected} rechazadas. Corrige las filas y vuelve a intentarlo.\n${result.errors.slice(0, 10).join('\n')}${result.errors.length > 10 ? '\n... y ' + (result.errors.length - 10) + ' errores más.' : ''}`);
                         }
-                        newEmps = result.employees.map((e, idx) => ({
-                            id: Date.now() + idx,
-                            name: e.name,
-                            amount: e.amount,
-                            paid: false
-                        }));
+                        newEmps = result.employees.map((item, idx) => normalizeImportedEmployee(item, idx));
                     } else {
                         const unwrapped = unwrapJsonImport(JSON.parse(rawText));
                         importContext = unwrapped.context;
@@ -4025,15 +3002,16 @@
             // --- UI RENDERING ---
 
             const renderAll = () => {
-                // Must calculate distribution FIRST to get current inventory state vs leftovers
-                const { results, leftoverInventory, loanFundResult } = calculateDistribution();
-                
-                // Now render UI parts passing data where needed
-                renderInventory(leftoverInventory, results);
-                renderEmployees(results, loanFundResult);
-                renderBank();
+                // Compute derived state ONCE per render cycle (avoids 4x-8x recalculation cascade)
+                const coverage = calculateDistribution();
+                const bankData = calculateBankNeeds(coverage);
+                const payrollSummary = getPayrollSummary();
+
+                renderInventory(coverage.leftoverInventory, coverage.results);
+                renderEmployees(coverage.results, coverage.loanFundResult, payrollSummary);
+                renderBank(bankData);
                 renderConfigModal();
-                updateTotals();
+                updateTotals(coverage, bankData, payrollSummary);
                 if (document.getElementById('appearanceLivePreviewCard')) {
                     renderAppearancePreviewCard();
                 }
@@ -4106,12 +3084,12 @@
                                 icon = "fa-rotate"; // Icon indicating "Change/Swap"
                             }
 
-                            deficitHTML += `<div class="${colorClass}"><i class="fa-solid ${icon} mr-1"></i>Faltan: ${d.count}x$${d.denom}</div>`;
+                            deficitHTML += `<div class="${colorClass}"><i class="fa-solid ${icon} mr-1"></i>Faltan: ${d.count}x${escapeHTML(getCurrencySymbol())}${d.denom}</div>`;
                         });
                         deficitHTML += `</div>`;
 
                         let surplusHTML = advisorData.surplus.length > 0 
-                            ? `<div class="mb-1 text-green-700 font-semibold"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Sobran: ` + advisorData.surplus.map(s => `${s.count}x$${s.denom}`).join(', ') + `</div>`
+                            ? `<div class="mb-1 text-green-700 font-semibold"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Sobran: ` + advisorData.surplus.map(s => `${s.count}x${escapeHTML(getCurrencySymbol())}${s.denom}`).join(', ') + `</div>`
                             : `<div class="mb-1 text-slate-500 italic text-[10px]">No hay sobrantes útiles.</div>`;
                         
                         advisorEl.innerHTML = `
@@ -4273,15 +3251,20 @@
 
             const updatePayrollLoanFund = (value) => {
                 const collected = getPayrollSummary().loans;
-                const parsed = parseImportNumber(value, 0);
-                state.payrollLoanFund = Math.min(Math.max(0, parsed || 0), collected);
+                const result = SplitXCore.clampLoanFund(value, collected, (v) => SplitXExcelImport.parseMoney(v));
+                if (!result.ok) {
+                    showToast(`Fondo de préstamos inválido: ${result.error}`, 'error');
+                    renderAll();
+                    return;
+                }
+                state.payrollLoanFund = result.value;
                 saveData();
             };
 
-            // Round all employee amounts, removing cents
+            // Round all employee amounts, removing cents (keeps payroll.net and payroll.afterDiscounts consistent)
             const roundAllAmounts = async () => {
-                const hasCents = state.employees.some(e => e.amount !== Math.floor(e.amount));
-                if (!hasCents) {
+                const preview = SplitXCore.roundEmployeeAmounts(state.employees, state.payrollMode);
+                if (preview.count === 0) {
                     showCustomAlert({
                         title: 'Sin centavos pendientes',
                         message: 'Todos los montos de los colaboradores ya son números enteros sin centavos.',
@@ -4291,19 +3274,19 @@
                     });
                     return;
                 }
-                const count = state.employees.filter(e => e.amount !== Math.floor(e.amount)).length;
                 const ok = await showCustomConfirm({
                     title: 'Cortar centavos',
-                    message: `Se eliminarán los decimales redondeando hacia abajo en ${count} colaborador(es). ¿Deseas continuar?`,
+                    message: `Se eliminarán los decimales redondeando hacia abajo en ${preview.count} colaborador(es). ¿Deseas continuar?`,
                     icon: 'fa-scissors',
                     type: 'warning',
                     confirmText: 'Sí, cortar centavos',
                     cancelText: 'Cancelar'
                 });
                 if (!ok) return;
-                state.employees = state.employees.map(e => ({ ...e, amount: Math.floor(e.amount) }));
+                const applied = SplitXCore.roundEmployeeAmounts(state.employees, state.payrollMode);
+                state.employees = applied.employees;
                 saveData();
-                showToast(`Centavos eliminados en ${count} colaborador(es).`, 'success');
+                showToast(`Centavos eliminados en ${applied.count} colaborador(es).`, 'success');
             };
 
             // Update employee field inline
@@ -4329,85 +3312,14 @@
                 saveData();
             };
 
-            // Colores oficiales de los billetes y monedas de la República Dominicana (6ª familia, emisión 2014)
-            const BILL_COLORS = {
-                // === BILLETES ===
-                2000: { bg: '#4A90E2', darkText: '#0d3880', text: '#ffffff', border: '#2563eb' },   // Azul
-                1000: { bg: '#E05A6D', darkText: '#7f1d1d', text: '#ffffff', border: '#e11d48' },   // Rojo
-                500:  { bg: '#26A69A', darkText: '#064e3b', text: '#ffffff', border: '#0d9488' },   // Turquesa
-                200:  { bg: '#D81B60', darkText: '#701a75', text: '#ffffff', border: '#c026d3' },   // Rosa/Magenta
-                100:  { bg: '#F57C00', darkText: '#7c2d12', text: '#ffffff', border: '#ea580c' },   // Naranja
-                50:   { bg: '#8E44AD', darkText: '#581c87', text: '#ffffff', border: '#9333ea' },   // Morado
-                20:   { bg: '#7a5c38', darkText: '#451a03', text: '#ffffff', border: '#78350f' },   // Café
-                // === MONEDAS ===
-                25:   { bg: '#b8952a', darkText: '#5c4709', text: '#ffffff', border: '#8f7020' },   // Dorada
-                10:   { bg: '#607d8b', darkText: '#1e293b', text: '#ffffff', border: '#455a64' },   // Plateada
-                5:    { bg: '#8d6e63', darkText: '#3e2723', text: '#ffffff', border: '#6d4c41' },   // Bronce
-                1:    { bg: '#a0784c', darkText: '#4e342e', text: '#ffffff', border: '#7d5c38' },   // Cobre
-            };
+            const getBillImage = (denom) => SplitXCurrencies.getBillImage(state, denom);
+            const getBillStyle = (denom) => SplitXCurrencies.getBillStyle(state, denom);
 
-            const darkenHex = (hex, factor = 0.42) => {
-                if (!hex || typeof hex !== 'string') return '#0f172a';
-                let c = hex.trim().replace(/^#/, '');
-                if (c.length === 3) c = c.split('').map(x => x + x).join('');
-                if (c.length !== 6) return '#0f172a';
-                const num = parseInt(c, 16);
-                const r = Math.max(0, Math.floor(((num >> 16) & 255) * factor));
-                const g = Math.max(0, Math.floor(((num >> 8) & 255) * factor));
-                const b = Math.max(0, Math.floor((num & 255) * factor));
-                return `rgb(${r}, ${g}, ${b})`;
-            };
-
-            const getChipTextColor = (denom, baseBgColor) => {
-                const mode = state.chipTextColor || 'dark_tone';
-                if (mode === 'black') return '#0f172a';
-                if (mode === 'white') return '#ffffff';
-
-                // mode === 'dark_tone' (default)
-                if (BILL_COLORS[denom]?.darkText) {
-                    return BILL_COLORS[denom].darkText;
-                }
-                return darkenHex(baseBgColor || '#475569', 0.42);
-            };
-
-            const getBillImage = (denom) => {
-                if (state.billImages && state.billImages[denom]) return state.billImages[denom];
-                if (state.useDefaultImages !== false) {
-                    const curr = state.currency || 'DOP';
-                    const preset = CURRENCY_PRESETS[curr];
-                    if (preset?.images && preset.images[denom]) return preset.images[denom];
-                    if (DEFAULT_BILL_IMAGES[curr] && DEFAULT_BILL_IMAGES[curr][denom]) return DEFAULT_BILL_IMAGES[curr][denom];
-                }
-                return null;
-            };
-
-            const getBillStyle = (denom) => {
-                // Image takes priority (custom or default)
-                const img = getBillImage(denom);
-                if (img) {
-                    const c = state.billColors?.[denom] || BILL_COLORS[denom];
-                    const border = c ? (typeof c === 'string' ? c : c.border) : '#555';
-                    return `background-image:url('${img}');background-size:cover;background-position:center;color:#fff;border-color:${border};text-shadow:0 1px 3px rgba(0,0,0,0.75);`;
-                }
-                // Custom color override
-                const customColor = state.billColors && state.billColors[denom];
-                if (customColor) {
-                    const textColor = getChipTextColor(denom, customColor);
-                    return `background-color:${customColor};color:${textColor};border-color:${customColor};border-width:1.5px;`;
-                }
-                // Preset color or default vector palette
-                const curr = state.currency || 'DOP';
-                const presetHex = CURRENCY_PRESETS[curr]?.colors?.[denom];
-                const baseBg = presetHex || (BILL_COLORS[denom] ? BILL_COLORS[denom].bg : '#e2e8f0');
-                const border = BILL_COLORS[denom]?.border || presetHex || '#cbd5e1';
-                const textColor = getChipTextColor(denom, baseBg);
-                return `background-color:${baseBg};color:${textColor};border-color:${border};border-width:1.5px;`;
-            };
-
-            const renderEmployees = (data, loanFundResult = { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }) => {
+            const renderEmployees = (data, loanFundResult = { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }, precomputedSummary = null) => {
                 const container = document.getElementById('employeeList');
                 const summaryContainer = document.getElementById('payrollSummaryContainer');
-                const payrollSummary = getPayrollSummary();
+                const payrollSummary = precomputedSummary || getPayrollSummary();
+                const safeSym = escapeHTML(getCurrencySymbol());
                 const showPayrollMode = state.payrollMode === 'deductions' && payrollSummary.count > 0;
                 const restoreImportButton = document.getElementById('restoreImportBtn');
                 if (restoreImportButton) restoreImportButton.disabled = !Array.isArray(state.importSnapshot) || state.importSnapshot.length === 0;
@@ -4417,7 +3329,6 @@
 
                 if (showPayrollMode) {
                     const loanFund = Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-                    if (loanFund !== state.payrollLoanFund) state.payrollLoanFund = loanFund;
                     const remainingCollected = payrollSummary.loans - loanFund;
                     const fundBreakdown = loanFundResult;
                     let fundBillsHTML = '';
@@ -4494,7 +3405,7 @@
                                             ` : ''}
                                         </div>
                                         <div class="text-2xl font-black font-mono text-slate-950 dark:text-slate-50 tracking-tight mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-right">
-                                            $${fmtNum(payrollSummary.net)}
+                                            ${safeSym} ${fmtNum(payrollSummary.net)}
                                         </div>
                                     </div>
                                 </div>
@@ -4504,10 +3415,10 @@
                                     <div class="flex flex-col justify-between h-full py-1">
                                         <div>
                                             <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Recaudación restante</div>
-                                            <div class="font-mono text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-50 mt-1">$${fmtNum(remainingCollected)}</div>
+                                            <div class="font-mono text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-50 mt-1">${safeSym} ${fmtNum(remainingCollected)}</div>
                                         </div>
                                         <div class="text-xs font-mono text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-1 rounded-md border border-teal-100 dark:border-teal-800 inline-block w-fit mt-2">
-                                            de $${fmtNum(totalLoans)} recaudados
+                                            de ${safeSym} ${fmtNum(totalLoans)} recaudados
                                         </div>
                                     </div>
                                     <div class="relative w-20 h-20 shrink-0 flex items-center justify-center">
@@ -4529,7 +3440,7 @@
                                         ${fundBillsHTML || `<span class="text-[11px] ${loanFundResult.status === 'error' ? 'text-rose-500 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500 italic'}">${loanFund > 0 ? 'Sin billetes asignados en caja.' : 'Indica un monto para reservar.'}</span>`}
                                     </div>
                                     ${loanFundResult.status === 'error'
-                                        ? `<div class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Faltan $${fmtNum(loanFundResult.missingAmount)} · retirar del banco</div>`
+                                        ? `<div class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Faltan ${safeSym} ${fmtNum(loanFundResult.missingAmount)} · retirar del banco</div>`
                                         : loanFund > 0
                                             ? '<div class="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-[11px]"></i> Fondo cubierto en caja</div>'
                                             : ''}
@@ -4615,7 +3526,7 @@
                     const badgeStyle = `${currentSize.badge};${isZero ? 'background:#64748b;color:#f1f5f9;opacity:0.6;' : ''}`;
                     const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${d}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${d}</span>`);
                     const totalVal = count * Number(d);
-                    const tooltip = count > 0 ? `${count} × ${getCurrencySymbol()} ${fmtNum(d)} = ${getCurrencySymbol()} ${fmtNum(totalVal)}` : `${getCurrencySymbol()} ${fmtNum(d)} (0 asignados)`;
+                    const tooltip = escapeHTML(count > 0 ? `${count} × ${getCurrencySymbol()} ${fmtNum(d)} = ${getCurrencySymbol()} ${fmtNum(totalVal)}` : `${getCurrencySymbol()} ${fmtNum(d)} (0 asignados)`);
 
                     const chipHTML = `
                         <div class="bill-chip ${shapeClass} chip-size-${state.breakdownSize || 'normal'}" style="${billStyle};${shapeStyle}">
@@ -4717,6 +3628,7 @@
                 const p = emp.payroll;
                 const isNormalView = state.payrollMode !== 'deductions';
                 const isExpanded = expandedEmpCards.has(emp.id);
+                const safeSym = escapeHTML(getCurrencySymbol());
 
                 if (p && (p.gross > 0 || p.bonuses > 0 || p.discounts > 0 || p.loans > 0 || p.afterDiscounts > 0)) {
                     const grossVal = (p.gross !== undefined && p.gross !== null && p.gross > 0)
@@ -4763,7 +3675,7 @@
                                         <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                             Neto <i class="fa-solid fa-chevron-up text-[8px] text-slate-400"></i>
                                         </span>
-                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(effAmount)}</span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">${safeSym} ${fmtNum(effAmount)}</span>
                                     </div>
                                 </div>
                             `;
@@ -4781,7 +3693,7 @@
                                         <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                             Neto <i class="fa-solid fa-chevron-down text-[8px] text-slate-400 group-hover:text-blue-500"></i>
                                         </span>
-                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(effAmount)}</span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">${safeSym} ${fmtNum(effAmount)}</span>
                                     </div>
                                 </div>
                             `;
@@ -4819,7 +3731,7 @@
                                         <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                             Restante <i class="fa-solid fa-chevron-up text-[8px] text-slate-400"></i>
                                         </span>
-                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(emp.amount)}</span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">${safeSym} ${fmtNum(emp.amount)}</span>
                                     </div>
                                 </div>
                             `;
@@ -4837,7 +3749,7 @@
                                         <span class="text-[10px] uppercase tracking-tight text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                             Restante <i class="fa-solid fa-chevron-down text-[8px] text-slate-400 group-hover:text-blue-500"></i>
                                         </span>
-                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">$${fmtNum(emp.amount)}</span>
+                                        <span class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight text-right">${safeSym} ${fmtNum(emp.amount)}</span>
                                     </div>
                                 </div>
                             `;
@@ -4852,7 +3764,7 @@
                             </div>
                             <div class="border-t border-slate-200 dark:border-slate-700 mt-1 pt-0.5"></div>
                             <div class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight mt-0.5 text-right">
-                                $${fmtNum(effAmount)}
+                                ${safeSym} ${fmtNum(effAmount)}
                             </div>
                         </div>
                     `;
@@ -4861,7 +3773,7 @@
                         <div class="emp-calc-stack font-mono text-xs mt-1">
                             <div class="text-[11px] text-slate-400 dark:text-slate-400 leading-tight">Neto a entregar</div>
                             <div class="text-base font-extrabold font-mono text-slate-900 dark:text-slate-100 tracking-tight mt-1 text-right">
-                                $${fmtNum(effAmount)}
+                                ${safeSym} ${fmtNum(effAmount)}
                             </div>
                         </div>
                     `;
@@ -4941,9 +3853,9 @@
                 return card;
             };
 
-            const renderBank = () => {
+            const renderBank = (precomputedBankData = null) => {
                 const tbody = document.getElementById('bankTableBody');
-                const bankData = calculateBankNeeds();
+                const bankData = precomputedBankData || calculateBankNeeds();
                 tbody.innerHTML = '';
 
                 let totalToWithdraw = 0;
@@ -5023,7 +3935,7 @@
                         const isCoinDenom = isCoin(d);
                         chip.className = `px-3 py-1.5 rounded-lg text-xs font-bold font-mono flex items-center gap-2 border shadow-2xs ${isCoinDenom ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800/80' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800/80'}`;
                         chip.innerHTML = `
-                            <span>${state.currencySymbol || ''} ${d} ${isCoinDenom ? '<span class="text-[9px] font-sans font-normal opacity-70">🪙</span>' : '<span class="text-[9px] font-sans font-normal opacity-70">💵</span>'}</span>
+                            <span>${escapeHTML(state.currencySymbol || '')} ${d} ${isCoinDenom ? '<span class="text-[9px] font-sans font-normal opacity-70">🪙</span>' : '<span class="text-[9px] font-sans font-normal opacity-70">💵</span>'}</span>
                             <button onclick="app.removeDenom(${d})" class="text-slate-400 hover:text-rose-500 transition-colors -mr-1" title="Eliminar denominación"><i class="fa-solid fa-xmark text-xs"></i></button>
                         `;
                         container.appendChild(chip);
@@ -5075,16 +3987,13 @@
                 state.breakdownFormat = fmt;
                 saveData();
                 renderAppearanceConfig();
-                renderAll();
             };
 
             const setChipTextColor = (mode) => {
                 state.chipTextColor = mode; // 'dark_tone' | 'black' | 'white'
                 saveData();
                 renderAppearanceConfig();
-                renderAppearancePreviewCard();
                 renderCustomBillsConfig();
-                renderAll();
                 showToast(`Color de texto: ${mode === 'dark_tone' ? 'Tono oscuro de la moneda' : (mode === 'black' ? 'Negro' : 'Blanco')}`, 'success');
             };
 
@@ -5092,28 +4001,24 @@
                 state.breakdownSize = size;
                 saveData();
                 renderAppearanceConfig();
-                renderAll();
             };
 
             const setBreakdownColumns = (cols) => {
                 state.breakdownColumns = cols;
                 saveData();
                 renderAppearanceConfig();
-                renderAll();
             };
 
             const toggleBreakdownGroupByType = (enabled) => {
                 state.breakdownGroupByType = enabled;
                 saveData();
                 renderAppearanceConfig();
-                renderAll();
             };
 
             const toggleBreakdownShowZeros = (enabled) => {
                 state.breakdownShowZeros = enabled;
                 saveData();
                 renderAppearanceConfig();
-                renderAll();
             };
 
             const renderAppearancePreviewCard = () => {
@@ -5250,7 +4155,7 @@
                     const shapeStyle = isRound ? 'width:32px;height:32px;' : 'width:52px;height:28px;';
                     const billStyle = getBillStyle(denom);
                     const innerHTML = activeImage ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
-                    const sym = state.currencySymbol || '';
+                    const sym = escapeHTML(state.currencySymbol || '');
 
                     const row = document.createElement('div');
                     row.className = 'flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200/80 dark:border-slate-800';
@@ -5289,43 +4194,41 @@
             };
 
             const updateBillColor = (denom, color) => {
+                const safe = sanitizeHexColor(color);
+                if (!safe) return;
                 if (!state.billColors) state.billColors = {};
-                state.billColors[denom] = color;
+                state.billColors[denom] = safe;
                 saveData();
                 renderCustomBillsConfig();
-                renderAppearancePreviewCard();
-                renderAll();
             };
 
             const resetBillColor = (denom) => {
                 if (state.billColors) delete state.billColors[denom];
                 saveData();
                 renderCustomBillsConfig();
-                renderAppearancePreviewCard();
-                renderAll();
             };
 
-            const uploadBillImage = (denom, input) => {
-                const file = input.files[0];
+            const uploadBillImage = async (denom, input) => {
+                const file = input.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
+                try {
+                    const dataUrl = await SplitXCurrencies.compressBillImageFile(file);
                     if (!state.billImages) state.billImages = {};
-                    state.billImages[denom] = e.target.result; // base64
+                    state.billImages[denom] = dataUrl;
                     saveData();
                     renderCustomBillsConfig();
-                    renderAppearancePreviewCard();
-                    renderAll();
-                };
-                reader.readAsDataURL(file);
+                    showToast(`Imagen actualizada para ${getCurrencySymbol()} ${denom}.`, 'success');
+                } catch (err) {
+                    showToast(err instanceof Error ? err.message : 'No se pudo cargar la imagen.', 'error');
+                } finally {
+                    input.value = '';
+                }
             };
 
             const clearBillImage = (denom) => {
                 if (state.billImages) delete state.billImages[denom];
                 saveData();
                 renderCustomBillsConfig();
-                renderAppearancePreviewCard();
-                renderAll();
             };
 
             const resetAllAppearance = async () => {
@@ -5341,8 +4244,6 @@
                 state.billColors = {};
                 saveData();
                 renderCustomBillsConfig();
-                renderAppearancePreviewCard();
-                renderAll();
                 showToast('Colores restaurados por defecto.', 'success');
             };
 
@@ -5359,12 +4260,10 @@
                 state.billImages = {};
                 saveData();
                 renderCustomBillsConfig();
-                renderAppearancePreviewCard();
-                renderAll();
                 showToast('Imágenes personalizadas removidas.', 'success');
             };
 
-            const updateTotals = () => {
+            const updateTotals = (precomputedCoverage = null, precomputedBankData = null, precomputedSummary = null) => {
                 // Cash in Box
                 let totalBox = 0;
                 state.denominations.forEach(d => totalBox += d * (state.inventory[d] || 0));
@@ -5375,13 +4274,12 @@
                 const paidEmps    = state.employees.filter(e => e.paid);
                 const pendingEmps = state.employees.filter(e => !e.paid);
                 let totalPending  = pendingEmps.reduce((s, e) => s + getEffectiveEmployeeAmount(e), 0);
-                const payrollSummary = getPayrollSummary();
+                const payrollSummary = precomputedSummary || getPayrollSummary();
                 const loanFund = isNormal ? 0 : Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
                 totalPending += loanFund;
-                const coverage = calculateDistribution();
+                const coverage = precomputedCoverage || calculateDistribution();
                 const employeeMissing = coverage.results.reduce((sum, emp) => sum + (!emp.paid ? (emp._missingAmount || 0) : 0), 0);
                 const totalMissing = employeeMissing + (coverage.loanFundResult.missingAmount || 0);
-                let totalAll      = state.employees.reduce((s, e) => s + getEffectiveEmployeeAmount(e), 0);
 
                 // ── KPI Cards ──────────────────────────────
                 // KPI 1: En Caja
@@ -5429,8 +4327,8 @@
                     }
                     if (kpiCubSub) kpiCubSub.innerText = 'Sin empleados';
                 } else {
-                    // Covered = paid OR status ok
-                    const covered = paidEmps.length;
+                    // Covered = paid OR fully covered in cash box (status === 'ok')
+                    const covered = coverage.results.filter(e => e.paid || e.status === 'ok').length;
                     const total   = state.employees.length;
                     if (kpiCub) {
                         kpiCub.innerText = `${covered} / ${total}`;
@@ -5439,12 +4337,12 @@
                     }
                     if (kpiCubSub) {
                         const pct = total > 0 ? Math.round(covered / total * 100) : 0;
-                        kpiCubSub.innerText = `${pct}% completado`;
+                        kpiCubSub.innerText = paidEmps.length > 0 ? `${pct}% cubierto · ${paidEmps.length} pag.` : `${pct}% cubierto`;
                     }
                 }
 
-                // KPI 4: Retirar banco — driven by calculateBankNeeds
-                const bankData = calculateBankNeeds();
+                // KPI 4: Retirar banco — driven by calculateBankNeeds (reused from renderAll)
+                const bankData = precomputedBankData || calculateBankNeeds(coverage);
                 let toWithdraw = 0;
                 state.denominations.forEach(d => {
                     if (bankData.breakdown[d]) toWithdraw += bankData.breakdown[d].final * d;
@@ -5537,22 +4435,24 @@
                     if (match) { name = match[1].trim(); valStr = match[2]; }
                 }
                 if (name && valStr) {
-                    const amount = parseFloat(valStr);
-                    if (!isNaN(amount)) {
-                        state.employees.push({
-                            id: Date.now(),
-                            name,
-                            amount,
-                            paid: false,
-                            isManual: true,
-                            isEdited: false,
-                            originalData: null
-                        });
-                        nameInput.value = ''; amtInput.value = '';
-                        saveData();
-                        closeAddDrawer();
-                        switchMobileView('nomina');
+                    const parsed = SplitXCore.parseManualAmount(valStr, (v) => SplitXExcelImport.parseMoney(v));
+                    if (!parsed.ok) {
+                        showToast(parsed.error, 'error');
+                        return;
                     }
+                    state.employees.push({
+                        id: SplitXCore.nextEmployeeId(),
+                        name,
+                        amount: parsed.amount,
+                        paid: false,
+                        isManual: true,
+                        isEdited: false,
+                        originalData: null
+                    });
+                    nameInput.value = ''; amtInput.value = '';
+                    saveData();
+                    closeAddDrawer();
+                    switchMobileView('nomina');
                 }
             };
 
@@ -5753,7 +4653,7 @@
                         `;
                     }
                 });
-                chipsContainer.innerHTML = chipsHTML || `<span class="text-xs text-slate-400 italic">${getCurrencySymbol()} 0.00 asignados</span>`;
+                chipsContainer.innerHTML = chipsHTML || `<span class="text-xs text-slate-400 italic">${escapeHTML(getCurrencySymbol())} 0.00 asignados</span>`;
             };
 
             const syncNetFromCalculated = () => {
@@ -5986,7 +4886,11 @@
         })();
 
         window.app = app;
-        window.onload = app.init;
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', app.init, { once: true });
+        } else {
+            app.init();
+        }
     </script>
     <div id="sheetStudio" hidden></div>
     <div id="documentStudio" hidden></div>

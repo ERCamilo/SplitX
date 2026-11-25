@@ -11,6 +11,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    let _importIdSeq = 0;
+    const nextImportId = () => {
+        const now = Date.now();
+        _importIdSeq = now > _importIdSeq ? now : _importIdSeq + 1;
+        return _importIdSeq;
+    };
+
     // sheetFields: SplitXSheetFields (opcional). parseNumber: parser de números estilo Excel ("1,300.00").
     const createImporter = ({ sheetFields = null, parseNumber }) => {
         const parseExcelNumber = parseNumber;
@@ -66,7 +73,7 @@
             if (amount === null || amount === undefined || isNaN(amount) || amount < 0) throw new Error(`Elemento #${idx + 1}: Monto inválido.`);
 
             const employee = {
-                id: Date.now() + idx,
+                id: nextImportId(),
                 name,
                 amount,
                 paid: item.paid || false,

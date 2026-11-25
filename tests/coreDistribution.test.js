@@ -3,7 +3,8 @@
  */
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { createCore } = require('../js/SplitXCore.js');
+const { createCore, nextEmployeeId, sanitizeInventoryQty, parseManualAmount, clampLoanFund, roundEmployeeAmounts } = require('../js/SplitXCore.js');
+const { parseMoney } = require('../js/SplitXExcelImport.js');
 
 const DOP = [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1];
 const USD = [100, 50, 20, 10, 5, 2, 1, 0.25, 0.10, 0.05, 0.01];
@@ -198,35 +199,78 @@ describe('getPayrollSummary', () => {
 describe('bounded optimizer integration: protect payroll regressions', () => {
     test('uses three 10 bills when a greedy 25 bill leaves an avoidable shortage', () => {
         const { core } = make({
-            denominations: [25, 10], inventory: {25: 1, 10: 3},
-            employees: [{id:1,name:'Ana', amount:30, paid:false}]
+            denominations: [25, 10], inventory: { 25: 1, 10: 3 },
+            employees: [{ id: 1, name: 'Ana', amount: 30, paid: false }]
         });
-        const {results,leftoverInventory} = core.calculateDistribution();
-        assert.equal(results[0]._missingAmount,0);
-        assert.deepEqual(results[0].distribution, {10:3});
-        assert.deepEqual(leftoverInventory, {25:1, 10:0});
-        const {breakdown} = core.calculateBankNeeds();
-        assert.ok(Object.values(breakdown).every(x=>x.final===0));
+        const { results, leftoverInventory } = core.calculateDistribution();
+        assert.equal(results[0]._missingAmount, 0);
+        assert.deepEqual(results[0].distribution, { 10: 3 });
+        assert.deepEqual(leftoverInventory, { 25: 1, 10: 0 });
+        const { breakdown } = core.calculateBankNeeds();
+        assert.ok(Object.values(breakdown).every(x => x.final === 0));
     });
     test('never sacrifices an employee who was fully payable with old distribution', () => {
-        const {core} = make({
-            denominations:[25,10], inventory:{25:1,10:3},
-            employees:[{id:1,name:'A',amount:30,paid:false},{id:2,name:'B',amount:10,paid:false}]
+        const { core } = make({
+            denominations: [25, 10], inventory: { 25: 1, 10: 3 },
+            employees: [{ id: 1, name: 'A', amount: 30, paid: false }, { id: 2, name: 'B', amount: 10, paid: false }]
         });
-        const {results}=core.calculateDistribution();
+        const { results } = core.calculateDistribution();
         // Optimizing A would require all three 10s and make B newly short.
-        assert.equal(results[0]._missingAmount,5);
-        assert.equal(results[1]._missingAmount,0);
+        assert.equal(results[0]._missingAmount, 5);
+        assert.equal(results[1]._missingAmount, 0);
     });
     test('optimizes loan reserve independently of paid employee inventory', () => {
-        const {core} = make({
-            denominations:[25,10], inventory:{25:1,10:3}, payrollMode:'deductions',
-            payrollLoanFund:30,
-            employees:[{id:1,name:'A',amount:0,paid:true,payroll:{loans:30,afterDiscounts:30}}]
+        const { core } = make({
+            denominations: [25, 10], inventory: { 25: 1, 10: 3 }, payrollMode: 'deductions',
+            payrollLoanFund: 30,
+            employees: [{ id: 1, name: 'A', amount: 0, paid: true, payroll: { loans: 30, afterDiscounts: 30 } }]
         });
-        const {loanFundResult,leftoverInventory}=core.calculateDistribution();
-        assert.equal(loanFundResult.missingAmount,0);
-        assert.deepEqual(loanFundResult.distribution, {10:3});
-        assert.equal(leftoverInventory[25],1);
+        const { loanFundResult, leftoverInventory } = core.calculateDistribution();
+        assert.equal(loanFundResult.missingAmount, 0);
+        assert.deepEqual(loanFundResult.distribution, { 10: 3 });
+        assert.equal(leftoverInventory[25], 1);
+    });
+});
+
+describe('domain validations and rounding helpers (Issue #25)', () => {
+    test('sanitizeInventoryQty clamps negatives and invalid inputs to 0', () => {
+        assert.equal(sanitizeInventoryQty(-5), 0);
+        assert.equal(sanitizeInventoryQty('abc'), 0);
+        assert.equal(sanitizeInventoryQty(''), 0);
+        assert.equal(sanitizeInventoryQty('12'), 12);
+    });
+
+    test('parseManualAmount rejects negative or invalid values and accepts clean amounts', () => {
+        assert.equal(parseManualAmount('-500', parseMoney).ok, false);
+        assert.equal(parseManualAmount('12.345', parseMoney).ok, false);
+        assert.equal(parseManualAmount('abc', parseMoney).ok, false);
+        assert.deepEqual(parseManualAmount('1,500.25', parseMoney), { ok: true, amount: 1500.25 });
+    });
+
+    test('clampLoanFund handles invalid text without throwing and clamps to collected loans', () => {
+        assert.deepEqual(clampLoanFund('', 500, parseMoney), { ok: true, value: 0 });
+        assert.deepEqual(clampLoanFund('900', 500, parseMoney), { ok: true, value: 500 });
+        assert.equal(clampLoanFund('-10', 500, parseMoney).ok, false);
+        assert.equal(clampLoanFund('12.345', 500, parseMoney).ok, false);
+    });
+
+    test('roundEmployeeAmounts floors amount, payroll.net and payroll.afterDiscounts consistently', () => {
+        const emps = [
+            { id: 1, name: 'Ana', amount: 800.50, payroll: { gross: 1000.75, afterDiscounts: 1000.75, loans: 200.25, net: 800.50, calculatedNet: 800.50 } },
+            { id: 2, name: 'Luis', amount: 500, payroll: { gross: 500, afterDiscounts: 500, loans: 0, net: 500, calculatedNet: 500 } },
+            { id: 3, name: 'Marta', amount: 350.90 }
+        ];
+        const res = roundEmployeeAmounts(emps, 'normal');
+        assert.equal(res.count, 2);
+        assert.equal(res.employees[0].amount, 800);
+        assert.equal(res.employees[0].payroll.net, 800);
+        assert.equal(res.employees[0].payroll.afterDiscounts, 1000);
+        assert.equal(res.employees[1], emps[1]); // untouched reference
+        assert.equal(res.employees[2].amount, 350);
+    });
+
+    test('nextEmployeeId generates strictly unique IDs even in tight loops', () => {
+        const ids = new Set(Array.from({ length: 100 }, () => nextEmployeeId()));
+        assert.equal(ids.size, 100);
     });
 });
