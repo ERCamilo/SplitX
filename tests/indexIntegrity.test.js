@@ -68,9 +68,10 @@ describe('index.html structural & script integrity', () => {
     });
 
     test('scrollbar CSS uses standard scrollbar-color/scrollbar-width with @supports fallback', () => {
-        assert.match(html, /scrollbar-color:\s*var\(--scrollbar-thumb\)\s+var\(--scrollbar-track\)/);
-        assert.match(html, /scrollbar-width:\s*thin/);
-        assert.match(html, /@supports\s+not\s+\(scrollbar-color:\s*auto\)/);
+        const appCss = fs.readFileSync(path.join(ROOT, 'css', 'app.css'), 'utf8');
+        assert.match(appCss, /scrollbar-color:\s*var\(--scrollbar-thumb\)\s+var\(--scrollbar-track\)/);
+        assert.match(appCss, /scrollbar-width:\s*thin/);
+        assert.match(appCss, /@supports\s+not\s+\(scrollbar-color:\s*auto\)/);
     });
 
     test('CI test workflow declares explicit least-privilege permissions', () => {
@@ -102,5 +103,23 @@ describe('index.html structural & script integrity', () => {
         assert.match(html, /id="opCorruptBackupCard"/);
         assert.match(html, /app\.downloadCorruptBackup\(\)/);
         assert.match(html, /app\.discardCorruptBackup\(\)/);
+    });
+
+    test('app CSS, ConfigUI and EditModal are extracted out of index.html (#28)', () => {
+        const head = html.slice(0, html.indexOf('</head>'));
+        assert.match(head, /<link\s+rel="stylesheet"\s+href="css\/app\.css">/);
+        assert.ok(fs.existsSync(path.join(ROOT, 'css', 'app.css')), 'css/app.css must exist');
+        assert.equal(/<style>[\s\S]{100,}<\/style>/.test(head), false, 'large inline <style> block must be extracted to css/app.css');
+
+        const match = html.match(/<!-- JavaScript Logic -->\s*<script>([\s\S]*?)<\/script>/);
+        const body = match ? match[1] : '';
+        assert.equal((body.match(/\bconst\s+renderConfigModal\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+renderCustomBillsConfig\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+openEditModal\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+saveEmployeeModal\s*=/g) || []).length, 0);
+
+        const jsconfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'jsconfig.json'), 'utf8'));
+        assert.ok(jsconfig.include.includes('js/SplitXConfigUI.js'));
+        assert.ok(jsconfig.include.includes('js/SplitXEditModal.js'));
     });
 });

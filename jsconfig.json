@@ -22,6 +22,8 @@
     "js/SplitXExport.js",
     "js/SplitXDialogs.js",
     "js/SplitXEmployeeCard.js",
+    "js/SplitXConfigUI.js",
+    "js/SplitXEditModal.js",
     "types/*.d.ts"
   ]
 }

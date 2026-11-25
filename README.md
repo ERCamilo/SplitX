@@ -49,6 +49,7 @@ SplitX/
 ├── index.html                    # Entrada única de la app, vistas, modales y orquestación de UI
 ├── document-studio.html          # Fragmento HTML (sin <html>/<body>) cargado vía fetch() en #documentStudio
 ├── css/
+│   ├── app.css                   # Estilos de componentes, temas y animaciones extraídos de index.html
 │   ├── tailwind.input.css        # Directivas fuente de Tailwind CSS
 │   ├── tailwind.css              # Bundle CSS minificado compilado localmente (sin Play CDN)
 │   └── document-studio.css       # Estilos propios del estudio de documentos (no usa Tailwind)
@@ -67,6 +68,8 @@ SplitX/
 │   ├── SplitXExport.js           # Exportación CSV local + carga diferida (lazy) de SheetJS (XLSX) y jsPDF
 │   ├── SplitXDialogs.js          # Diálogos modales reutilizables (alert/confirm/choice)
 │   ├── SplitXEmployeeCard.js     # Renderizado de tarjetas de empleados y asesor de faltantes de billetes
+│   ├── SplitXConfigUI.js         # Modal de configuración, apariencia y personalización de billetes
+│   ├── SplitXEditModal.js        # Modal de edición de colaborador y cálculos de ajuste/préstamo
 │   ├── SplitXSheetFields.js      # Catálogo de campos dinámicos para hojas y documentos
 │   ├── SplitXVariables.js        # Variables y fórmulas reutilizables para impresión
 │   ├── SplitXFormulaBuilder.js   # Constructor visual de fórmulas por chips
@@ -79,7 +82,7 @@ SplitX/
 ├── qa/chip-formulas/             # Suite aislada de QA para el constructor de fórmulas por chips
 ├── docs/employee-documents.md    # Guía funcional y límites de Documentos personalizados
 ├── package.json                  # Scripts de pruebas, verificación de tipos y compilación CSS
-├── jsconfig.json                 # Configuración de verificación estática checkJs (11 de 20 módulos)
+├── jsconfig.json                 # Configuración de verificación estática checkJs (13 de 22 módulos)
 ├── tailwind.config.js            # Configuración de Tailwind CLI v3 (escanea index.html y js/**/*.js)
 ├── CNAME                         # Dominio personalizado de GitHub Pages (splitx.erlin.do)
 └── .github/workflows/            # CI: test.yml (Test Suite) y qa-chip-formulas.yml
@@ -148,7 +151,7 @@ GitHub Pages no permite enviar cabeceras HTTP personalizadas desde el repositori
 npm test
 
 # 2. Verificación estática de tipos JS (TypeScript checkJs estricto en jsconfig.json;
-#    actualmente cubre 11 de los 20 módulos en js/ — el resto sigue en Issue #28)
+#    actualmente cubre 13 de los 22 módulos en js/ — el resto sigue en Issue #28)
 npm run typecheck
 
 # 3. Recompilar Tailwind CSS minificado tras cambiar clases en index.html o js/*.js
