@@ -1,0 +1,13 @@
+# Normalizar finales de línea a LF entre Windows y runners Linux de CI
+* text=auto eol=lf
+
+# Activos binarios (nunca reescribir finales de línea)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.docx binary

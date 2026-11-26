@@ -18,10 +18,10 @@ jobs:
     name: Base actual - debe pasar
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Casos de compatibilidad del motor
         run: node --test qa/chip-formulas/baseline.cases.cjs
       - name: Instalar Playwright y Chromium
@@ -35,10 +35,10 @@ jobs:
     name: Formulas - conversion chips y texto
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Pruebas unitarias de formulas visuales
         run: node --test qa/chip-formulas/future-unit.cases.cjs
 
@@ -46,10 +46,10 @@ jobs:
     name: Constructor - navegador y movil
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Instalar Playwright y Chromium
         run: |
           npm install --no-save playwright@1.56.1
