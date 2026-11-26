@@ -1,23 +1,46 @@
+// @ts-check
 /**
  * Visual adapter for reusable print-only formulas. The existing SplitXVariables
  * parser remains the single evaluator; the UI only edits SheetBuilder chips.
  */
-(function(root, factory) {
+(function(/** @type {any} */ root, /** @type {any} */ factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./SplitXVariables.js'));
     else root.SplitXFormulaBuilder = factory(root.SplitXVariables);
-})(typeof globalThis !== 'undefined' ? globalThis : this, function(CV) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, /** @param {any} CV */ function(CV) {
     'use strict';
-    const html = v => String(v == null ? '' : v).replace(/[&<>"']/g,
-        c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    /** @type {Record<string, string>} */
+    const HTML_ESC = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+    /** @param {any} v */
+    const html = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => HTML_ESC[c]);
+    /** @template T @param {T} x @returns {T} */
     const clone = x => JSON.parse(JSON.stringify(x));
+    /** @param {string} key */
     const F = key => ({kind:'field',key});
+    /** @param {string} op */
     const O = op => ({kind:'op',op});
+    /** @param {string} paren */
     const P = paren => ({kind:'paren',paren});
     const OPS = [['+','+'],['−','-'],['×','*'],['÷','/'],['(', '('],[')', ')']];
+    /** @param {string} op */
     const makeOp = op => op === '(' || op === ')' ? P(op) : O(op);
-    const opSymbol = op => ({'*':'×','/':'÷','-':'−'}[op] || op);
+    /** @type {Record<string, string>} */
+    const OP_SYMBOLS = {'*':'×','/':'÷','-':'−'};
+    /** @param {string} op */
+    const opSymbol = op => OP_SYMBOLS[op] || op;
 
+    /**
+     * @param {{
+     *   host: HTMLElement,
+     *   fields: any[],
+     *   variables: any[],
+     *   employees: any[],
+     *   existing?: any,
+     *   seed?: any[],
+     *   savePreview: any
+     * }} opts
+     */
     const mount = ({host, fields, variables, employees, existing, seed, savePreview}) => {
+        /** @param {string} s @returns {any} */
         const q = s => host.querySelector(s);
         const formula = q('#ssVarFormula');
         const kind = q('#ssVarKind');
@@ -26,8 +49,10 @@
         const available = fields.filter(f=>f.type==='number' || f.key.startsWith('custom:'));
         const byKey = new Map(fields.map(f=>[f.key,f.label]));
         const catalog = {fields,variables,resolveField:savePreview.resolveField};
+        /** @type {any[]} */
         let chips = [];
         let mode = 'visual';
+        /** @type {any} */
         let dragged = null;
         let selectedIndex = -1;
         let editingNumberIndex = -1;
@@ -60,18 +85,22 @@
         const box = q('#ssVarBuilder');
         const openedAt = Date.now();
         const area = q('#ssVarVisualArea');
-        const canvas=q('#ssVarFormulaCanvas'),palette=q('#ssVarBuilderPalette');
-        const preview=q('#ssVarPreviewValue'), selector=q('#ssVarPreviewEmployee');
+        /** @type {HTMLElement} */
+        const canvas = q('#ssVarFormulaCanvas');
+        /** @type {HTMLElement} */
+        const palette = q('#ssVarBuilderPalette');
+        const preview = q('#ssVarPreviewValue'), selector = q('#ssVarPreviewEmployee');
+        /** @param {any} ch */
         const labelOf = ch => ch.kind==='field' ? byKey.get(ch.key) || ch.key :
             ch.kind==='op' ? opSymbol(ch.op) : ch.kind==='paren' ? ch.paren :
             ch.kind==='number' ? String(ch.value)+(ch.percent?'%':'') : '?';
         // Selected token keeps a small, explicit delete control. The input
         // stays at the end of the formula so typing can create chips directly.
         const renderTokens = () => {
-            const oldInput=canvas.querySelector('#ssVarInlineInput');
-            const oldValue=oldInput?.value || '';
-            const active=document.activeElement===oldInput;
-            const cursor=active ? oldInput.selectionStart : null;
+            const oldInput = /** @type {HTMLInputElement | null} */ (canvas.querySelector('#ssVarInlineInput'));
+            const oldValue = oldInput?.value || '';
+            const active = document.activeElement === oldInput;
+            const cursor = active && oldInput ? oldInput.selectionStart : null;
             canvas.innerHTML = chips.map((ch,i)=>
               '<span draggable="true" role="listitem" class="ss-chip '+(ch.kind==='field'?'k-field':ch.kind==='op'?'k-op':'k-number')+
               '" data-formula-token="'+i+'" tabindex="0" aria-selected="'+(selectedIndex===i)+'" title="Selecciona para eliminar o arrastra para ordenar" '+
@@ -82,11 +111,12 @@
               '</span>').join('')+
               '<input id="ssVarInlineInput" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="Escribe números u operadores para crear chips" placeholder="'+(chips.length?'5, +, −, *, /, %, #':'Escribe 5, +, -, (, %, #')+
               '" style="min-width:118px;flex:1 1 118px;max-width:100%;border:0;outline:0;background:transparent;color:inherit;min-height:28px;font:inherit;padding:3px">';
-            const input=canvas.querySelector('#ssVarInlineInput');
-            input.value=oldValue;
-            if(active){
+            const input = /** @type {HTMLInputElement | null} */ (canvas.querySelector('#ssVarInlineInput'));
+            if (!input) return;
+            input.value = oldValue;
+            if (active) {
                 input.focus();
-                if(cursor!==null)input.setSelectionRange(Math.min(cursor,input.value.length),Math.min(cursor,input.value.length));
+                if (cursor !== null) input.setSelectionRange(Math.min(cursor, input.value.length), Math.min(cursor, input.value.length));
             }
         };
         const renderPalette = () => {
@@ -110,11 +140,11 @@
                 const own=savePreview.createFieldSet(definitions);
                 const key=selector.value;
                 const row=employees.find(e=>String(e.employeeNumber??('id:'+e.id))===key);
-                const field=own.fields.find(f=>f.key==='custom:'+id);
+                const field=own.fields.find((/** @type {any} */ f)=>f.key==='custom:'+id);
                 if (!row || !field) { preview.textContent='Sin empleado';return; }
                 const number=field.get(row,{index:employees.indexOf(row)});
                 preview.textContent=Number(number).toLocaleString('es-DO',{maximumFractionDigits:2});
-            } catch(err) { preview.textContent='Vista previa: '+err.message; }
+            } catch(/** @type {any} */ err) { preview.textContent='Vista previa: '+err.message; }
         };
         const renderMode = () => {
             const active=kind.value==='formula';
@@ -125,19 +155,23 @@
             q('#ssVarModeText').setAttribute('aria-pressed',String(mode==='text'));
             renderTokens();previewValue();
         };
+        /** @param {any} err */
         const showError = err => {msg.textContent=err.message || String(err);};
+        /** @param {string} next */
         const switchMode = next => {
             try {
                 if (next==='visual' && mode==='text') chips=formula.value.trim()?CV.formulaToChips(formula.value,catalog):[];
                 if (next==='text' && mode==='visual') formula.value=chips.length?CV.chipsToFormula(chips):'';
                 mode=next;msg.textContent='';renderMode();
-            } catch(err) {showError(err);}
+            } catch(/** @type {any} */ err) {showError(err);}
         };
+        /** @param {any} item */
         const add = item => {
             chips.push(clone(item));
             selectedIndex=-1;editingNumberIndex=-1;
             msg.textContent='';renderTokens();previewValue();
         };
+        /** @param {number} i */
         const removeToken = i => {
             if(i<0||i>=chips.length)return;
             chips.splice(i,1);selectedIndex=-1;editingNumberIndex=-1;
@@ -152,7 +186,7 @@
         let textPointerDown=false;
         textModeButton.addEventListener('pointerdown',()=>{textPointerDown=true;});
         textModeButton.addEventListener('pointercancel',()=>{textPointerDown=false;});
-        textModeButton.addEventListener('click',e=>{
+        textModeButton.addEventListener('click',(/** @type {MouseEvent} */ e)=>{
             // Some touch browsers retarget a 50ms synthesized gesture after
             // the opener creates this modal. Ignore that immediate event.
             const touchGhost=e.detail>0 && navigator.maxTouchPoints>0 && Date.now()-openedAt<220;
@@ -169,8 +203,10 @@
             renderMode();
         });
         palette.addEventListener('click',e=>{
-            const el=e.target.closest('[data-chip-key],[data-chip-op]');if(!el) return;
-            add(el.dataset.chipKey?F(el.dataset.chipKey):makeOp(el.dataset.chipOp));
+            const target = /** @type {HTMLElement | null} */ (e.target);
+            const el = /** @type {HTMLElement | null} */ (target?.closest('[data-chip-key],[data-chip-op]') || null);
+            if(!el) return;
+            add(el.dataset.chipKey?F(el.dataset.chipKey):makeOp(el.dataset.chipOp || '+'));
         });
         q('#ssVarInsertNumber').addEventListener('click',()=>{
             const value=q('#ssVarNumberValue').value;
@@ -180,6 +216,7 @@
         });
         // Destination is an insertion *slot* from 0..length. Moving a token
         // forward must account for its removal before inserting it again.
+        /** @param {number} from @param {number} slot */
         const move=(from,slot)=>{
             if(from<0||from>=chips.length)return;
             const to=Math.max(0,Math.min(chips.length,slot))-(from<slot?1:0);
@@ -189,47 +226,50 @@
             renderTokens();previewValue();
         };
         canvas.addEventListener('click',e=>{
-            const deleteButton=e.target.closest('[data-remove-token]');
+            const target = /** @type {HTMLElement | null} */ (e.target);
+            const deleteButton = /** @type {HTMLElement | null} */ (target?.closest('[data-remove-token]') || null);
             if(deleteButton){e.stopPropagation();removeToken(Number(deleteButton.dataset.removeToken));return;}
-            const el=e.target.closest('[data-formula-token]');
+            const el = /** @type {HTMLElement | null} */ (target?.closest('[data-formula-token]') || null);
             if(el){
                 selectedIndex=Number(el.dataset.formulaToken);
                 editingNumberIndex=-1;
                 renderTokens();
-                canvas.querySelector('[data-formula-token="'+selectedIndex+'"]')?.focus();
-            } else if(e.target===canvas)canvas.querySelector('#ssVarInlineInput')?.focus();
+                /** @type {HTMLElement | null} */ (canvas.querySelector('[data-formula-token="'+selectedIndex+'"]'))?.focus();
+            } else if(e.target===canvas) /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarInlineInput'))?.focus();
         });
         canvas.addEventListener('keydown',e=>{
-            const el=e.target.closest('[data-formula-token]');
+            const target = /** @type {HTMLElement | null} */ (e.target);
+            const el = /** @type {HTMLElement | null} */ (target?.closest('[data-formula-token]') || null);
             if(el){
                 const index=Number(el.dataset.formulaToken);
                 if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();removeToken(index);}
                 if(e.altKey&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){
                     e.preventDefault();
                     move(index,index+(e.key==='ArrowLeft'?-1:2));
-                    canvas.querySelector('[data-formula-token="'+selectedIndex+'"]')?.focus();
+                    /** @type {HTMLElement | null} */ (canvas.querySelector('[data-formula-token="'+selectedIndex+'"]'))?.focus();
                 }
                 return;
             }
-            if(e.target.id!=='ssVarInlineInput'||e.ctrlKey||e.metaKey||e.altKey)return;
-            const input=e.target;
+            if(!target || target.id!=='ssVarInlineInput'||e.ctrlKey||e.metaKey||e.altKey)return;
+            const input = /** @type {HTMLInputElement} */ (target);
+            /** @type {Record<string, string>} */
             const operators={'+':'+','-':'-','*':'*','/':'/','×':'*','÷':'/','(':'(',')':')'};
             if(Object.prototype.hasOwnProperty.call(operators,e.key)){
                 e.preventDefault();
                 input.value='';editingNumberIndex=-1;
                 add(makeOp(operators[e.key]));
-                canvas.querySelector('#ssVarInlineInput')?.focus();
+                /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarInlineInput'))?.focus();
             } else if(e.key==='%'){
                 e.preventDefault();
-                const target=editingNumberIndex>=0?editingNumberIndex:
+                const targetIdx=editingNumberIndex>=0?editingNumberIndex:
                     chips.length-1;
-                if(chips[target]?.kind==='number'){
-                    chips[target].percent=true;
+                if(chips[targetIdx]?.kind==='number'){
+                    chips[targetIdx].percent=true;
                     input.value='';editingNumberIndex=-1;
-                    selectedIndex=target;
+                    selectedIndex=targetIdx;
                     renderTokens();previewValue();
                 }else showError(new Error('Escribe un número antes de %.'));
-                canvas.querySelector('#ssVarInlineInput')?.focus();
+                /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarInlineInput'))?.focus();
             }else if(e.key==='#'){
                 e.preventDefault();
                 input.value='';
@@ -237,20 +277,21 @@
                 editingNumberIndex=chips.length-1;
                 selectedIndex=editingNumberIndex;
                 renderTokens();previewValue();
-                canvas.querySelector('#ssVarInlineInput')?.focus();
+                /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarInlineInput'))?.focus();
             }else if(e.key==='Enter'||e.key===' '){
                 e.preventDefault();input.value='';editingNumberIndex=-1;
                 renderTokens();previewValue();
-                canvas.querySelector('#ssVarInlineInput')?.focus();
+                /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarInlineInput'))?.focus();
             }else if(e.key==='Backspace'&&!input.value){
                 e.preventDefault();
                 removeToken(chips.length-1);
-                canvas.querySelector('#ssVarInlineInput')?.focus();
+                /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarInlineInput'))?.focus();
             }
         });
         canvas.addEventListener('input',e=>{
-            if(e.target.id!=='ssVarInlineInput')return;
-            const value=e.target.value.trim();
+            const target = /** @type {HTMLInputElement | null} */ (e.target);
+            if(!target || target.id!=='ssVarInlineInput')return;
+            const value=target.value.trim();
             if(!value)return;
             if(!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(value)){
                 showError(new Error('Escribe un número; los operadores se convierten en chips.'));
@@ -269,9 +310,11 @@
         // A focusout listener here would wrongly end the number being typed,
         // creating separate chips for 1, 12 and 12.5. Terminate the number
         // only when an explicit operator/action is inserted instead.
+        /** @param {HTMLElement | null} el */
         const fromDom = el => el?.dataset?.chipKey ? F(el.dataset.chipKey) :
             el?.dataset?.chipOp ? makeOp(el.dataset.chipOp) : null;
         const removeGuide=()=>canvas.querySelector('#ssVarDropMarker')?.remove();
+        /** @param {DragEvent} e */
         const insertionSlot=e=>{
             const tokens=Array.from(canvas.querySelectorAll('[data-formula-token]'));
             for(let i=0;i<tokens.length;i++){
@@ -281,6 +324,7 @@
             }
             return tokens.length;
         };
+        /** @param {number} slot */
         const showGuide=slot=>{
             removeGuide();
             const guide=document.createElement('span');
@@ -291,26 +335,30 @@
             const tokens=canvas.querySelectorAll('[data-formula-token]');
             canvas.insertBefore(guide,tokens[slot]||canvas.querySelector('#ssVarInlineInput'));
         };
+        /** @param {DragEvent} e */
         const dragStart=e=>{
-            const token=e.target.closest('[data-formula-token]');
+            const target = /** @type {HTMLElement | null} */ (e.target);
+            const token = /** @type {HTMLElement | null} */ (target?.closest('[data-formula-token]') || null);
             if(token)dragged={src:'token',index:Number(token.dataset.formulaToken)};
             else{
-                const item=fromDom(e.target.closest('[data-chip-key],[data-chip-op]'));
+                const item=fromDom(/** @type {HTMLElement | null} */ (target?.closest('[data-chip-key],[data-chip-op]') || null));
                 if(item)dragged={src:'palette',item};
             }
-            if(dragged){e.dataTransfer.effectAllowed='copyMove';e.dataTransfer.setData('text/plain','splitx-formula');}
+            if(dragged && e.dataTransfer){e.dataTransfer.effectAllowed='copyMove';e.dataTransfer.setData('text/plain','splitx-formula');}
         };
         palette.addEventListener('dragstart',dragStart);
         canvas.addEventListener('dragstart',dragStart);
         canvas.addEventListener('dragover',e=>{
             if(!dragged)return;
             e.preventDefault();
-            e.dataTransfer.dropEffect=dragged.src==='palette'?'copy':'move';
+            if(e.dataTransfer) e.dataTransfer.dropEffect=dragged.src==='palette'?'copy':'move';
             const slot=insertionSlot(e);
             dragged.slot=slot;
-            if(canvas.querySelector('#ssVarDropMarker')?.dataset.slot!==String(slot)){
+            const currentMarker = /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarDropMarker'));
+            if(currentMarker?.dataset.slot!==String(slot)){
                 showGuide(slot);
-                canvas.querySelector('#ssVarDropMarker').dataset.slot=String(slot);
+                const nextMarker = /** @type {HTMLElement | null} */ (canvas.querySelector('#ssVarDropMarker'));
+                if(nextMarker) nextMarker.dataset.slot=String(slot);
             }
         });
         canvas.addEventListener('drop',e=>{
@@ -329,7 +377,7 @@
         canvas.addEventListener('dragend',endDrag);
         palette.addEventListener('dragend',endDrag);
         canvas.addEventListener('dragleave',e=>{
-            if(!canvas.contains(e.relatedTarget))removeGuide();
+            if(!canvas.contains(/** @type {Node | null} */ (e.relatedTarget)))removeGuide();
         });
         selector.addEventListener('change',previewValue);
         formula.addEventListener('input',()=>{
@@ -341,8 +389,10 @@
             dest.style.display=mode==='text'&&options.length?'block':'none';
             dest.innerHTML=options.map(f=>'<button type="button" class="ss-btn sm" data-chip-key="'+html(f.key)+'">'+html(f.label)+'</button>').join('');
         });
-        q('#ssVarFormulaSuggestions').addEventListener('click',e=>{
-            const btn=e.target.closest('[data-chip-key]');if(!btn)return;
+        q('#ssVarFormulaSuggestions').addEventListener('click',(/** @type {MouseEvent} */ e)=>{
+            const target = /** @type {HTMLElement | null} */ (e.target);
+            const btn = /** @type {HTMLElement | null} */ (target?.closest('[data-chip-key]') || null);
+            if(!btn || !btn.dataset.chipKey)return;
             const match=/[a-z_][a-z0-9_:]*$/i.exec(formula.value);
             formula.value=(match?formula.value.slice(0,match.index):formula.value)+
                 btn.dataset.chipKey.replace(/^custom:/,'');
@@ -351,6 +401,7 @@
         renderMode();
         return {
             getFormula:()=>textFormula(),
+            /** @param {any[]} list */
             setChips:list=>{chips=clone(list);mode='visual';renderMode();},
             getChips:()=>clone(chips)
         };

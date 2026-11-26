@@ -15,6 +15,7 @@
     "js/SheetBuilder.js",
     "js/SheetStudioModel.js",
     "js/SplitXVariables.js",
+    "js/SplitXFormulaBuilder.js",
     "js/SplitXSheetFields.js",
     "js/DocumentStudio.js",
     "js/SplitXImportHistory.js",

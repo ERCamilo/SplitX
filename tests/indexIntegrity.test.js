@@ -135,6 +135,7 @@ describe('index.html structural & script integrity', () => {
         assert.ok(jsconfig.include.includes('js/SplitXEarlyBoot.js'));
         assert.ok(jsconfig.include.includes('js/SheetStudioModel.js'));
         assert.ok(jsconfig.include.includes('js/SplitXVariables.js'));
+        assert.ok(jsconfig.include.includes('js/SplitXFormulaBuilder.js'));
         assert.ok(jsconfig.include.includes('js/DocumentStudio.js'));
     });
 

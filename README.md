@@ -87,7 +87,7 @@ SplitX/
 ├── qa/chip-formulas/             # Suite aislada de QA para el constructor de fórmulas por chips
 ├── docs/employee-documents.md    # Guía funcional y límites de Documentos personalizados
 ├── package.json                  # Scripts de pruebas, verificación de tipos y compilación CSS
-├── jsconfig.json                 # Configuración de verificación estática checkJs (23 de 26 módulos)
+├── jsconfig.json                 # Configuración de verificación estática checkJs (24 de 26 módulos)
 ├── tailwind.config.js            # Configuración de Tailwind CLI v3 (escanea index.html y js/**/*.js)
 ├── CNAME                         # Dominio personalizado de GitHub Pages (splitx.erlin.do)
 └── .github/workflows/            # CI: test.yml (Test Suite) y qa-chip-formulas.yml
@@ -155,7 +155,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self' https://cdnjs.clo
 npm test
 
 # 2. Verificación estática de tipos JS (TypeScript checkJs estricto en jsconfig.json;
-#    actualmente cubre 23 de los 26 módulos en js/ — 100% de los módulos de dominio, variables, documentos y seguridad)
+#    actualmente cubre 24 de los 26 módulos en js/ — 100% de los módulos de dominio, variables, fórmulas, documentos y seguridad)
 npm run typecheck
 
 # 3. Recompilar Tailwind CSS minificado tras cambiar clases en index.html o js/*.js
