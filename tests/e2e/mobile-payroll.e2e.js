@@ -23,7 +23,7 @@ describe('mobile payroll workflow at 390x844', () => {
                     response,
                     headers: {
                         ...response.headers(),
-                        'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'"
+                        'content-security-policy': "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'"
                     }
                 });
             }
