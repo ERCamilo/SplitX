@@ -133,6 +133,19 @@ describe('index.html structural & script integrity', () => {
         assert.ok(jsconfig.include.includes('js/SplitXEditModal.js'));
         assert.ok(jsconfig.include.includes('js/SplitXActionDelegation.js'));
         assert.ok(jsconfig.include.includes('js/SplitXEarlyBoot.js'));
+        assert.ok(jsconfig.include.includes('js/SheetStudioModel.js'));
+        assert.ok(jsconfig.include.includes('js/SplitXVariables.js'));
+        assert.ok(jsconfig.include.includes('js/DocumentStudio.js'));
+    });
+
+    test('SheetStudioModel and css/sheet-studio.css are wired in index.html before SheetStudio.js', () => {
+        const head = html.slice(0, html.indexOf('</head>'));
+        assert.match(head, /<link\s+rel="stylesheet"\s+href="css\/sheet-studio\.css">/);
+        assert.match(head, /<script\s+src="js\/SheetStudioModel\.js"><\/script>/);
+        assert.ok(
+            head.indexOf('js/SheetStudioModel.js') < head.indexOf('js/SheetStudio.js'),
+            'js/SheetStudioModel.js must load before js/SheetStudio.js'
+        );
     });
 
     test('zero inline on* HTML event handlers remain in index.html, SplitXApp.js, or SplitXConfigUI.js (strict CSP)', () => {

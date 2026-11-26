@@ -52,6 +52,7 @@ SplitX/
 │   ├── app.css                   # Estilos de componentes, temas y animaciones extraídos de index.html
 │   ├── tailwind.input.css        # Directivas fuente de Tailwind CSS
 │   ├── tailwind.css              # Bundle CSS minificado compilado localmente (sin Play CDN)
+│   ├── sheet-studio.css          # Estilos del Estudio de Hojas (sobres, hojas de firmas e impresión)
 │   └── document-studio.css       # Estilos propios del estudio de documentos (no usa Tailwind)
 ├── imagenes/                     # Favicon, logotipo y activos visuales de billetes/monedas DOP
 ├── js/
@@ -77,7 +78,8 @@ SplitX/
 │   ├── SplitXVariables.js        # Variables y fórmulas reutilizables para impresión
 │   ├── SplitXFormulaBuilder.js   # Constructor visual de fórmulas por chips
 │   ├── SheetBuilder.js           # Evaluación de chips/fórmulas y maquetación/paginación de sobres (cards)
-│   ├── SheetStudio.js            # Interfaz del Estudio de Hojas, maquetación de hojas de firmas (table) e impresión
+│   ├── SheetStudioModel.js       # Modelo puro del Estudio de Hojas (plantillas, validación, paginación, totales, migración)
+│   ├── SheetStudio.js            # Interfaz del Estudio de Hojas, editor interactivo e impresión
 │   ├── SplitXDocuments.js        # Plantillas de documentos, sustitución de campos y sanitización HTML
 │   └── DocumentStudio.js         # Interfaz de Documentos personalizados + fetch() del fragmento + Mammoth lazy
 ├── types/umd-globals.d.ts        # Declaraciones globales para TypeScript checkJs
@@ -85,7 +87,7 @@ SplitX/
 ├── qa/chip-formulas/             # Suite aislada de QA para el constructor de fórmulas por chips
 ├── docs/employee-documents.md    # Guía funcional y límites de Documentos personalizados
 ├── package.json                  # Scripts de pruebas, verificación de tipos y compilación CSS
-├── jsconfig.json                 # Configuración de verificación estática checkJs (20 de 25 módulos)
+├── jsconfig.json                 # Configuración de verificación estática checkJs (23 de 26 módulos)
 ├── tailwind.config.js            # Configuración de Tailwind CLI v3 (escanea index.html y js/**/*.js)
 ├── CNAME                         # Dominio personalizado de GitHub Pages (splitx.erlin.do)
 └── .github/workflows/            # CI: test.yml (Test Suite) y qa-chip-formulas.yml
@@ -153,7 +155,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self' https://cdnjs.clo
 npm test
 
 # 2. Verificación estática de tipos JS (TypeScript checkJs estricto en jsconfig.json;
-#    actualmente cubre 20 de los 25 módulos en js/ — 100% de los módulos de dominio y seguridad)
+#    actualmente cubre 23 de los 26 módulos en js/ — 100% de los módulos de dominio, variables, documentos y seguridad)
 npm run typecheck
 
 # 3. Recompilar Tailwind CSS minificado tras cambiar clases en index.html o js/*.js

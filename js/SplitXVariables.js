@@ -1,9 +1,10 @@
+// @ts-check
 /**
  * User-defined print-only numeric variables. No eval(), no payroll mutation.
  * Expressions use built-in field keys (gross, days, loan:adelanto), a custom
  * variable id (transporte), operators + - * /, parentheses and postfix %.
  */
-(function (root, factory) {
+(function (/** @type {any} */ root, /** @type {any} */ factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory();
     else root.SplitXVariables = factory();
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
@@ -13,10 +14,16 @@
     const MAX_DEFINITIONS = 50;
     const MAX_FORMULA = 180;
     const TOKEN = /\s*(\d+(?:\.\d+)?|[a-zA-Z_][a-zA-Z_0-9:]*|[()+\-*/%])\s*/y;
+    /** @param {any} n @returns {n is number} */
     const isNumber = n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 1e12;
 
+    /**
+     * @param {string} formula
+     * @returns {string[]}
+     */
     const tokenize = (formula) => {
         if (typeof formula !== 'string' || formula.length > MAX_FORMULA) throw new Error('Fórmula demasiado larga o inválida.');
+        /** @type {string[]} */
         const out = []; let position = 0;
         while (position < formula.length) {
             TOKEN.lastIndex = position;
@@ -30,13 +37,20 @@
         return out;
     };
 
+    /** @param {string} formula */
     const references = formula => tokenize(formula).filter(t => /^[a-zA-Z_]/.test(t));
 
+    /**
+     * @param {string | string[]} formula
+     * @param {(name: string) => number} lookup
+     * @returns {number}
+     */
     const evaluate = (formula, lookup) => {
         const tokens = Array.isArray(formula) ? formula : tokenize(formula);
         let at = 0;
         const peek = () => tokens[at];
         const take = () => tokens[at++];
+        /** @returns {number} */
         const primary = () => {
             const t = take();
             if (t === undefined) throw new Error('La fórmula termina antes de completar el cálculo.');
@@ -49,6 +63,7 @@
             if (/^[a-zA-Z_]/.test(t)) return lookup(t);
             throw new Error('Valor inesperado: ' + t);
         };
+        /** @returns {number} */
         const unary = () => {
             if (peek() === '+') { take(); return unary(); }
             if (peek() === '-') { take(); return -unary(); }
@@ -60,6 +75,7 @@
         // "dailyRate - 3%" subtracts 3% of dailyRate, while
         // "dailyRate * 3%" multiplies by 0.03. Only a standalone
         // numeric percent literal on the right of +/- is relative.
+        /** @returns {{ value: number, barePercent: number | null }} */
         const term = () => {
             const start = at;
             let x = unary();
@@ -73,6 +89,7 @@
                 ? Number(tokens[start]) : null;
             return { value: x, barePercent };
         };
+        /** @returns {number} */
         const expression = () => {
             let x = term().value;
             while (peek() === '+' || peek() === '-') {
@@ -88,11 +105,16 @@
         return Number(result.toFixed(8));
     };
 
+    /**
+     * @param {any} definitions
+     * @param {any} [base]
+     */
     const validateDefinitions = (definitions, base) => {
         if (!Array.isArray(definitions) || definitions.length > MAX_DEFINITIONS)
             throw new Error('Máximo de 50 variables personalizadas.');
+        /** @type {Set<string>} */
         const ids = new Set();
-        const builtin = new Set((base?.fields || []).map(f => f.key));
+        const builtin = new Set((base?.fields || []).map((/** @type {any} */ f) => f.key));
         for (const def of definitions) {
             if (!def || !ID.test(def.id) || typeof def.label !== 'string' ||
                 !def.label.trim() || def.label.length > 60) throw new Error('ID o nombre de variable inválido.');
@@ -112,11 +134,14 @@
                 evaluate(def.formula, () => 1); // Formula grammar, no code execution.
             } else throw new Error('Tipo de variable inválido en ' + def.id);
         }
+        /** @type {Map<string, any>} */
         const byId = new Map(definitions.map(d => [d.id, d]));
+        /** @type {Map<string, string[]>} */
         const dep = new Map();
         for (const def of definitions) {
             if (def.kind !== 'formula') continue;
             const refs = references(def.formula);
+            /** @type {string[]} */
             const related = [];
             for (const ref of refs) {
                 const id = ref.startsWith('custom:') ? ref.slice(7) : ref;
@@ -127,7 +152,11 @@
             }
             dep.set(def.id, related);
         }
-        const visited = new Set(), active = new Set();
+        /** @type {Set<string>} */
+        const visited = new Set();
+        /** @type {Set<string>} */
+        const active = new Set();
+        /** @param {string} id */
         const visit = id => {
             if (active.has(id)) throw new Error('Dependencia circular entre variables: ' + id);
             if (visited.has(id)) return;
@@ -139,12 +168,27 @@
         return true;
     };
 
+    /**
+     * @param {any[]} definitions
+     * @param {any} base
+     * @param {any} SB
+     */
     const createFieldSet = (definitions, base, SB) => {
         validateDefinitions(definitions, base);
+        /** @type {Map<string, any>} */
         const byId = new Map(definitions.map(d => [d.id, d]));
-        const builtin = new Map(base.fields.map(f => [f.key, f]));
+        /** @type {Map<string, any>} */
+        const builtin = new Map(base.fields.map((/** @type {any} */ f) => [f.key, f]));
+        /** @param {any} record */
         const employeeKey = record => record?.employeeNumber != null
             ? String(record.employeeNumber) : record?.id != null ? 'id:' + record.id : null;
+        /**
+         * @param {string} name
+         * @param {any} record
+         * @param {any} ctx
+         * @param {Set<string>} visiting
+         * @returns {number}
+         */
         const lookup = (name, record, ctx, visiting) => {
             const id = name.startsWith('custom:') ? name.slice(7) : name;
             const own = byId.get(id);
@@ -170,9 +214,10 @@
         };
         const fields = definitions.map(d => ({
             key: 'custom:' + d.id, label: d.label, type: 'number',
+            /** @param {any} record @param {any} ctx */
             get: (record, ctx) => {
                 try { return lookup('custom:' + d.id, record, ctx, new Set()); }
-                catch (e) { throw new SB.FormulaError(e.message); }
+                catch (/** @type {any} */ e) { throw new SB.FormulaError(e.message); }
             }
         }));
         return { fields, listVariables: () => definitions.map(d => ({ key: 'custom:' + d.id, label: d.label })) };
@@ -181,6 +226,7 @@
 
     // One expression model for both the printable SheetBuilder chips and
     // saved named formulas. Text mode never executes JavaScript.
+    /** @param {any} chips */
     const chipsToFormula = (chips) => {
         if (!Array.isArray(chips) || !chips.length || chips.length > 100)
             throw new Error('Límite de chips: la fórmula debe contener entre 1 y 100 elementos.');
@@ -200,9 +246,14 @@
         return formula;
     };
 
+    /**
+     * @param {string} formula
+     * @param {any} [catalog]
+     */
     const formulaToChips = (formula, catalog = {}) => {
-        const known = new Set((catalog.fields || []).map(f => f.key));
-        const custom = new Set((catalog.variables || []).map(v => v.id));
+        const known = new Set((catalog.fields || []).map((/** @type {any} */ f) => f.key));
+        const custom = new Set((catalog.variables || []).map((/** @type {any} */ v) => v.id));
+        /** @type {any[]} */
         const chips = tokenize(formula).map(token => {
             if (['+', '-', '*', '/'].includes(token)) return { kind:'op', op:token };
             if (token === '(' || token === ')') return { kind:'paren', paren:token };

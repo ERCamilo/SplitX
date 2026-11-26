@@ -13,7 +13,10 @@
   "include": [
     "js/CashOptimizer.js",
     "js/SheetBuilder.js",
+    "js/SheetStudioModel.js",
+    "js/SplitXVariables.js",
     "js/SplitXSheetFields.js",
+    "js/DocumentStudio.js",
     "js/SplitXImportHistory.js",
     "js/SplitXExcelImport.js",
     "js/SplitXImport.js",

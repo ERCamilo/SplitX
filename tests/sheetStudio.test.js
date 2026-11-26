@@ -5,6 +5,8 @@
  */
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const SB = require('../js/SheetBuilder.js');
 const SF = require('../js/SplitXSheetFields.js');
 const SS = require('../js/SheetStudio.js');
@@ -525,5 +527,44 @@ describe('migrateStore', () => {
         const s = SS.migrateStore({ version: 2, templates: [good, bad], active: { A: 't2' } });
         assert.deepEqual(s.templates.filter((t) => t.template.type === 'cards').map((t) => t.id), ['t1']);
         assert.equal(s.active.A, 't1');
+    });
+});
+
+describe('SheetStudioModel & css/sheet-studio.css extraction', () => {
+    const ROOT = path.resolve(__dirname, '..');
+
+    test('js/SheetStudioModel.js owns pure helpers and SheetStudio re-exports them without duplication', () => {
+        const SSM = require('../js/SheetStudioModel.js');
+        const expected = [
+            'defaultCardTemplate', 'defaultTableTemplate', 'validateTableTemplate',
+            'tablePageGeometry', 'tablePageSizes', 'tableOptions', 'logoFilter',
+            'footerOnPage', 'resizeColumns', 'columnTotals', 'cardTotals',
+            'starterTemplates', 'cardFontPt', 'cellFontPt', 'fitFontSize',
+            'doubleCounted', 'breakDownRow', 'printSignatures', 'snapshotDiff',
+            'printPageRule', 'MONEY_COLORS', 'catOf', 'smartRowFor',
+            'smartColumnFor', 'pageSummary', 'selectEmployees', 'createHistory',
+            'paletteMatches', 'migrateStore'
+        ];
+        for (const name of expected) {
+            assert.ok(SSM[name] !== undefined, `SheetStudioModel missing ${name}`);
+            assert.equal(SS[name], SSM[name], `SheetStudio.${name} must delegate to SheetStudioModel.${name}`);
+        }
+    });
+
+    test('css/sheet-studio.css owns SheetStudio styles and stays in sync with MONEY_COLORS', () => {
+        const SSM = require('../js/SheetStudioModel.js');
+        const cssPath = path.join(ROOT, 'css', 'sheet-studio.css');
+        assert.ok(fs.existsSync(cssPath), 'css/sheet-studio.css must exist');
+        const css = fs.readFileSync(cssPath, 'utf8');
+        assert.match(css, /^\.ss\s*\{/m);
+        assert.match(css, /@media print\s*\{/);
+        assert.match(css, new RegExp(`--bonus:${SSM.MONEY_COLORS.bonus}`, 'i'));
+        assert.match(css, new RegExp(`--deduction:${SSM.MONEY_COLORS.deduction}`, 'i'));
+        assert.match(css, new RegExp(`--loan:${SSM.MONEY_COLORS.loan}`, 'i'));
+
+        const studioSrc = fs.readFileSync(path.join(ROOT, 'js', 'SheetStudio.js'), 'utf8');
+        assert.equal(/\bconst\s+CSS\s*=\s*`/.test(studioSrc), false, 'SheetStudio.js must not embed inline CSS template');
+        assert.equal(/\bconst\s+injectCss\s*=/.test(studioSrc), false, 'SheetStudio.js must not inject <style> at runtime');
+        assert.equal(/\bconst\s+migrateStore\s*=/.test(studioSrc), false, 'migrateStore must live in SheetStudioModel.js');
     });
 });
