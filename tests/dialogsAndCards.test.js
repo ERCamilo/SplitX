@@ -90,6 +90,21 @@ describe('SplitXEmployeeCard & Smart Advisor (Issue #28 extraction)', () => {
         assert.deepEqual(res.deficit, [{ denom: 500, count: 1 }, { denom: 100, count: 1 }]);
     });
 
+    test('generateSmartAdvisorData handles decimal coin deficits (0.29, 0.30) without float undercount (Sprint A)', () => {
+        const res = SplitXEmployeeCard.generateSmartAdvisorData(
+            [0.25, 0.10, 0.05, 0.01],
+            { 0.25: 0, 0.10: 0, 0.05: 0, 0.01: 0 },
+            [
+                { id: 1, paid: false, _missingAmount: 0.29 },
+                { id: 2, paid: false, _missingAmount: 0.30 }
+            ]
+        );
+        const byDenom = Object.fromEntries(res.deficit.map((x) => [x.denom, x.count]));
+        assert.equal(byDenom[0.25], 2);
+        assert.equal(byDenom[0.05], 1);
+        assert.equal(byDenom[0.01], 4);
+    });
+
     test('buildEmployeeCardHTML escapes employee name, uses dynamic currency symbol, and emits data-card-action hooks', () => {
         const state = {
             currency: 'EUR',

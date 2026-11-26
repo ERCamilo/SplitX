@@ -47,12 +47,14 @@
 
         processedEmployees.forEach(emp => {
             if (!emp.paid && emp._missingAmount > 0) {
-                let rem = emp._missingAmount;
+                let remCents = Math.round((Number(emp._missingAmount) || 0) * 100);
                 denominations.forEach(d => {
-                    const count = Math.floor(rem / d);
+                    const dCents = Math.round((Number(d) || 0) * 100);
+                    if (dCents <= 0 || remCents <= 0) return;
+                    const count = Math.floor(remCents / dCents);
                     if (count > 0) {
                         idealMissingBreakdown[d] += count;
-                        rem = parseFloat((rem - count * d).toFixed(2));
+                        remCents -= count * dCents;
                     }
                 });
             }

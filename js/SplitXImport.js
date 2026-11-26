@@ -25,6 +25,9 @@
      */
     const createImporter = ({ sheetFields = null, parseNumber }) => {
         const parseExcelNumber = parseNumber;
+        /** @param {number} n */
+        const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
         /**
          * @template {number | null} T
          * @param {unknown} value
@@ -32,7 +35,9 @@
          * @returns {number | T}
          */
         const parseImportNumber = (value, fallback = /** @type {T} */ (0)) => {
-            if (value === undefined || value === null || value === '') return fallback;
+            if (value === undefined || value === null || value === '') {
+                return typeof fallback === 'number' ? /** @type {T} */ (round2(fallback)) : fallback;
+            }
             const parsed = typeof value === 'number' ? value : parseExcelNumber(String(value));
             if (!Number.isFinite(parsed) || !Number.isSafeInteger(Math.round(parsed * 100)) ||
                 Math.abs(parsed * 100 - Math.round(parsed * 100)) > 1e-6) {
@@ -60,6 +65,9 @@
             const bonuses = /** @type {number} */ (parseImportNumber(item.bonificaciones ?? item.bonuses ?? sheetFields?.sumDetailAmounts(item.bonusDetails), 0));
             const discounts = /** @type {number} */ (parseImportNumber(item.descuentos ?? item.discounts ?? sheetFields?.sumDetailAmounts(item.deductionDetails), 0));
             const loans = /** @type {number} */ (parseImportNumber(item.prestamos ?? item.loans ?? sheetFields?.sumLoanAmounts(item.loanBreakdown), 0));
+            if ((gross !== null && gross < 0) || bonuses < 0 || discounts < 0 || loans < 0) {
+                throw new Error(`Elemento #${idx + 1}: los montos de nómina no pueden ser negativos.`);
+            }
             // Capital, interés y saldo se derivan del desglose por préstamo cuando no vienen explícitos.
             const loanFromBreakdown = sheetFields ? sheetFields.summarizeLoans(item) : null;
             const prestamoCapital = parseImportNumber(item.prestamoCapital ?? item.loanPrincipal ?? item.loanDetails?.principal ?? loanFromBreakdown?.principal, null);
@@ -69,18 +77,18 @@
 
             let loanDetails = null;
             if (loans > 0 || prestamoCapital !== null || prestamoInteres !== null || saldoPendiente !== null) {
-                const interestAmount = prestamoInteres ?? 0;
-                const principal = prestamoCapital !== null ? prestamoCapital : Math.max(0, loans - interestAmount);
+                const interestAmount = Math.max(0, prestamoInteres ?? 0);
+                const principal = prestamoCapital !== null ? Math.max(0, prestamoCapital) : Math.max(0, round2(loans - interestAmount));
                 loanDetails = {
                     principal,
                     interestRate: tasaInteres ?? (loans > 0 && interestAmount > 0 && principal > 0 ? Number(((interestAmount / principal) * 100).toFixed(2)) : 0),
                     interestAmount,
-                    remainingBalance: saldoPendiente ?? 0
+                    remainingBalance: Math.max(0, saldoPendiente ?? 0)
                 };
             }
 
-            const afterDiscounts = gross !== null ? gross + bonuses - discounts : null;
-            const calculatedNet = afterDiscounts !== null ? afterDiscounts - loans : null;
+            const afterDiscounts = gross !== null ? round2(gross + bonuses - discounts) : null;
+            const calculatedNet = afterDiscounts !== null ? round2(afterDiscounts - loans) : null;
             const amount = parseImportNumber(importedAmount, calculatedNet);
 
             if (amount === null || amount === undefined || isNaN(amount) || amount < 0) throw new Error(`Elemento #${idx + 1}: Monto inválido.`);
@@ -90,13 +98,13 @@
                 id: nextImportId(),
                 name,
                 amount,
-                paid: item.paid || false,
+                paid: item.paid === true,
                 isManual: false,
                 isEdited: false
             };
 
             if (hasDetails) {
-                const difference = calculatedNet === null ? null : amount - calculatedNet;
+                const difference = calculatedNet === null ? null : round2(amount - calculatedNet);
                 employee.payroll = {
                     gross: gross ?? amount,
                     bonusType: item.bonusType || 'fixed',
@@ -105,7 +113,7 @@
                     discountType: item.discountType || 'fixed',
                     discountValue: item.discountValue !== undefined ? item.discountValue : discounts,
                     discounts,
-                    afterDiscounts: afterDiscounts ?? amount + loans,
+                    afterDiscounts: afterDiscounts ?? round2(amount + loans),
                     loans,
                     loanDetails,
                     net: amount,

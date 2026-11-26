@@ -96,3 +96,27 @@ describe('sa-splitx-payroll/v1 concept details', () => {
         assert.equal(hasPayrollFields({ nombre: 'X', bonusDetails: [{ id: 'a', concept: 'c', amount: 1 }] }), true);
     });
 });
+
+describe('Sprint A financial hardening in SplitXImport', () => {
+    test('rounds derived payroll totals to 2 decimals with zero IEEE-754 drift', () => {
+        const e = normalize({ nombre: 'Ana', bruto: 100.30, descuentos: 0.10, prestamos: 0.20 }, 0);
+        assert.equal(e.payroll.afterDiscounts, 100.2);
+        assert.equal(e.payroll.calculatedNet, 100);
+        assert.equal(e.amount, 100);
+        assert.equal(e.payroll.difference, 0);
+        assert.equal(e.payroll.reconciled, true);
+    });
+
+    test('rejects negative payroll components (gross, bonuses, discounts, loans)', () => {
+        assert.throws(() => normalize({ nombre: 'A', bruto: -100, monto: 100 }, 0), /negativ|inválido/i);
+        assert.throws(() => normalize({ nombre: 'B', bruto: 1000, bonificaciones: -50 }, 0), /negativ|inválido/i);
+        assert.throws(() => normalize({ nombre: 'C', bruto: 1000, descuentos: -10 }, 0), /negativ|inválido/i);
+        assert.throws(() => normalize({ nombre: 'D', bruto: 1000, prestamos: -200 }, 0), /negativ|inválido/i);
+    });
+
+    test('parses paid strictly so strings like "false" or "NO" do not mark employee paid', () => {
+        assert.equal(normalize({ nombre: 'A', monto: 500, paid: 'false' }, 0).paid, false);
+        assert.equal(normalize({ nombre: 'B', monto: 500, paid: 'NO' }, 0).paid, false);
+        assert.equal(normalize({ nombre: 'C', monto: 500, paid: true }, 0).paid, true);
+    });
+});

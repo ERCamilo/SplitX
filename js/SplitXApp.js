@@ -350,9 +350,9 @@ const app = (() => {
     // --- CORE LOGIC: DISTRIBUTION & CURRENCY ---
     const getCurrencySymbol = () => state.currencySymbol || 'RD$';
     const fmt = (num) => {
-        const val = Number(num) || 0;
-        const isNeg = val < 0;
-        return `${isNeg ? '-' : ''}${getCurrencySymbol()} ${fmtNum(Math.abs(val))}`;
+        const rounded = Math.round((Number(num) || 0) * 100) / 100;
+        const isNeg = rounded < 0;
+        return `${isNeg ? '-' : ''}${getCurrencySymbol()} ${fmtNum(Math.abs(rounded))}`;
     };
     const fmtNum = (num) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(Number(num) || 0));
     const {
@@ -505,19 +505,19 @@ const app = (() => {
     };
 
     const updateBankLimit = (denom, val) => {
-        if (val === '') state.bankLimits[denom] = null;
-        else state.bankLimits[denom] = parseInt(val);
+        state.bankLimits[denom] = SplitXCore.sanitizeBankLimit(val);
         saveData();
     };
 
     const applyBankToInventory = () => {
         const bankData = calculateBankNeeds();
-        let totalAdded = 0;
+        let totalAddedCents = 0;
         state.denominations.forEach(d => {
-            const quantity = bankData.breakdown[d]?.final || 0;
+            const quantity = Math.max(0, Number(bankData.breakdown[d]?.final) || 0);
             state.inventory[d] = (state.inventory[d] || 0) + quantity;
-            totalAdded += quantity * d;
+            totalAddedCents += quantity * SplitXCore.toCents(d);
         });
+        const totalAdded = SplitXCore.fromCents(totalAddedCents);
         if (totalAdded <= 0) {
             showToast('No hay dinero pendiente para retirar del banco.', 'info');
             return;
@@ -525,7 +525,10 @@ const app = (() => {
         state.mode = 'inventory';
         switchTab('inventory');
         saveData();
-        showToast(`${fmt(totalAdded)} agregados a Mi Caja. El inventario anterior se conservó.`);
+        const extra = bankData.remainder > 0
+            ? ` (quedan ${fmt(bankData.remainder)} sin cubrir por límites del banco)`
+            : '';
+        showToast(`${fmt(totalAdded)} agregados a Mi Caja. El inventario anterior se conservó.${extra}`);
     };
 
     const clearBankLimits = () => {
@@ -580,22 +583,23 @@ const app = (() => {
         const input = document.getElementById('newDenomInput');
         if (!input) return;
         const val = parseFloat(input.value);
-        if (isNaN(val) || val <= 0) {
-            showToast('Ingresa un valor numérico válido mayor a 0', 'warning');
+        if (!Number.isFinite(val) || val <= 0 || Math.abs(val * 100 - Math.round(val * 100)) > 1e-6) {
+            showToast('Ingresa una denominación válida mayor a 0 con máximo 2 decimales', 'warning');
             return;
         }
-        if (state.denominations.includes(val)) {
-            showToast(`La denominación ${val} ya existe en la lista`, 'warning');
+        const normalizedVal = Math.round(val * 100) / 100;
+        if (state.denominations.includes(normalizedVal)) {
+            showToast(`La denominación ${normalizedVal} ya existe en la lista`, 'warning');
             return;
         }
-        state.denominations.push(val);
+        state.denominations.push(normalizedVal);
         state.denominations.sort((a, b) => b - a);
-        if (state.inventory[val] === undefined) state.inventory[val] = 0;
+        if (state.inventory[normalizedVal] === undefined) state.inventory[normalizedVal] = 0;
         input.value = '';
         saveData();
         renderAppearanceConfig();
         renderCustomBillsConfig();
-        showToast(`Denominación ${val} agregada correctamente`, 'success');
+        showToast(`Denominación ${normalizedVal} agregada correctamente`, 'success');
     };
 
     const removeDenom = (denom) => {
@@ -1487,7 +1491,7 @@ const app = (() => {
                 <td class="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">${denom}</td>
                 <td class="px-2 py-3 text-center text-slate-500 dark:text-slate-400 text-xs">${rowData.neededAfterCarry}</td>
                 <td class="px-2 py-3 text-center">
-                    <input type="number" 
+                    <input type="number" min="0" step="1"
                         placeholder="∞" 
                         value="${userLimit === undefined || userLimit === null ? '' : userLimit}" 
                         data-sx-change="updateBankLimit" data-sx-arg="${denom}"
@@ -1500,12 +1504,23 @@ const app = (() => {
             `;
             tbody.appendChild(row);
 
-            totalToWithdraw += (rowData.final * denom);
+            totalToWithdraw += (rowData.final * SplitXCore.toCents(denom));
         });
 
-        document.getElementById('bankTotalDisplay').innerText = fmt(totalToWithdraw);
+        const totalBankMoney = SplitXCore.fromCents(totalToWithdraw);
+        document.getElementById('bankTotalDisplay').innerText = fmt(totalBankMoney);
+        const shortfallEl = document.getElementById('bankShortfallWarning');
+        if (shortfallEl) {
+            if (bankData.remainder > 0) {
+                shortfallEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i>Faltan ${escapeHTML(fmt(bankData.remainder))} sin cubrir por los límites bancarios actuales.`;
+                shortfallEl.classList.remove('hidden');
+            } else {
+                shortfallEl.classList.add('hidden');
+                shortfallEl.textContent = '';
+            }
+        }
         const applyButton = document.getElementById('applyBankBtn');
-        if (applyButton) applyButton.disabled = totalToWithdraw <= 0;
+        if (applyButton) applyButton.disabled = totalBankMoney <= 0;
     };
 
     const configUI = SplitXConfigUI.createConfigUI({

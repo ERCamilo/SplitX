@@ -13,10 +13,13 @@
     'use strict';
 
     /** @param {number} n */
-    const round2 = (n) => parseFloat(n.toFixed(2));
+    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    /** @param {number} n */
+    const hasAtMostTwoDecimals = (n) => Number.isFinite(n) && Math.abs(n * 100 - Math.round(n * 100)) <= 1e-6;
 
     /**
-     * Calcula bonificaciones, descuentos, neto calculado y diferencia de conciliación.
+     * Calcula bonificaciones, descuentos, neto calculado (limitado a 0.00 con excedente no cobrado)
+     * y diferencia de conciliación.
      * @param {{
      *   gross: number,
      *   bonusType: string,
@@ -28,16 +31,18 @@
      * }} params
      */
     const computePayrollAdjustment = ({ gross, bonusType, bonusVal, discountType, discountVal, loans, net }) => {
-        const g = Number(gross) || 0;
-        const bVal = Number(bonusVal) || 0;
-        const dVal = Number(discountVal) || 0;
-        const l = Number(loans) || 0;
+        const g = round2(Number(gross) || 0);
+        const bVal = round2(Number(bonusVal) || 0);
+        const dVal = round2(Number(discountVal) || 0);
+        const l = round2(Number(loans) || 0);
 
         const bonuses = bonusType === 'percent' ? round2((g * bVal) / 100) : bVal;
         const discounts = discountType === 'percent' ? round2((g * dVal) / 100) : dVal;
         const afterDiscounts = round2(g + bonuses - discounts);
-        const calculatedNet = round2(afterDiscounts - l);
-        const finalNet = net !== undefined ? (Number(net) || 0) : calculatedNet;
+        const rawCalculatedNet = round2(afterDiscounts - l);
+        const uncollectedExcess = rawCalculatedNet < 0 ? round2(-rawCalculatedNet) : 0;
+        const calculatedNet = Math.max(0, rawCalculatedNet);
+        const finalNet = net !== undefined ? round2(Number(net) || 0) : calculatedNet;
         const difference = round2(finalNet - calculatedNet);
         return {
             gross: g,
@@ -45,6 +50,8 @@
             discounts,
             afterDiscounts,
             loans: l,
+            rawCalculatedNet,
+            uncollectedExcess,
             calculatedNet,
             net: finalNet,
             difference,
@@ -140,16 +147,22 @@
             const isReconciled = Math.abs(diff) <= 0.01;
 
             const statusEl = byId('editModalReconciledStatus');
-            if (isReconciled) {
-                statusEl.className = 'text-xs flex items-center gap-1.5 text-emerald-700 font-medium';
+            if (currentNet < 0) {
+                statusEl.className = 'text-xs flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold';
+                statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> <span>El sueldo neto no puede ser negativo</span>';
+            } else if (previewCalc.uncollectedExcess > 0) {
+                statusEl.className = 'text-xs flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold';
+                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Deducciones exceden el salario en ${deps.escapeHTML(deps.fmt(previewCalc.uncollectedExcess))} (neto limitado a ${deps.escapeHTML(deps.fmt(0))})</span>`;
+            } else if (isReconciled) {
+                statusEl.className = 'text-xs flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium';
                 statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Nómina cuadrada perfectamente</span>';
             } else {
-                statusEl.className = 'text-xs flex items-center gap-1.5 text-amber-700 font-semibold';
-                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Monto manual difiere en ${diff > 0 ? '+' : ''}${deps.fmt(diff)} del cálculo</span>`;
+                statusEl.className = 'text-xs flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold';
+                statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Monto manual difiere en ${diff > 0 ? '+' : ''}${deps.escapeHTML(deps.fmt(diff))} del cálculo</span>`;
             }
 
-            byId('editModalBreakdownTotal').textContent = deps.fmt(currentNet);
-            const breakdown = deps.getIdealBreakdown(currentNet).distribution;
+            byId('editModalBreakdownTotal').textContent = deps.fmt(Math.max(0, currentNet));
+            const breakdown = deps.getIdealBreakdown(Math.max(0, currentNet)).distribution;
             const chipsContainer = byId('editModalBreakdownChips');
             let chipsHTML = '';
             state.denominations.forEach((/** @type {number} */ d) => {
@@ -254,9 +267,12 @@
             setModalAdjustmentType('bonus', currentAdjustmentTypes.bonus, false);
             setModalAdjustmentType('discount', currentAdjustmentTypes.discount, false);
 
-            updateModalCalculations();
+            // Preserve existing emp.amount on open (do NOT overwrite unreconciled/manual net)
+            updateModalCalculations(true);
             byId('editEmployeeModal').classList.remove('hidden');
-            setTimeout(() => byId('editEmpName').focus(), 150);
+            setTimeout(() => {
+                if (typeof document !== 'undefined') byId('editEmpName')?.focus();
+            }, 150);
         };
 
         const toggleLoanDetailsPanel = () => {
@@ -309,17 +325,48 @@
                 return;
             }
 
-            const gross = parseFloat(byId('editEmpGross').value) || 0;
-            const bonusVal = parseFloat(byId('editEmpBonus').value) || 0;
-            const discountVal = parseFloat(byId('editEmpDiscount').value) || 0;
-            const loans = parseFloat(byId('editEmpLoans').value) || 0;
-            const net = parseFloat(byId('editEmpNet').value) || 0;
+            /** @param {string} raw @param {string} label */
+            const parseNonNegField = (raw, label) => {
+                const txt = String(raw ?? '').trim();
+                if (!txt) return { ok: true, value: 0 };
+                const num = Number(txt);
+                if (!Number.isFinite(num) || num < 0) {
+                    return { ok: false, error: `${label} no puede ser negativo ni inválido.` };
+                }
+                if (!hasAtMostTwoDecimals(num)) {
+                    return { ok: false, error: `${label} no puede tener más de 2 decimales.` };
+                }
+                return { ok: true, value: round2(num) };
+            };
+
+            const grossRes = parseNonNegField(byId('editEmpGross').value, 'El sueldo bruto');
+            const bonusRes = parseNonNegField(byId('editEmpBonus').value, 'La bonificación');
+            const discountRes = parseNonNegField(byId('editEmpDiscount').value, 'El descuento');
+            const loansRes = parseNonNegField(byId('editEmpLoans').value, 'El préstamo');
+            const netRes = parseNonNegField(byId('editEmpNet').value, 'El sueldo neto');
+            const loanPrincipalRes = parseNonNegField(byId('editEmpLoanPrincipal').value, 'El capital de cuota');
+            const loanRateRes = parseNonNegField(byId('editEmpLoanInterestRate').value, 'La tasa de interés');
+            const loanInterestRes = parseNonNegField(byId('editEmpLoanInterestAmount').value, 'El interés de cuota');
+            const loanRemRes = parseNonNegField(byId('editEmpLoanRemainingBalance').value, 'El saldo restante');
+
+            for (const check of [grossRes, bonusRes, discountRes, loansRes, netRes, loanPrincipalRes, loanRateRes, loanInterestRes, loanRemRes]) {
+                if (!check.ok) {
+                    deps.showToast(/** @type {string} */ (check.error), 'info');
+                    return;
+                }
+            }
+
+            const gross = /** @type {number} */ (grossRes.value);
+            const bonusVal = /** @type {number} */ (bonusRes.value);
+            const discountVal = /** @type {number} */ (discountRes.value);
+            const loans = /** @type {number} */ (loansRes.value);
+            const net = /** @type {number} */ (netRes.value);
 
             const loanDetails = {
-                principal: parseFloat(byId('editEmpLoanPrincipal').value) || 0,
-                interestRate: parseFloat(byId('editEmpLoanInterestRate').value) || 0,
-                interestAmount: parseFloat(byId('editEmpLoanInterestAmount').value) || 0,
-                remainingBalance: parseFloat(byId('editEmpLoanRemainingBalance').value) || 0
+                principal: /** @type {number} */ (loanPrincipalRes.value),
+                interestRate: /** @type {number} */ (loanRateRes.value),
+                interestAmount: /** @type {number} */ (loanInterestRes.value),
+                remainingBalance: /** @type {number} */ (loanRemRes.value)
             };
 
             const calc = computePayrollAdjustment({

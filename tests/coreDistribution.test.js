@@ -274,3 +274,103 @@ describe('domain validations and rounding helpers (Issue #25)', () => {
         assert.equal(ids.size, 100);
     });
 });
+
+describe('Sprint A financial hardening: integer cents, invariants & bank limits', () => {
+    test('handles IEEE-754 tricky decimal coin totals (0.29, 0.30, 0.60, 1.15) with zero drift', () => {
+        const { core } = make({
+            denominations: USD,
+            inventory: { 100: 10, 50: 10, 20: 10, 10: 10, 5: 10, 2: 10, 1: 10, 0.25: 50, 0.10: 50, 0.05: 50, 0.01: 100 },
+            employees: [
+                { id: 1, name: 'A', amount: 0.29, paid: false },
+                { id: 2, name: 'B', amount: 0.30, paid: false },
+                { id: 3, name: 'C', amount: 0.60, paid: false },
+                { id: 4, name: 'D', amount: 1.15, paid: false }
+            ]
+        });
+
+        for (const amt of [0.29, 0.30, 0.60, 1.15]) {
+            const ideal = core.getIdealBreakdown(amt);
+            assert.equal(ideal.remainder, 0, `getIdealBreakdown(${amt}) left remainder ${ideal.remainder}`);
+            const sumCents = Object.entries(ideal.distribution).reduce((s, [d, c]) => s + Math.round(Number(d) * 100) * c, 0);
+            assert.equal(sumCents, Math.round(amt * 100));
+        }
+
+        const { results } = core.calculateDistribution();
+        for (const emp of results) {
+            assert.equal(emp.status, 'ok', `${emp.name} (${emp.amount}) should be fully covered`);
+            assert.equal(emp._missingAmount, 0);
+        }
+
+        // Direct single-coin IEEE-754 traps: 0.29/0.01=28.999999999999996, 0.30/0.10=2.9999999999999996,
+        // 0.60/0.20=2.9999999999999996, 1.15/0.05=22.999999999999996
+        for (const [d, amt, expected] of [[0.01, 0.29, 29], [0.10, 0.30, 3], [0.20, 0.60, 3], [0.05, 1.15, 23]]) {
+            const { core: trapCore } = make({ denominations: [d], inventory: { [d]: 100 }, employees: [{ id: 1, name: 'T', amount: amt, paid: false }] });
+            assert.deepEqual(trapCore.getIdealBreakdown(amt), { distribution: { [d]: expected }, remainder: 0 });
+            const { results: trapRes } = trapCore.calculateDistribution();
+            assert.equal(trapRes[0]._missingAmount, 0);
+            assert.equal(trapRes[0].distribution[d], expected);
+        }
+
+        // Bank cascade with 0.25 capped at 0 must cascade cleanly into 0.10/0.05/0.01 with 0 remainder
+        const { core: bankCore } = make({
+            denominations: USD,
+            bankLimits: { 0.25: 0, 0.10: 0 },
+            employees: [{ id: 1, name: 'A', amount: 0.29, paid: false }]
+        });
+        const bank = bankCore.calculateBankNeeds();
+        assert.equal(bank.remainder, 0);
+        assert.equal(bank.breakdown[0.05].final, 5);
+        assert.equal(bank.breakdown[0.01].final, 4);
+    });
+
+    test('negative or NaN bank limits never produce negative withdrawals or NaN totals', () => {
+        const { core } = make({
+            denominations: DOP,
+            bankLimits: { 2000: -5, 1000: Number.NaN, 500: 'bad' },
+            employees: [{ id: 1, name: 'Ana', amount: 3500, paid: false }]
+        });
+        const bank = core.calculateBankNeeds();
+        assert.equal(bank.breakdown[2000].final, 0, 'negative limit must clamp to 0');
+        assert.equal(bank.breakdown[1000].final, 3, 'NaN limit must behave as unlimited');
+        assert.equal(bank.breakdown[500].final, 1, 'non-numeric limit must behave as unlimited');
+        assert.equal(bank.remainder, 0);
+        for (const row of Object.values(bank.breakdown)) {
+            assert.ok(Number.isFinite(row.final) && row.final >= 0);
+        }
+    });
+
+    test('roundEmployeeAmounts never steals 1.00 from float-noise integer amounts like 99.99999999999999', () => {
+        const res = roundEmployeeAmounts([{ id: 1, name: 'Ana', amount: 99.99999999999999 }], 'normal');
+        assert.equal(res.count, 0);
+        assert.equal(res.employees[0].amount, 99.99999999999999);
+    });
+
+    test('500-case deterministic fuzz invariant: assigned + missing === effectiveAmount to the exact cent', () => {
+        let seed = 1337;
+        const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+        for (let i = 0; i < 500; i++) {
+            const denoms = i % 2 === 0 ? USD : DOP;
+            const inv = {};
+            denoms.forEach(d => { inv[d] = Math.floor(rand() * 8); });
+            const emps = Array.from({ length: 4 }, (_, idx) => ({
+                id: idx + 1,
+                name: `E${idx}`,
+                amount: Math.round(rand() * (denoms === USD ? 12000 : 400000)) / 100,
+                paid: idx === 3 && i % 5 === 0
+            }));
+            const { core } = make({ denominations: denoms, inventory: inv, employees: emps });
+            const { results } = core.calculateDistribution();
+            for (const emp of results) {
+                const assignedCents = Object.entries(emp.distribution).reduce((s, [d, c]) => s + Math.round(Number(d) * 100) * c, 0);
+                if (emp.paid) {
+                    assert.ok(assignedCents <= Math.round(emp.effectiveAmount * 100));
+                } else {
+                    const missingCents = Math.round((emp._missingAmount || 0) * 100);
+                    assert.equal(assignedCents + missingCents, Math.round(emp.effectiveAmount * 100),
+                        `case ${i} emp ${emp.name} amt=${emp.effectiveAmount} assigned=${assignedCents} missing=${missingCents}`);
+                }
+            }
+        }
+    });
+});

@@ -49,6 +49,105 @@ describe('SplitXEditModal pure payroll & loan calculations (#28)', () => {
         assert.equal(SplitXEditModal.hasPayrollChanged(orig, { name: 'Ana M.', net: 1000, gross: 1200, bonuses: 0, discounts: 100, loans: 100 }), true);
         assert.equal(SplitXEditModal.hasPayrollChanged(orig, { name: 'Ana', net: 950, gross: 1200, bonuses: 0, discounts: 100, loans: 150 }), true);
     });
+
+    test('computePayrollAdjustment clamps negative calculatedNet to 0.00 and exposes uncollectedExcess (Sprint A)', () => {
+        const res = SplitXEditModal.computePayrollAdjustment({
+            gross: 1000,
+            bonusType: 'fixed',
+            bonusVal: 0,
+            discountType: 'fixed',
+            discountVal: 300,
+            loans: 900
+        });
+        assert.equal(res.calculatedNet, 0);
+        assert.equal(res.uncollectedExcess, 200);
+        assert.equal(res.net, 0);
+    });
+
+    test('openEditModal preserves manual unreconciled net and saveEmployeeModal rejects negative or >2 decimal values', () => {
+        const elements = new Map();
+        const mk = (id) => {
+            const classes = new Set();
+            const el = {
+                id,
+                value: '',
+                textContent: '',
+                innerHTML: '',
+                className: '',
+                focus: () => {},
+                classList: {
+                    add: (c) => classes.add(c),
+                    remove: (c) => classes.delete(c),
+                    toggle: (c) => (classes.has(c) ? (classes.delete(c), false) : (classes.add(c), true)),
+                    contains: (c) => classes.has(c)
+                }
+            };
+            elements.set(id, el);
+            return el;
+        };
+        [
+            'editEmpId', 'editEmpName', 'editModalTitle', 'editModalSubtitle', 'editModalBadge',
+            'revertEmpBtn', 'editEmpGross', 'editEmpBonus', 'editEmpDiscount', 'editEmpLoans',
+            'editEmpNet', 'editEmpLoanPrincipal', 'editEmpLoanInterestRate', 'editEmpLoanInterestAmount',
+            'editEmpLoanRemainingBalance', 'loanDetailsExpanded', 'toggleLoanDetailsText',
+            'bonusTypeFixed', 'bonusTypePercent', 'bonusSymbol', 'discountTypeFixed', 'discountTypePercent',
+            'discountSymbol', 'bonusCalcDisplay', 'discountCalcDisplay', 'calcFormulaNet',
+            'editModalReconciledStatus', 'editModalBreakdownTotal', 'editModalBreakdownChips', 'editEmployeeModal'
+        ].forEach(mk);
+
+        const prevDoc = globalThis.document;
+        globalThis.document = /** @type {any} */ ({ getElementById: (id) => elements.get(id) || null });
+        try {
+            const toasts = [];
+            let saved = 0;
+            const state = {
+                denominations: [1000, 500, 100],
+                employees: [{
+                    id: 10,
+                    name: 'Ana',
+                    amount: 8500,
+                    payroll: { gross: 10000, bonuses: 0, discounts: 500, loans: 500, afterDiscounts: 9500, calculatedNet: 9000, net: 8500 }
+                }]
+            };
+            const modal = SplitXEditModal.createEditModal({
+                getState: () => state,
+                saveData: () => { saved++; },
+                fmt: (n) => `RD$ ${Number(n).toFixed(2)}`,
+                getCurrencySymbol: () => 'RD$',
+                escapeHTML: (s) => String(s),
+                isCoin: () => false,
+                getBillStyle: () => '',
+                getBillImage: () => null,
+                getIdealBreakdown: () => ({ distribution: {} }),
+                showToast: (m) => toasts.push(m),
+                showCustomConfirm: async () => true
+            });
+
+            modal.openEditModal(10);
+            assert.equal(String(elements.get('editEmpNet').value), '8500', 'openEditModal must not overwrite manual net 8500 with calculatedNet 9000');
+
+            // Negative net must be rejected
+            elements.get('editEmpNet').value = '-100';
+            modal.saveEmployeeModal();
+            assert.equal(saved, 0);
+            assert.equal(state.employees[0].amount, 8500);
+
+            // >2 decimal net must be rejected
+            elements.get('editEmpNet').value = '8500.125';
+            modal.saveEmployeeModal();
+            assert.equal(saved, 0);
+
+            // Valid name-only edit preserves 8500
+            elements.get('editEmpNet').value = '8500';
+            elements.get('editEmpName').value = 'Ana María';
+            modal.saveEmployeeModal();
+            assert.equal(saved, 1);
+            assert.equal(state.employees[0].name, 'Ana María');
+            assert.equal(state.employees[0].amount, 8500);
+        } finally {
+            globalThis.document = prevDoc;
+        }
+    });
 });
 
 describe('SplitXConfigUI state actions (#28)', () => {
