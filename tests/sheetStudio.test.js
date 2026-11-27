@@ -567,4 +567,11 @@ describe('SheetStudioModel & css/sheet-studio.css extraction', () => {
         assert.equal(/\bconst\s+injectCss\s*=/.test(studioSrc), false, 'SheetStudio.js must not inject <style> at runtime');
         assert.equal(/\bconst\s+migrateStore\s*=/.test(studioSrc), false, 'migrateStore must live in SheetStudioModel.js');
     });
+
+    test('SheetStudioModel rejects crafted unanchored base64 logo attribute injection and SheetStudio escapes logo src (Sprint C)', () => {
+        const crafted = 'data:image/png;base64,iVBORw0KGgo=" onload="alert(1)';
+        assert.equal(SS.migrateStore({ logo: crafted }).logo, null, 'must reject unanchored base64 logo payload');
+        const studioSrc = fs.readFileSync(path.join(ROOT, 'js', 'SheetStudio.js'), 'utf8');
+        assert.equal(/src="\$\{state\.store\.logo\}"/.test(studioSrc), false, 'state.store.logo must be escaped with esc()');
+    });
 });

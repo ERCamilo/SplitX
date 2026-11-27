@@ -416,7 +416,8 @@ const app = (() => {
                 root: document.getElementById('documentStudio'),
                 storage: appStorage,
                 getEmployees: () => state.employees,
-                getNetAmount: emp => getEffectiveEmployeeAmount(emp)
+                getNetAmount: emp => getEffectiveEmployeeAmount(emp),
+                getCurrency: () => state.currency
             });
             await documentStudio.open();
         } catch (error) {

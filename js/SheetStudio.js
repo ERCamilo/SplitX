@@ -360,7 +360,7 @@
             return pages.map((rows, p) => `
                 <div class="ss-page" style="width:${g.pageWidth * k}px;height:${g.pageHeight * k}px;padding:${g.margin * k}px;display:flex;flex-direction:column;font-size:${9 * PT_MM * k}px">
                   <div class="ss-sig-head">
-                    ${state.store.logo ? `<img src="${state.store.logo}" alt="Logo" style="width:${18 * k}px;height:${18 * k}px;filter:${logoFilter(o.logoStyle)}">` : ''}
+                    ${state.store.logo ? `<img src="${esc(state.store.logo)}" alt="Logo" style="width:${18 * k}px;height:${18 * k}px;filter:${logoFilter(o.logoStyle)}">` : ''}
                     <div style="flex:1;display:flex;flex-direction:column;gap:${0.6 * k}px">${titleRes.map((r) => `<div style="display:grid">${outHTML(r.cells[0], r.cells[0].cell, k)}</div>`).join('')}</div>
                     <div style="color:#64748b;text-align:right">Hoja ${p + 1} de ${pages.length}</div>
                   </div>
@@ -531,7 +531,7 @@
                 CV.validateDefinitions(defs, SF.createFieldSet({ records: employees, getNetAmount: opts.getNetAmount }));
                 state.store.variables = defs;
                 state.store.ready = { A: false, B: false };
-                save(); rebuildEngine(); closeVariablesDialog(); touch(); toast('Variable guardada para imprimir', true);
+                save(); rebuildEngine(); closeVariablesDialog(); touch(); toast('Variable guardada para imprimir');
             } catch (err) { variableError(err.message); }
         };
 
@@ -661,7 +661,7 @@
                 el.innerHTML = `${tools}
                   <div class="ss-stage">
                     <div class="ss-paper ss-sheetedit${state.formulas ? ' formulas' : ''}${state.store.colors ? '' : ' mono-ink'}" style="${state.formulas ? 'min-width' : 'width'}:${g.pageWidth * k}px;font-size:${9 * PT_MM * k}px">
-                      <div class="ss-titles"><div class="ss-titlewrap">${state.store.logo ? `<img src="${state.store.logo}" alt="Logo" style="width:${18 * k}px;height:${18 * k}px;filter:${logoFilter(tableOptions(t.options).logoStyle)}">` : ''}<div>${titles}</div></div>
+                      <div class="ss-titles"><div class="ss-titlewrap">${state.store.logo ? `<img src="${esc(state.store.logo)}" alt="Logo" style="width:${18 * k}px;height:${18 * k}px;filter:${logoFilter(tableOptions(t.options).logoStyle)}">` : ''}<div>${titles}</div></div>
                         <div class="ss-dropzone" data-insert-title="end" style="margin-top:4px;padding:6px">Suelta un campo aquí para agregar una línea al encabezado <button class="ss-btn sm" type="button" data-act="add-title">+ Línea</button></div>
                       </div>
                       <div class="ss-sigedit"><table class="ss-sig"><colgroup>${t.columns.map((c) => `<col style="width:${((c.width || 1) / sumW) * 100}%">`).join('')}</colgroup>${head}<tbody>${body}</tbody></table>
@@ -865,7 +865,7 @@
                   <label class="ss-field">Alto de fila (mm)<input id="ssRowH" class="ss-inp ss-num" type="number" min="6" max="30" step="0.5" data-bind="opt.rowHeight" data-type="number" value="${esc(t.options.rowHeight)}"></label></div>
                   <label class="ss-field">Logo (imagen)<input id="ssLogo" class="ss-inp" type="file" accept="image/*" data-act-change="logo"></label>
                   ${state.store.logo ? `<div class="ss-field">Logo ${segHTML('opt.logoStyle', tableOptions(t.options).logoStyle, [['color', 'A color'], ['bw', 'Blanco y negro'], ['invert', 'Invertido']])}</div>
-                    <div class="ss-logoprev"><img src="${state.store.logo}" alt="Logo" style="filter:${logoFilter(tableOptions(t.options).logoStyle)}">
+                    <div class="ss-logoprev"><img src="${esc(state.store.logo)}" alt="Logo" style="filter:${logoFilter(tableOptions(t.options).logoStyle)}">
                     <button class="ss-btn sm" type="button" data-act="logo-del">Quitar logo</button></div>` : ''}`;
             }
             html += `<div class="ss-grid2"><label class="ss-field">Ordenar por${selectHTML('ssSort', 'sort.field', (t.sortBy || {}).field || 'no', SORTS)}</label>
@@ -1175,7 +1175,7 @@
                     state.store.variables = defs;
                     state.store.ready = { A: false, B: false };
                     save(); rebuildEngine(); state.variableEdit = null; state.variableDeleteConfirm = null;
-                    closeVariablesDialog(); touch(); toast('Variable eliminada', true);
+                    closeVariablesDialog(); touch(); toast('Variable eliminada');
                 } catch (e) { variableError(e.message); }
             },
             close: () => api.close(),
@@ -1219,7 +1219,10 @@
             'row-empty': (v) => { const [r, mode] = pair(v); commit(); const row = tpl().rows[r]; if (mode === 'show') delete row.whenEmpty; else row.whenEmpty = mode; touch(EDIT); },
             'row-line': (v) => { const r = +v; commit(); const row = tpl().rows[r]; if (row.lineAbove) delete row.lineAbove; else row.lineAbove = true; touch(EDIT); },
             'col-move': (v) => { commit(); const j = moveIn(tpl().columns, zoneIndex(state.sel.zone, 2), +v); select(`B:col:${j}`); touch(EDIT); },
-            'col-del': () => { commit(); tpl().columns.splice(zoneIndex(state.sel.zone, 2), 1); state.sel = null; touch(EDIT); toast('Columna eliminada', true); },
+            'col-del': () => {
+                if (tpl().columns.length <= 1) return toast('La tabla debe conservar al menos una columna');
+                commit(); tpl().columns.splice(zoneIndex(state.sel.zone, 2), 1); state.sel = null; touch(EDIT); toast('Columna eliminada', true);
+            },
             'add-title': () => { commit(); tpl().title.push(cT([], { size: 10 })); select(`B:title:${tpl().title.length - 1}`); touch(EDIT); },
             'title-move': (v) => { const [i, d] = pair(v); commit(); const j = moveIn(tpl().title, i, d); select(`B:title:${j}`); state.pop = { type: 'title', v: j }; touch(EDIT); },
             'title-del': (v) => { commit(); tpl().title.splice(+v, 1); state.sel = null; state.pop = null; touch(EDIT); toast('Línea eliminada', true); },
@@ -1456,10 +1459,26 @@
                 if (el.dataset && el.dataset.actChange === 'logo') {
                     const f = el.files && el.files[0];
                     if (!f) return;
-                    if (f.size > 1.5e6) return toast('La imagen debe pesar menos de 1.5 MB');
-                    const r = new FileReader();
-                    r.onload = () => { state.store.logo = String(r.result); touch('canvas layer'); };
-                    r.readAsDataURL(f);
+                    if (!/^image\/(png|jpeg|jpg|webp|gif)$/i.test(f.type || '')) {
+                        return toast('Usa una imagen PNG, JPG, WebP o GIF (no SVG)');
+                    }
+                    const applyLogo = (dataUrl) => {
+                        if (!/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(dataUrl) || dataUrl.length > 500000) {
+                            return toast('El logo supera el tamaño máximo permitido (~370 KB). Usa una imagen más ligera.');
+                        }
+                        state.store.logo = dataUrl;
+                        touch('canvas layer');
+                    };
+                    if (typeof SplitXCurrencies !== 'undefined' && typeof SplitXCurrencies.compressBillImageFile === 'function') {
+                        SplitXCurrencies.compressBillImageFile(f, { maxWidth: 400, maxHeight: 400 })
+                            .then(applyLogo)
+                            .catch(() => toast('No se pudo procesar la imagen del logo'));
+                    } else {
+                        if (f.size > 370000) return toast('La imagen debe pesar menos de 370 KB');
+                        const r = new FileReader();
+                        r.onload = () => applyLogo(String(r.result || ''));
+                        r.readAsDataURL(f);
+                    }
                     return;
                 }
                 if (el.dataset && el.dataset.pick !== undefined) {

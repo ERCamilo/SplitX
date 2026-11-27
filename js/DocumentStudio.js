@@ -23,11 +23,18 @@
         script.integrity = 'sha384-8NWE3bZDrmRI4IePMoQaEoLhAQ1MmRMJkdNgnGiHRFanTqsFKr0TmK6aSZvFJ/PO';
         script.crossOrigin = 'anonymous';
         script.referrerPolicy = 'no-referrer';
-        script.onload = () => win.mammoth ? resolve(win.mammoth) : reject(Error('Conversor DOCX no disponible'));
-        script.onerror = () => reject(Error('No se pudo cargar el conversor DOCX. Comprueba la conexión.'));
+        script.onload = () => {
+            if (win.mammoth && win.mammoth.convertToHtml) { resolve(win.mammoth); return; }
+            script.remove();
+            reject(Error('Conversor DOCX no disponible'));
+        };
+        script.onerror = () => {
+            script.remove();
+            reject(Error('No se pudo cargar el conversor DOCX. Comprueba la conexión.'));
+        };
         document.head.appendChild(script);
     });
-    /** @param {{ root: HTMLElement, getEmployees: () => any[], getNetAmount?: (emp: any) => number, storage?: { get: (k: string) => string | null, set: (k: string, v: string) => void } }} opts */
+    /** @param {{ root: HTMLElement, getEmployees: () => any[], getNetAmount?: (emp: any) => number, getCurrency?: () => string, storage?: { get: (k: string) => string | null, set: (k: string, v: string) => any } }} opts */
     const createStudio = opts => {
         const rootEl = opts.root;
         const storage = opts.storage || {
@@ -109,7 +116,11 @@
         };
         /** @param {any} employee @param {number} index @param {string} [html] */
         const resolved = (employee,index,html) => D.render(html||current().html,employee,fieldSet.fields,
-            valueFor(employee), {resolveField:fieldSet.resolveField,index: index});
+            valueFor(employee), {
+                resolveField: fieldSet.resolveField,
+                index,
+                currency: typeof opts.getCurrency === 'function' ? opts.getCurrency() : undefined
+            });
         const preview = () => {
             const el=q('#sxdocPreview'),warning=q('#sxdocMissing');
             if(!el)return;
@@ -232,9 +243,15 @@
             const sheets=pages.map(p=>'<section>'+p.html+'</section>').join('');
             const heading='<!doctype html><html lang="es"><head><meta charset="utf-8"><title>'+D.escape(current().name)+'</title>';
             const style='<style>@page{size:A4;margin:18mm}body{font:12pt/1.55 Arial,sans-serif;color:#111}section{page-break-after:always;break-after:page;overflow-wrap:anywhere}section:last-child{page-break-after:auto;break-after:auto}p{margin:10px 0}table{border-collapse:collapse;width:100%}td,th{border:1px solid #777;padding:5px}</style>';
+            let printed = false;
+            const triggerPrint = () => {
+                if (printed) return;
+                printed = true;
+                try { popup.focus(); popup.print(); } catch (_) {}
+            };
+            popup.addEventListener('load', triggerPrint, { once: true });
             popup.document.open();popup.document.write(heading+style+'</head><body>'+sheets+'</body></html>');popup.document.close();
-            popup.focus();
-            popup.addEventListener('load',()=>popup.print(),{once:true});
+            if (popup.document.readyState === 'complete') setTimeout(triggerPrint, 50);
             status('Preparados '+pages.length+' documentos. Usa «Guardar como PDF» o imprime.');
         };
         /** @param {MouseEvent} e */

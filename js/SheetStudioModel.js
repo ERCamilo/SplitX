@@ -550,7 +550,7 @@
         out.active.A = pick('cards', act.A);
         out.active.B = pick('table', act.B);
         if (typeof d.colors === 'boolean') out.colors = d.colors;
-        if (typeof d.logo === 'string' && /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i.test(d.logo) && d.logo.length <= 500000) out.logo = d.logo;
+        if (typeof d.logo === 'string' && /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(d.logo) && d.logo.length <= 500000) out.logo = d.logo;
         if (Array.isArray(d.recent)) out.recent = d.recent.filter((/** @type {any} */ r) => typeof r === 'string').slice(0, 8);
         const po = d.printOpts || {};
         out.printOpts = {

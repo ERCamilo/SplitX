@@ -78,10 +78,47 @@
         script.integrity = integrity;
         script.crossOrigin = 'anonymous';
         script.referrerPolicy = 'no-referrer';
-        script.onload = () => (isReady() ? resolve() : reject(new Error(errorMsg)));
-        script.onerror = () => reject(new Error(errorMsg));
+        script.onload = () => {
+            if (isReady()) { resolve(); return; }
+            script.remove();
+            reject(new Error(errorMsg));
+        };
+        script.onerror = () => {
+            script.remove();
+            reject(new Error(errorMsg));
+        };
         document.head.appendChild(script);
     });
+
+    /**
+     * Calcula anchos determinísticos para la tabla PDF de distribución por empleado (A4 horizontal)
+     * garantizando que TODAS las denominaciones quepan dentro del ancho útil sin desbordarse.
+     * @param {number[]} denoms
+     * @param {number} [pageW]
+     * @param {number} [marginX]
+     */
+    const computePdfEmpTableLayout = (denoms, pageW = 297, marginX = 14) => {
+        const usableW = pageW - 2 * marginX;
+        const count = Math.max(1, denoms.length);
+        const numW = 9;
+        const netW = count > 12 ? 26 : 30;
+        const minNameW = count > 13 ? 38 : 48;
+        const availForDenoms = Math.max(count * 8, usableW - numW - netW - minNameW);
+        const denomColW = Math.min(18, Math.floor((availForDenoms / count) * 10) / 10);
+        const nameW = Math.max(36, Math.round((usableW - numW - netW - denomColW * count) * 10) / 10);
+        const fontSize = count > 13 ? 7 : count > 10 ? 7.5 : 8.5;
+        const cellPadding = { top: 2.5, bottom: 2.5, left: 1.2, right: 1.2 };
+        return {
+            usableW,
+            numW,
+            nameW,
+            netW,
+            denomColW,
+            fontSize,
+            cellPadding,
+            headers: denoms.map((d) => String(d))
+        };
+    };
 
     const ensureXLSX = () => loadScriptOnce(
         XLSX_CDN, XLSX_SRI, 'data-sx-xlsx',
@@ -160,6 +197,7 @@
         });
 
         return {
+            payrollMode: state.payrollMode || 'deductions',
             denoms,
             summary,
             empRows,
@@ -180,7 +218,9 @@
      */
     const buildCSVContent = ({ data, currencySymbol }) => {
         const { denoms, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw } = data;
+        const isNormalMode = data.payrollMode === 'normal';
         const hasPayroll = payrollSummary.count > 0;
+        const loansDeducted = isNormalMode ? 0 : payrollSummary.loans;
         /** @type {string[]} */
         const lines = [];
 
@@ -228,9 +268,9 @@
             lines.push(csvRow(['Total Sueldo Bruto', payrollSummary.gross]));
             lines.push(csvRow(['Total Bonificaciones', payrollSummary.bonuses]));
             lines.push(csvRow(['Total Descuentos', payrollSummary.discounts]));
-            lines.push(csvRow(['Total Préstamos Descontados en Nómina', payrollSummary.loans]));
+            lines.push(csvRow(['Total Préstamos Descontados en Nómina', loansDeducted]));
             lines.push(csvRow(['Fondo Reservado para Nuevos Préstamos', loanFundAmount]));
-            lines.push(csvRow(['Recaudación Restante en Empresa', payrollSummary.loans - loanFundAmount]));
+            lines.push(csvRow(['Recaudación Restante en Empresa', Math.max(0, loansDeducted - loanFundAmount)]));
             lines.push(csvRow(['Total Neto Nómina a Pagar', payrollSummary.net]));
         } else {
             lines.push(csvRow(['Total Nómina', empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + e.amount, 0)]));
@@ -290,7 +330,9 @@
                 return;
             }
             const XLSX = /** @type {any} */ (globalThis).XLSX;
-            const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw, bankSummary } = getData();
+            const { payrollMode, denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw, bankSummary } = getData();
+            const isNormalMode = payrollMode === 'normal';
+            const loansDeducted = isNormalMode ? 0 : payrollSummary.loans;
             const hasPayroll = payrollSummary.count > 0;
             const wb = XLSX.utils.book_new();
             const dateTag = isoDateTag();
@@ -330,9 +372,9 @@
                 s1Data.push(['Sueldo Bruto Total', '', payrollSummary.gross]);
                 s1Data.push(['Bonificaciones Totales', '', payrollSummary.bonuses]);
                 s1Data.push(['Descuentos Totales', '', payrollSummary.discounts]);
-                s1Data.push(['Préstamos Descontados en Nómina', '', payrollSummary.loans]);
+                s1Data.push([isNormalMode ? 'Préstamos Descontados (Modo Normal: Omitidos)' : 'Préstamos Descontados en Nómina', '', loansDeducted]);
                 s1Data.push(['Fondo Reservado para Nuevos Préstamos', '', loanFundAmount]);
-                s1Data.push(['Recaudación Restante en Empresa', '', payrollSummary.loans - loanFundAmount]);
+                s1Data.push(['Recaudación Restante en Empresa', '', Math.max(0, loansDeducted - loanFundAmount)]);
                 s1Data.push(['Total Neto a Pagar a Empleados', '', payrollSummary.net]);
                 s1Data.push(['Total Efectivo a Retirar del Banco', '', totalToWithdraw]);
             }
@@ -384,13 +426,25 @@
                 ]);
             }
 
+            const totalNominaAmount = empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + e.amount, 0) + loanFundAmount;
             const totalRow = hasPayroll
-                ? ['', 'TOTAL NÓMINA', payrollSummary.gross, payrollSummary.bonuses, payrollSummary.discounts, payrollSummary.afterDiscounts, payrollSummary.loans, payrollSummary.net]
-                : ['', 'TOTAL', empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + e.amount, 0)];
+                ? ['', 'TOTAL NÓMINA', payrollSummary.gross, payrollSummary.bonuses, payrollSummary.discounts, payrollSummary.afterDiscounts, loansDeducted, totalNominaAmount]
+                : ['', 'TOTAL', totalNominaAmount];
             denoms.forEach(d => totalRow.push(empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (e[d] || 0), 0) + (loanFundResult.distribution[d] || 0)));
             totalRow.push('', '');
             s2Data.push([]);
             s2Data.push(totalRow);
+
+            const hasPaidRows = empRows.some((/** @type {any} */ e) => e.paid);
+            if (hasPaidRows) {
+                const pendingAmount = empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (!e.paid ? e.amount : 0), 0) + loanFundAmount;
+                const pendingRow = hasPayroll
+                    ? ['', 'TOTAL PENDIENTE DE ENTREGA', '', '', '', '', '', pendingAmount]
+                    : ['', 'TOTAL PENDIENTE DE ENTREGA', pendingAmount];
+                denoms.forEach(d => pendingRow.push(summary[d] || 0));
+                pendingRow.push('', '');
+                s2Data.push(pendingRow);
+            }
 
             const ws2 = XLSX.utils.aoa_to_sheet(s2Data);
             const col2widths = [{ wch: 5 }, { wch: 32 }];
@@ -588,9 +642,10 @@
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
             doc.setTextColor(100, 116, 139);
-            doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
+            doc.text(`Fecha: ${today}  •  Denominaciones en ${sym}`, pageW / 2, 24, { align: 'center' });
 
-            const empHead = [['#', 'Nombre del Empleado', 'Sueldo Neto', ...denoms.map(d => `${sym}${d}`)]];
+            const pdfLayout = computePdfEmpTableLayout(denoms, pageW, 14);
+            const empHead = [['#', 'Nombre del Empleado', 'Sueldo Neto', ...pdfLayout.headers]];
             /** @type {any[]} */
             const empBody = empRows.map((/** @type {any} */ emp) => [
                 emp.idx,
@@ -608,6 +663,7 @@
                 ]);
             }
 
+            const totalRowIndex = empBody.length;
             empBody.push([
                 { content: '', styles: { fontStyle: 'bold' } },
                 { content: 'TOTALES', styles: { fontStyle: 'bold' } },
@@ -618,22 +674,37 @@
                 }))
             ]);
 
-            const denomColW = Math.max(12, Math.floor((268 - 110) / Math.max(1, denoms.length)));
+            const hasPaidInPdf = empRows.some((/** @type {any} */ e) => e.paid);
+            const pendingRowIndex = hasPaidInPdf ? empBody.length : -1;
+            if (hasPaidInPdf) {
+                const pendingAmt = empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (!e.paid ? e.amount : 0), 0) + loanFundAmount;
+                empBody.push([
+                    { content: '', styles: { fontStyle: 'bold' } },
+                    { content: 'TOTAL PENDIENTE DE ENTREGA', styles: { fontStyle: 'bold' } },
+                    { content: money(pendingAmt), styles: { fontStyle: 'bold' } },
+                    ...denoms.map(d => ({
+                        content: summary[d] || '—',
+                        styles: { fontStyle: 'bold' }
+                    }))
+                ]);
+            }
+
             /** @type {Record<number, any>} */
             const colStyles = {
-                0: { halign: 'center', cellWidth: 10 },
-                1: { halign: 'left', cellWidth: 66 },
-                2: { halign: 'right', cellWidth: 34 }
+                0: { halign: 'center', cellWidth: pdfLayout.numW },
+                1: { halign: 'left', cellWidth: pdfLayout.nameW },
+                2: { halign: 'right', cellWidth: pdfLayout.netW }
             };
-            denoms.forEach((_d, i) => { colStyles[3 + i] = { halign: 'center', cellWidth: denomColW }; });
+            denoms.forEach((_d, i) => { colStyles[3 + i] = { halign: 'center', cellWidth: pdfLayout.denomColW }; });
 
             doc.autoTable({
                 head: empHead,
                 body: empBody,
                 startY: 30,
+                tableWidth: pdfLayout.usableW,
                 margin: { left: 14, right: 14 },
-                styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 3, overflow: 'ellipsize' },
-                headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 8.5 },
+                styles: { font: 'helvetica', fontSize: pdfLayout.fontSize, cellPadding: pdfLayout.cellPadding, overflow: 'ellipsize' },
+                headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: pdfLayout.fontSize },
                 columnStyles: colStyles,
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 didParseCell: (/** @type {any} */ data) => {
@@ -641,87 +712,99 @@
                         const emp = empRows[data.row.index];
                         if (emp && emp.paid) data.cell.styles.textColor = [148, 163, 184];
                     }
-                    if (data.section === 'body' && data.row.index === empBody.length - 1) {
+                    if (data.section === 'body' && data.row.index === totalRowIndex) {
                         data.cell.styles.fillColor = [30, 41, 59];
                         data.cell.styles.textColor = [255, 255, 255];
                     }
-                }
-            });
-
-            // Página 4: Detalle Individual de Préstamos
-            doc.addPage('a4', 'landscape');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(16);
-            doc.setTextColor(30, 41, 59);
-            doc.text('DETALLE INDIVIDUAL DE PRÉSTAMOS — Split X', pageW / 2, 18, { align: 'center' });
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(100, 116, 139);
-            doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
-
-            const loanEmployees = empRows.filter((/** @type {any} */ e) => {
-                const ld = e.payroll?.loanDetails || {};
-                return (e.payroll?.loans || 0) > 0 || ld.principal > 0 || ld.remainingBalance > 0 || ld.interestAmount > 0;
-            });
-            const displayRows = loanEmployees.length > 0 ? loanEmployees : empRows;
-
-            const loanEmpHead = [['#', 'Nombre del Empleado', 'Cuota Cobrada', 'Capital Amortizado', 'Interés Cobrado', 'Deuda Restante (Saldo)']];
-            /** @type {any[]} */
-            const loanEmpBody = displayRows.map((/** @type {any} */ emp, /** @type {number} */ i) => {
-                const ld = emp.payroll?.loanDetails || {};
-                const loanVal = emp.payroll?.loans || 0;
-                return [
-                    i + 1,
-                    emp.name,
-                    loanVal > 0 ? money(loanVal) : money(0),
-                    ld.principal ? money(ld.principal) : '—',
-                    ld.interestAmount ? money(ld.interestAmount) : '—',
-                    ld.remainingBalance ? money(ld.remainingBalance) : '—'
-                ];
-            });
-
-            const totalPrincipal = displayRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (e.payroll?.loanDetails?.principal || 0), 0);
-            loanEmpBody.push([
-                { content: '', styles: { fontStyle: 'bold' } },
-                { content: 'TOTALES', styles: { fontStyle: 'bold' } },
-                { content: money(payrollSummary.loans), styles: { fontStyle: 'bold' } },
-                { content: totalPrincipal > 0 ? money(totalPrincipal) : '—', styles: { fontStyle: 'bold' } },
-                { content: money(payrollSummary.totalInterest), styles: { fontStyle: 'bold' } },
-                { content: money(payrollSummary.totalRemainingBalance), styles: { fontStyle: 'bold' } }
-            ]);
-
-            const loanTableW = 250;
-            doc.autoTable({
-                head: loanEmpHead,
-                body: loanEmpBody,
-                startY: 32,
-                tableWidth: loanTableW,
-                margin: { left: (pageW - loanTableW) / 2 },
-                styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
-                headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold', halign: 'center' },
-                columnStyles: {
-                    0: { halign: 'center', cellWidth: 14 },
-                    1: { halign: 'left', cellWidth: 78 },
-                    2: { halign: 'right', cellWidth: 38 },
-                    3: { halign: 'right', cellWidth: 38 },
-                    4: { halign: 'right', cellWidth: 38 },
-                    5: { halign: 'right', cellWidth: 44 }
-                },
-                alternateRowStyles: { fillColor: [240, 253, 250] },
-                didParseCell: (/** @type {any} */ data) => {
-                    if (data.section === 'body' && data.row.index === loanEmpBody.length - 1) {
+                    if (data.section === 'body' && data.row.index === pendingRowIndex) {
                         data.cell.styles.fillColor = [15, 118, 110];
                         data.cell.styles.textColor = [255, 255, 255];
                     }
                 }
             });
 
-            const finYLoans = (doc.lastAutoTable?.finalY || 80) + 12;
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(100, 116, 139);
-            doc.text(`Colaboradores con descuento de préstamo: ${loanEmployees.length} de ${empRows.length}  •  Fondo para nuevos préstamos: ${money(loanFundAmount)}`, pageW / 2, finYLoans, { align: 'center' });
+            // Página 4: Detalle Individual de Préstamos (solo cuando el modo Con Préstamos tiene actividad real)
+            const loanEmployees = empRows.filter((/** @type {any} */ e) => {
+                const ld = e.payroll?.loanDetails || {};
+                return (e.payroll?.loans || 0) > 0 || ld.principal > 0 || ld.remainingBalance > 0 || ld.interestAmount > 0;
+            });
+            if (!isNormalMode && (loanEmployees.length > 0 || loanFundAmount > 0)) {
+                doc.addPage('a4', 'landscape');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.setTextColor(30, 41, 59);
+                doc.text('DETALLE INDIVIDUAL DE PRÉSTAMOS — Split X', pageW / 2, 18, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
+
+                const displayRows = loanEmployees.length > 0 ? loanEmployees : empRows;
+                const loanEmpHead = [['#', 'Nombre del Empleado', 'Cuota Cobrada', 'Capital Amortizado', 'Interés Cobrado', 'Deuda Restante (Saldo)']];
+                /** @type {any[]} */
+                const loanEmpBody = displayRows.map((/** @type {any} */ emp, /** @type {number} */ i) => {
+                    const ld = emp.payroll?.loanDetails || {};
+                    const loanVal = emp.payroll?.loans || 0;
+                    const interest = ld.interestAmount || 0;
+                    const principal = ld.principal !== undefined ? ld.principal : Math.max(0, loanVal - interest);
+                    return [
+                        i + 1,
+                        emp.name,
+                        loanVal > 0 ? money(loanVal) : money(0),
+                        principal > 0 ? money(principal) : '—',
+                        interest > 0 ? money(interest) : '—',
+                        ld.remainingBalance ? money(ld.remainingBalance) : '—'
+                    ];
+                });
+
+                const totalPrincipal = displayRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => {
+                    const ld = e.payroll?.loanDetails || {};
+                    const loanVal = e.payroll?.loans || 0;
+                    const principal = ld.principal !== undefined ? ld.principal : Math.max(0, loanVal - (ld.interestAmount || 0));
+                    return s + principal;
+                }, 0);
+                loanEmpBody.push([
+                    { content: '', styles: { fontStyle: 'bold' } },
+                    { content: 'TOTALES', styles: { fontStyle: 'bold' } },
+                    { content: money(payrollSummary.loans), styles: { fontStyle: 'bold' } },
+                    { content: totalPrincipal > 0 ? money(totalPrincipal) : '—', styles: { fontStyle: 'bold' } },
+                    { content: money(payrollSummary.totalInterest), styles: { fontStyle: 'bold' } },
+                    { content: money(payrollSummary.totalRemainingBalance), styles: { fontStyle: 'bold' } }
+                ]);
+
+                const loanTableW = 250;
+                doc.autoTable({
+                    head: loanEmpHead,
+                    body: loanEmpBody,
+                    startY: 32,
+                    tableWidth: loanTableW,
+                    margin: { left: (pageW - loanTableW) / 2 },
+                    styles: { font: 'helvetica', fontSize: 9, cellPadding: 3.5 },
+                    headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 14 },
+                        1: { halign: 'left', cellWidth: 78 },
+                        2: { halign: 'right', cellWidth: 38 },
+                        3: { halign: 'right', cellWidth: 38 },
+                        4: { halign: 'right', cellWidth: 38 },
+                        5: { halign: 'right', cellWidth: 44 }
+                    },
+                    alternateRowStyles: { fillColor: [240, 253, 250] },
+                    didParseCell: (/** @type {any} */ data) => {
+                        if (data.section === 'body' && data.row.index === loanEmpBody.length - 1) {
+                            data.cell.styles.fillColor = [15, 118, 110];
+                            data.cell.styles.textColor = [255, 255, 255];
+                        }
+                    }
+                });
+
+                const finYLoans = (doc.lastAutoTable?.finalY || 80) + 12;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Colaboradores con descuento de préstamo: ${loanEmployees.length} de ${empRows.length}  •  Fondo para nuevos préstamos: ${money(loanFundAmount)}`, pageW / 2, finYLoans, { align: 'center' });
+            }
 
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
@@ -737,5 +820,5 @@
         return { buildExportData: getData, exportToCSV, exportToExcel, exportToPDF };
     };
 
-    return { isoDateTag, csvCell, buildExportData, buildCSVContent, createExporter };
+    return { isoDateTag, csvCell, computePdfEmpTableLayout, buildExportData, buildCSVContent, createExporter };
 });

@@ -133,13 +133,13 @@
      * @param {any} employee One imported SplitX employee
      * @param {Array<{key:string,label:string,type:string,get:function}>} fields
      * @param {Record<string, unknown>} [values] User-authored values for the specific employee
-     * @param {{ today?: string, index?: number, resolveField?: (k: string) => any }} [config]
+     * @param {{ today?: string, index?: number, currency?: string, resolveField?: (k: string) => any }} [config]
      */
     const render = (html, employee, fields, values={}, config={}) => {
         /** @type {Set<string>} */
         const missing = new Set();
         const fieldByKey = new Map((fields||[]).map(f=>[f.key,f]));
-        const currency = employee?.exportContext?.currency || 'DOP';
+        const currency = employee?.exportContext?.currency || config.currency || 'DOP';
         const d = new Date();
         const now = config.today || [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
         const output = String(html||'').replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_:]*)\s*\}\}/g, (_,key) => {

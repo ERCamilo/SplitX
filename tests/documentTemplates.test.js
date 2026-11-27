@@ -102,4 +102,14 @@ describe('employee Word-like document templates',()=>{
      assert.equal(saved.people[key]?.idNumber, '001-0000000-1', `safeState dropped data for "${weird}"`);
    }
  });
+ test('render uses active SplitX currency when employee has no exportContext currency (Sprint C)',()=>{
+   const manualEmp = { id: 9, name: 'Luis', amount: 1500 };
+   const f = SF.createFieldSet({ records: [manualEmp] });
+   const res = D.render('<p>{{net}} · {{monthlySalary}}</p>', manualEmp, f.fields, { monthlySalary: '2500' }, {
+     resolveField: f.resolveField, index: 0, today: '2026-11-26', currency: 'EUR'
+   });
+   assert.equal(res.missing.length, 0);
+   assert.match(res.html, /€|EUR/);
+   assert.equal(/RD\$|DOP/.test(res.html), false, 'must not hardcode DOP when active currency is EUR');
+ });
 });
