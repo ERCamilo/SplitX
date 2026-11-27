@@ -61,17 +61,37 @@ describe('mobile payroll workflow at 390x844', () => {
             await page.waitForFunction(() => document.getElementById('employeeList')?.textContent?.includes('María Móvil'));
             assert.match(await page.textContent('#employeeList'), /María Móvil/);
 
-            // 2. Toggle paid via delegated accessible button
-            await page.locator('#employeeList button[aria-label="Marcar como pagado"]').first().click();
-            await page.waitForSelector('#employeeList button[aria-label="Marcar como pendiente"]');
+            // 2. Hybrid checklist mode (empty Mi Caja): left status pill marks directly Paid (✓✓) & enables undo button
+            await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
+            await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double');
+            await page.waitForSelector('#employeeList button[data-card-action="revert-status"]:not([disabled])');
 
-            // 3. Navigate bottom bar: Mi Caja -> Banco -> Nómina
+            // Revert Paid -> Pendiente via confirmation dialog
+            await page.locator('#employeeList button[data-card-action="revert-status"]').first().click();
+            await page.waitForSelector('#customDialogModal:not(.hidden)');
+            await page.locator('#dialogActions button').last().click();
+            await page.waitForSelector('#customDialogModal.hidden', { state: 'attached' });
+            await page.waitForSelector('#employeeList button[data-card-action="revert-status"][disabled]');
+
+            // 3. Navigate bottom bar: Mi Caja -> Banco (apply cash) -> Cuadre -> Nómina (3-state: Pendiente -> En sobre -> Pagado)
             await page.locator('#bnav-caja').click();
             assert.equal(await page.locator('#bnav-caja').evaluate(el => el.classList.contains('active')), true);
             await page.locator('#bnav-banco').click();
             assert.equal(await page.locator('#view-bank').isVisible(), true);
+            await page.locator('#applyBankBtn').click();
+
+            await page.locator('#bnav-cuadre').click();
+            assert.equal(await page.locator('#view-cuadre').isVisible(), true);
+
             await page.locator('#bnav-nomina').click();
             assert.equal(await page.locator('#employeeList').isVisible(), true);
+
+            // Click 1 -> En sobre (blue pill + single check)
+            await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
+            await page.waitForSelector('#employeeList button.status-packed[data-card-action="advance-status"]');
+            // Click 2 -> Pagado (double check)
+            await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
+            await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double');
 
             // 4. Open & close Operations / Backup modal via accessible aria-label buttons
             await page.locator('nav button[aria-label="Operaciones de nómina"]').click();
