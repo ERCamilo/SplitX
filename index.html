@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,10 +13,14 @@
     <script src="js/SplitXEarlyBoot.js"></script>
     <link rel="stylesheet" href="css/app.css">
     <link rel="stylesheet" href="css/tailwind.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous"
+        referrerpolicy="no-referrer">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Roboto:wght@400;500;700;900&display=swap"
+        rel="stylesheet">
     <script src="js/SplitXStorage.js"></script>
     <script src="js/SplitXCurrencies.js"></script>
     <script src="js/SplitXBackup.js"></script>
@@ -42,57 +47,91 @@
     <script src="js/DocumentStudio.js"></script>
     <link rel="stylesheet" href="css/document-studio.css">
 </head>
+
 <body class="bg-slate-50 text-slate-800 font-sans">
 
     <!-- ═══════════════════════════════════════════
          TOP NAVBAR
     ═══════════════════════════════════════════ -->
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-30" style="box-shadow:0 1px 0 #e2e8f0">
-        <div class="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
-            <div class="flex justify-between items-center h-14 gap-2">
+        <div class="max-w-7xl mx-auto px-2.5 sm:px-5 lg:px-8">
+            <div class="flex justify-between items-center h-14 gap-1.5 sm:gap-2">
                 <!-- Logo -->
                 <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-                    <img src="imagenes/splitx_icon.png" alt="SplitX" class="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-xs">
-                    <span class="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900 flex items-center">Split<span class="text-indigo-600">X</span></span>
+                    <img src="imagenes/splitx_icon.png" alt="SplitX"
+                        class="w-7 h-7 sm:w-8 sm:h-8 object-contain drop-shadow-xs">
+                    <span
+                        class="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 flex items-center">Split<span
+                            class="text-indigo-600">X</span></span>
                 </div>
                 <!-- Nav actions -->
-                <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <div class="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
+                    <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700" role="group" aria-label="Deshacer y rehacer">
+                        <button type="button" id="undoBtn" data-sx-click="undoAction" title="Deshacer (Ctrl+Z)"
+                            aria-label="Deshacer último cambio (Ctrl+Z)" aria-disabled="true"
+                            class="w-7 h-7 sm:w-8 sm:h-7 rounded-md flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-sky-400 transition-all opacity-40 cursor-not-allowed">
+                            <i class="fa-solid fa-rotate-left text-xs" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" id="redoBtn" data-sx-click="redoAction" title="Rehacer (Ctrl+Y)"
+                            aria-label="Rehacer último cambio (Ctrl+Y)" aria-disabled="true"
+                            class="w-7 h-7 sm:w-8 sm:h-7 rounded-md flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-sky-400 transition-all opacity-40 cursor-not-allowed">
+                            <i class="fa-solid fa-rotate-right text-xs" aria-hidden="true"></i>
+                        </button>
+                    </div>
                     <button data-sx-click="openImportModal" class="toolbar-btn blue hidden sm:flex">
                         <i class="fa-solid fa-file-import text-xs"></i> Importar
                     </button>
-                    <button id="historyBtn" data-sx-click="openHistoryModal" class="toolbar-btn hidden sm:flex" title="Últimas nóminas importadas">
+                    <button id="historyBtn" data-sx-click="openHistoryModal" class="toolbar-btn hidden sm:flex"
+                        title="Últimas nóminas importadas">
                         <i class="fa-solid fa-clock-rotate-left text-xs"></i> Historial
                     </button>
                     <button data-sx-click="openExportModal" class="toolbar-btn green hidden sm:flex">
                         <i class="fa-solid fa-file-export text-xs"></i> Exportar
                     </button>
-                    <button data-sx-click="openSheetStudio" class="toolbar-btn amber hidden sm:flex" title="Tarjetas para sobres y hoja de firmas">
+                    <button data-sx-click="openSheetStudio" class="toolbar-btn amber hidden sm:flex"
+                        title="Tarjetas para sobres y hoja de firmas">
                         <i class="fa-solid fa-print text-xs"></i> Hojas
                     </button>
-                    <button data-sx-click="openDocumentStudio" class="toolbar-btn blue hidden sm:flex" title="Plantillas de documentos personalizadas para empleados">
+                    <button data-sx-click="openDocumentStudio" class="toolbar-btn blue hidden sm:flex"
+                        title="Plantillas de documentos personalizadas para empleados">
                         <i class="fa-solid fa-file-lines text-xs"></i> Documentos
                     </button>
                     <div class="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
-                    <button data-sx-click="openSheetStudio" title="Hojas imprimibles: tarjetas para sobres y hoja de firmas" aria-label="Hojas imprimibles" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all sm:hidden">
-                        <i class="fa-solid fa-print text-sm"></i>
+                    <button data-sx-click="openSheetStudio"
+                        title="Hojas imprimibles: tarjetas para sobres y hoja de firmas" aria-label="Hojas imprimibles"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all sm:hidden">
+                        <i class="fa-solid fa-print text-xs sm:text-sm"></i>
                     </button>
-                    <button data-sx-click="openDocumentStudio" title="Documentos personalizados de empleados" aria-label="Documentos personalizados" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
-                        <i class="fa-solid fa-file-lines text-sm"></i>
+                    <button data-sx-click="openDocumentStudio" title="Documentos personalizados de empleados"
+                        aria-label="Documentos personalizados"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
+                        <i class="fa-solid fa-file-lines text-xs sm:text-sm"></i>
                     </button>
-                    <button data-sx-click="openHistoryModal" title="Últimas nóminas importadas" aria-label="Historial de nóminas" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
-                        <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+                    <button data-sx-click="openHistoryModal" title="Últimas nóminas importadas"
+                        aria-label="Historial de nóminas"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all sm:hidden">
+                        <i class="fa-solid fa-clock-rotate-left text-xs sm:text-sm"></i>
                     </button>
-                    <button data-sx-click="openExportModal" title="Exportar nómina (Excel, PDF, CSV)" aria-label="Exportar nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
-                        <i class="fa-solid fa-file-export text-sm"></i>
+                    <button data-sx-click="openExportModal" title="Exportar nómina (Excel, PDF, CSV)"
+                        aria-label="Exportar nómina"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-all sm:hidden">
+                        <i class="fa-solid fa-file-export text-xs sm:text-sm"></i>
                     </button>
-                    <button id="themeToggleBtn" data-sx-click="toggleTheme" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro u oscuro" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all">
-                        <i class="fa-solid fa-moon text-sm"></i>
+                    <button id="themeToggleBtn" data-sx-click="toggleTheme" title="Cambiar tema claro/oscuro"
+                        aria-label="Cambiar tema claro u oscuro"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-800 dark:hover:text-amber-400 transition-all">
+                        <i class="fa-solid fa-moon text-xs sm:text-sm"></i>
                     </button>
-                    <button data-sx-click="openConfigModal" title="Ajustes de sistema y diseño" aria-label="Ajustes de sistema y diseño" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
-                        <i class="fa-solid fa-gear text-sm"></i>
+                    <button data-sx-click="openConfigModal" title="Ajustes de sistema y diseño"
+                        aria-label="Ajustes de sistema y diseño"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-all">
+                        <i class="fa-solid fa-gear text-xs sm:text-sm"></i>
                     </button>
-                    <button data-sx-click="openOperationsModal" title="Operaciones de nómina (Reiniciar / Restaurar / Limpiar)" aria-label="Operaciones de nómina" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all">
-                        <i class="fa-solid fa-rotate-left text-sm"></i>
+                    <button data-sx-click="openOperationsModal"
+                        title="Operaciones de nómina (Reiniciar / Restaurar / Limpiar)"
+                        aria-label="Operaciones de nómina"
+                        class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-all">
+                        <i class="fa-solid fa-rotate-left text-xs sm:text-sm"></i>
                     </button>
                 </div>
             </div>
@@ -100,26 +139,34 @@
     </nav>
 
     <!-- Storage Warning Banner (shown when localStorage is blocked or quota is exceeded) -->
-    <div id="storageBanner" class="hidden bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center gap-2">
+    <div id="storageBanner"
+        class="hidden bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-800 flex items-center gap-2">
         <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
-        <span id="storageBannerText"><strong>Almacenamiento bloqueado:</strong> Los datos solo se conservan mientras esta pestaña permanezca abierta.</span>
-        <button data-sx-click="hideParent" aria-label="Ocultar aviso de almacenamiento" class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
+        <span id="storageBannerText"><strong>Almacenamiento bloqueado:</strong> Los datos solo se conservan mientras
+            esta pestaña permanezca abierta.</span>
+        <button data-sx-click="hideParent" aria-label="Ocultar aviso de almacenamiento"
+            class="ml-auto text-amber-600 hover:text-amber-900 shrink-0">
             <i class="fa-solid fa-xmark"></i>
         </button>
     </div>
 
     <!-- Stale payroll banner: opened from SA but no new payroll arrived -->
-    <div id="saStaleBanner" class="hidden bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-xs text-amber-800 dark:text-amber-200" role="status">
+    <div id="saStaleBanner"
+        class="hidden bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-xs text-amber-800 dark:text-amber-200"
+        role="status">
         <div class="max-w-7xl mx-auto flex items-center gap-2 flex-wrap">
             <i class="fa-solid fa-triangle-exclamation text-amber-500 shrink-0"></i>
             <span id="saStaleText" class="flex-1 min-w-[12rem]"></span>
-            <button data-sx-click="retrySaImport" class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold">
+            <button data-sx-click="retrySaImport"
+                class="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold">
                 <i class="fa-solid fa-rotate mr-1"></i>Pedir de nuevo
             </button>
-            <button data-sx-click="openHistoryModal" class="px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-semibold">
+            <button data-sx-click="openHistoryModal"
+                class="px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-semibold">
                 <i class="fa-solid fa-clock-rotate-left mr-1"></i>Historial
             </button>
-            <button data-sx-click="hideStaleBanner" class="text-amber-600 hover:text-amber-900 dark:text-amber-400 shrink-0" aria-label="Cerrar aviso">
+            <button data-sx-click="hideStaleBanner"
+                class="text-amber-600 hover:text-amber-900 dark:text-amber-400 shrink-0" aria-label="Cerrar aviso">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -150,49 +197,65 @@
             </div>
             <!-- KPI 4: Retirar del banco -->
             <div class="kpi-card cursor-pointer" data-sx-click="openBankMobile" title="Ver plan de retiro">
-                <div class="kpi-label"><i class="fa-solid fa-building-columns mr-1 text-amber-400"></i>Retirar Banco</div>
+                <div class="kpi-label"><i class="fa-solid fa-building-columns mr-1 text-amber-400"></i>Retirar Banco
+                </div>
                 <div class="kpi-value text-amber-600" id="kpiRetirar">RD$ 0</div>
                 <div class="kpi-sub text-blue-500">Toca para ver plan →</div>
             </div>
         </div>
 
         <!-- Compact Live Progress & Table-Cash Card -->
-        <div id="ledgerProgressCard" class="mt-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2.5 shadow-2xs">
+        <div id="ledgerProgressCard"
+            class="mt-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2.5 shadow-2xs">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex flex-wrap items-center gap-2 text-xs">
                     <span class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                         <i class="fa-solid fa-layer-group text-blue-500"></i> Avance de Pagos
                     </span>
-                    <span id="ledgerCountsBadge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">0 pendientes</span>
+                    <span id="ledgerCountsBadge"
+                        class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">0
+                        pendientes</span>
                 </div>
                 <div class="flex items-center gap-2.5">
-                    <div id="cashStatusText" class="text-xs text-slate-500 dark:text-slate-400 text-right">Calculando...</div>
-                    <button type="button" data-sx-click="openCuadreView" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors">
+                    <div id="cashStatusText" class="text-xs text-slate-500 dark:text-slate-400 text-right">Calculando...
+                    </div>
+                    <button type="button" data-sx-click="openCuadreView"
+                        class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors">
                         <i class="fa-solid fa-scale-balanced mr-1"></i>Ver cuadre →
                     </button>
                 </div>
             </div>
             <div class="progress-track w-full flex overflow-hidden h-2.5">
-                <div id="ledgerPaidBar" class="h-full bg-emerald-500 transition-all duration-300" style="width:0%"></div>
+                <div id="ledgerPaidBar" class="h-full bg-emerald-500 transition-all duration-300" style="width:0%">
+                </div>
                 <div id="ledgerPackedBar" class="h-full bg-blue-600 transition-all duration-300" style="width:0%"></div>
-                <div id="cashProgressBar" class="h-full bg-amber-400/60 transition-all duration-300" style="width:0%"></div>
+                <div id="cashProgressBar" class="h-full bg-amber-400/60 transition-all duration-300" style="width:0%">
+                </div>
             </div>
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
-                <div class="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                <div
+                    class="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                     <span class="text-slate-500 dark:text-slate-400 text-[11px]">Pagado</span>
-                    <span id="ledgerPaidDisplay" class="font-mono font-bold text-slate-800 dark:text-slate-100">RD$ 0</span>
+                    <span id="ledgerPaidDisplay" class="font-mono font-bold text-slate-800 dark:text-slate-100">RD$
+                        0</span>
                 </div>
-                <div class="px-2.5 py-1.5 rounded-lg bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 flex items-center justify-between gap-2">
+                <div
+                    class="px-2.5 py-1.5 rounded-lg bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 flex items-center justify-between gap-2">
                     <span class="text-blue-700 dark:text-blue-300 text-[11px] font-medium">En sobre</span>
-                    <span id="ledgerPackedDisplay" class="font-mono font-bold text-blue-700 dark:text-blue-300">RD$ 0</span>
+                    <span id="ledgerPackedDisplay" class="font-mono font-bold text-blue-700 dark:text-blue-300">RD$
+                        0</span>
                 </div>
-                <div class="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                <div
+                    class="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
                     <span class="text-slate-500 dark:text-slate-400 text-[11px]">Falta armar</span>
-                    <span id="ledgerPendingDisplay" class="font-mono font-bold text-slate-800 dark:text-slate-100">RD$ 0</span>
+                    <span id="ledgerPendingDisplay" class="font-mono font-bold text-slate-800 dark:text-slate-100">RD$
+                        0</span>
                 </div>
-                <div class="px-2.5 py-1.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-between gap-2" title="Efectivo que debe quedarte físicamente suelto en la mesa ahora mismo">
+                <div class="px-2.5 py-1.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-between gap-2"
+                    title="Efectivo que debe quedarte físicamente suelto en la mesa ahora mismo">
                     <span class="text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold">En mesa ahora</span>
-                    <span id="ledgerLooseDisplay" class="font-mono font-extrabold text-indigo-800 dark:text-indigo-200">RD$ 0</span>
+                    <span id="ledgerLooseDisplay"
+                        class="font-mono font-extrabold text-indigo-800 dark:text-indigo-200">RD$ 0</span>
                 </div>
             </div>
         </div>
@@ -225,10 +288,12 @@
                 <button data-sx-click="switchTab" data-sx-arg="inventory" id="tab-inventory" class="panel-tab active flex-1 text-center">
                     <i class="fa-solid fa-wallet mr-1"></i>Mi Caja
                 </button>
-                <button data-sx-click="switchTab" data-sx-arg="bank" id="tab-bank" class="panel-tab inactive flex-1 text-center">
+                <button data-sx-click="switchTab" data-sx-arg="bank" id="tab-bank"
+                    class="panel-tab inactive flex-1 text-center">
                     <i class="fa-solid fa-building-columns mr-1"></i>Banco
                 </button>
-                <button data-sx-click="switchTab" data-sx-arg="cuadre" id="tab-cuadre" class="panel-tab inactive flex-1 text-center">
+                <button data-sx-click="switchTab" data-sx-arg="cuadre" id="tab-cuadre"
+                    class="panel-tab inactive flex-1 text-center">
                     <i class="fa-solid fa-scale-balanced mr-1"></i>Cuadre
                 </button>
             </div>
@@ -237,7 +302,9 @@
             <div id="view-inventory" class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
                 <div class="shrink-0 px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                     <span class="text-sm font-semibold text-slate-700">Inventario de Billetes</span>
-                    <span id="totalInventoryDisplay" class="font-mono font-bold text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-100">RD$ 0</span>
+                    <span id="totalInventoryDisplay"
+                        class="font-mono font-bold text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-100">RD$
+                        0</span>
                 </div>
 
                 <div class="p-3 space-y-2" id="inventoryList">
@@ -248,10 +315,12 @@
             </div>
 
             <!-- Bank Panel -->
-            <div id="view-bank" class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+            <div id="view-bank"
+                class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
                 <div class="shrink-0 px-4 py-3 bg-blue-50 border-b border-blue-100">
                     <div class="text-sm font-semibold text-blue-900">Plan de Retiro Bancario</div>
-                    <div class="text-xs text-blue-500 mt-0.5">Solo para empleados <strong>pendientes de pago</strong></div>
+                    <div class="text-xs text-blue-500 mt-0.5">Solo para empleados <strong>pendientes de pago</strong>
+                    </div>
                 </div>
 
                 <div class="caja-scroll-body overflow-y-auto">
@@ -273,11 +342,15 @@
                         <span class="text-sm font-medium text-slate-600">Total a Retirar:</span>
                         <span id="bankTotalDisplay" class="font-bold text-lg text-slate-800 font-mono">RD$ 0</span>
                     </div>
-                    <div id="bankShortfallWarning" class="hidden mb-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-semibold"></div>
-                    <button id="applyBankBtn" data-sx-click="applyBankToInventory" class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm">
+                    <div id="bankShortfallWarning"
+                        class="hidden mb-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-semibold">
+                    </div>
+                    <button id="applyBankBtn" data-sx-click="applyBankToInventory"
+                        class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-sm">
                         <i class="fa-solid fa-check-circle"></i> Aplicar a Mi Caja
                     </button>
-                    <button data-sx-click="clearBankLimits" class="w-full mt-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 font-medium py-2 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-xs">
+                    <button data-sx-click="clearBankLimits"
+                        class="w-full mt-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 font-medium py-2 px-4 rounded-lg transition-colors flex justify-center items-center gap-2 text-xs">
                         <i class="fa-solid fa-eraser"></i> Limpiar límites del banco
                     </button>
                 </div>
@@ -287,17 +360,22 @@
             <div id="view-cuadre" class="hidden bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
                 <div class="shrink-0 px-4 py-3 bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-2">
                     <div>
-                        <div class="text-sm font-bold text-indigo-950 dark:text-indigo-100">Cuadre de Mesa (En mano)</div>
-                        <div class="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">Tilda cada denominación al contar tus billetes sueltos</div>
+                        <div class="text-sm font-bold text-indigo-950 dark:text-indigo-100">Cuadre de Mesa (En mano)
+                        </div>
+                        <div class="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">Tilda cada denominación al
+                            contar tus billetes sueltos</div>
                     </div>
-                    <span id="cuadreLooseTotalDisplay" class="font-mono font-extrabold text-xs text-indigo-700 dark:text-indigo-200 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800 shrink-0">RD$ 0</span>
+                    <span id="cuadreLooseTotalDisplay"
+                        class="font-mono font-extrabold text-xs text-indigo-700 dark:text-indigo-200 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800 shrink-0">RD$
+                        0</span>
                 </div>
 
                 <div id="cuadreOvercommitWarning" class="hidden shrink-0 mx-3 mt-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-semibold"></div>
 
                 <div class="caja-scroll-body overflow-x-auto">
                     <table class="w-full text-xs text-left">
-                        <thead class="text-[11px] text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-950 sticky top-0">
+                        <thead
+                            class="text-[11px] text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-950 sticky top-0">
                             <tr>
                                 <th class="px-2 py-2 text-center w-8">Ok</th>
                                 <th class="px-1.5 py-2">Billete</th>
@@ -315,9 +393,12 @@
                 <div class="shrink-0 p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs">
                     <div id="cuadreVarianceBanner" class="hidden p-2.5 rounded-lg border text-xs font-semibold"></div>
                     <div id="cuadreBalanceFooter" class="space-y-1 font-mono"></div>
-                    <div class="pt-2 flex items-center justify-between gap-2 border-t border-slate-200/80 dark:border-slate-800">
-                        <span id="cuadreChecklistStatus" class="text-[11px] text-slate-500 dark:text-slate-400">0 verificados</span>
-                        <button type="button" data-sx-click="clearCuadreChecks" class="text-[11px] font-semibold text-blue-600 dark:text-sky-400 hover:underline">
+                    <div
+                        class="pt-2 flex items-center justify-between gap-2 border-t border-slate-200/80 dark:border-slate-800">
+                        <span id="cuadreChecklistStatus" class="text-[11px] text-slate-500 dark:text-slate-400">0
+                            verificados</span>
+                        <button type="button" data-sx-click="clearCuadreChecks"
+                            class="text-[11px] font-semibold text-blue-600 dark:text-sky-400 hover:underline">
                             Limpiar cuadre
                         </button>
                     </div>
@@ -332,8 +413,7 @@
             <!-- Desktop Add Employee Form -->
             <div class="desktop-add-form bg-white rounded-xl border border-slate-200 p-4">
                 <div class="flex flex-col sm:flex-row gap-2.5">
-                    <input type="text" id="empName" placeholder="Nombre del empleado"
-                        class="ring-input flex-grow">
+                    <input type="text" id="empName" placeholder="Nombre del empleado" class="ring-input flex-grow">
                     <input type="number" id="empAmount" min="0" placeholder="Monto" step="0.01"
                         class="ring-input w-full sm:w-36 font-mono">
                     <button data-sx-click="addEmployee"
@@ -350,37 +430,48 @@
             <!-- Employee List -->
             <div class="bg-white rounded-xl border border-slate-200 flex-grow flex flex-col" style="min-height: 400px">
                 <!-- Toolbar -->
-                <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/80">
+                <div
+                    class="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/80">
                     <div class="flex items-center gap-2">
                         <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Empleados</span>
-                        <span id="employeeCountBadge" class="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+                        <span id="employeeCountBadge"
+                            class="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
                     </div>
                     <div class="flex items-center gap-1.5 flex-wrap">
-                        <button data-sx-click="roundAllAmounts" class="toolbar-btn amber" title="Quitar centavos a todos los montos">
+                        <button data-sx-click="roundAllAmounts" class="toolbar-btn amber"
+                            title="Quitar centavos a todos los montos">
                             <i class="fa-solid fa-scissors text-xs"></i>
                             <span class="hidden sm:inline">Centavos</span>
                         </button>
-                        <button data-sx-click="openOperationsModal" id="operationsModalBtn" class="toolbar-btn" title="Opciones de reinicio, restauración y limpieza">
+                        <button data-sx-click="openOperationsModal" id="operationsModalBtn" class="toolbar-btn"
+                            title="Opciones de reinicio, restauración y limpieza">
                             <i class="fa-solid fa-rotate-left text-xs"></i>
                             <span class="hidden sm:inline">Operaciones</span>
                         </button>
-                        <button data-sx-click="cycleSortMode" id="sortBtn" class="toolbar-btn" title="Alternar orden por prioridad o lista fija">
+                        <button data-sx-click="cycleSortMode" id="sortBtn" class="toolbar-btn"
+                            title="Alternar orden por prioridad o lista fija">
                             <i class="fa-solid fa-arrow-down-short-wide text-xs"></i>
                             <span class="hidden sm:inline" id="sortBtnLabel">Prioridad</span>
                         </button>
-                        <button data-sx-click="toggleCardNumberMode" id="cardNumToggleBtn" class="toolbar-btn" title="Conmutar entre # de referencia SA y # de orden en SplitX">
+                        <button data-sx-click="toggleCardNumberMode" id="cardNumToggleBtn" class="toolbar-btn"
+                            title="Conmutar entre # de referencia SA y # de orden en SplitX">
                             <i class="fa-solid fa-hashtag text-xs"></i>
                             <span class="hidden sm:inline" id="cardNumToggleLabel">Ref SA</span>
                         </button>
                         <div id="payrollModeSwitch" class="mode-switch" role="group" aria-label="Modo de préstamos">
-                            <button id="payrollModeNormal" data-sx-click="setPayrollMode" data-sx-arg="normal" class="active" title="Sin Préstamos: Bruto + Bonificaciones - Descuentos">Sin Préstamos</button>
-                            <button id="payrollModeDeductions" data-sx-click="setPayrollMode" data-sx-arg="deductions" title="Con Préstamos: Descontar préstamos en nómina">Con Préstamos</button>
+                            <button id="payrollModeNormal" data-sx-click="setPayrollMode" data-sx-arg="normal"
+                                class="active" title="Sin Préstamos: Bruto + Bonificaciones - Descuentos">Sin
+                                Préstamos</button>
+                            <button id="payrollModeDeductions" data-sx-click="setPayrollMode" data-sx-arg="deductions"
+                                title="Con Préstamos: Descontar préstamos en nómina">Con Préstamos</button>
                         </div>
-                        <button data-sx-click="openImportModal" class="toolbar-btn blue sm:hidden" title="Importar datos" aria-label="Importar datos">
+                        <button data-sx-click="openImportModal" class="toolbar-btn blue sm:hidden"
+                            title="Importar datos" aria-label="Importar datos">
                             <i class="fa-solid fa-file-import text-xs"></i>
                         </button>
                         <div class="w-px h-4 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
-                        <button data-sx-click="openExportModal" class="toolbar-btn green" title="Exportar nómina (Excel, PDF, CSV)">
+                        <button data-sx-click="openExportModal" class="toolbar-btn green"
+                            title="Exportar nómina (Excel, PDF, CSV)">
                             <i class="fa-solid fa-file-export text-xs"></i>
                             <span class="hidden sm:inline">Exportar</span>
                         </button>
@@ -388,31 +479,39 @@
                 </div>
 
                 <!-- Search & Status Filter Bar (view-only, never mutates cash allocation) -->
-                <div id="empFilterBar" class="px-3 sm:px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center gap-2">
+                <div id="empFilterBar"
+                    class="px-3 sm:px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center gap-2">
                     <div class="relative flex-1 min-w-[140px]">
-                        <i class="fa-solid fa-magnifying-glass text-[11px] text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                        <input type="search" id="empSearchInput" data-sx-input="setEmployeeSearch" placeholder="Buscar por nombre o #..." aria-label="Buscar colaborador"
+                        <i
+                            class="fa-solid fa-magnifying-glass text-[11px] text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        <input type="search" id="empSearchInput" data-sx-input="setEmployeeSearch"
+                            placeholder="Buscar por nombre o #..." aria-label="Buscar colaborador"
                             class="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none">
-                        <button type="button" id="empSearchClearBtn" data-sx-click="clearEmployeeSearch" aria-label="Limpiar búsqueda"
+                        <button type="button" id="empSearchClearBtn" data-sx-click="clearEmployeeSearch"
+                            aria-label="Limpiar búsqueda"
                             class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                             <i class="fa-solid fa-xmark text-xs"></i>
                         </button>
                     </div>
                     <div class="flex items-center gap-1 flex-wrap" role="group" aria-label="Filtrar por estado de pago">
-                        <button type="button" id="empFilterAll" data-sx-click="setEmployeeStatusFilter" data-sx-arg="all"
+                        <button type="button" id="empFilterAll" data-sx-click="setEmployeeStatusFilter"
+                            data-sx-arg="all"
                             class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900">Todos</button>
-                        <button type="button" id="empFilterPending" data-sx-click="setEmployeeStatusFilter" data-sx-arg="pending"
+                        <button type="button" id="empFilterPending" data-sx-click="setEmployeeStatusFilter"
+                            data-sx-arg="pending"
                             class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 dark:bg-slate-800 dark:text-slate-300">Pend.</button>
-                        <button type="button" id="empFilterPacked" data-sx-click="setEmployeeStatusFilter" data-sx-arg="packed"
+                        <button type="button" id="empFilterPacked" data-sx-click="setEmployeeStatusFilter"
+                            data-sx-arg="packed"
                             class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300">Sobre</button>
-                        <button type="button" id="empFilterPaid" data-sx-click="setEmployeeStatusFilter" data-sx-arg="paid"
+                        <button type="button" id="empFilterPaid" data-sx-click="setEmployeeStatusFilter"
+                            data-sx-arg="paid"
                             class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-800 dark:text-slate-300">Pag.</button>
                     </div>
                 </div>
 
                 <div id="payrollSummaryContainer" class="hidden"></div>
                 <!-- Employee list container -->
-                <div id="employeeList" class="p-3 space-y-2.5 overflow-y-auto flex-grow">
+                <div id="employeeList" class="p-3 pb-16 space-y-2.5 overflow-y-auto flex-grow">
                     <div class="flex flex-col items-center justify-center py-14 text-slate-300">
                         <i class="fa-solid fa-users text-5xl mb-3"></i>
                         <p class="text-sm font-medium">Sin empleados en la lista</p>
@@ -439,7 +538,8 @@
         <h3 class="text-base font-bold text-slate-800 mb-4">Agregar Empleado</h3>
         <div class="flex flex-col gap-3">
             <input type="text" id="empNameMobile" placeholder="Nombre del empleado" class="ring-input">
-            <input type="number" id="empAmountMobile" placeholder="Monto (ej. 4500)" step="0.01" class="ring-input font-mono">
+            <input type="number" id="empAmountMobile" placeholder="Monto (ej. 4500)" step="0.01"
+                class="ring-input font-mono">
             <button data-sx-click="addEmployeeMobile"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm">
                 <i class="fa-solid fa-plus mr-2"></i> Agregar a la Nómina
@@ -480,24 +580,31 @@
     <!-- ═══════════════════════════════════════════
          CONFIG MODAL
     ═══════════════════════════════════════════ -->
-    <div id="configModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] anim-pop border border-slate-100 dark:border-slate-800">
+    <div id="configModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-blue-600 dark:text-sky-400"></i> Ajustes de Sistema
                 </h3>
-                <button data-sx-click="closeConfigModal" aria-label="Cerrar ajustes" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeConfigModal" aria-label="Cerrar ajustes"
+                    class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            <div class="flex gap-1 p-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <button id="cfgTab-appearance" data-sx-click="switchConfigTab" data-sx-arg="appearance" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs">
+            <div
+                class="flex gap-1 p-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <button id="cfgTab-appearance" data-sx-click="switchConfigTab" data-sx-arg="appearance"
+                    class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-xs">
                     <i class="fa-solid fa-layer-group mr-1.5"></i> Despiece y Apariencia
                 </button>
-                <button id="cfgTab-customBills" data-sx-click="switchConfigTab" data-sx-arg="customBills" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                <button id="cfgTab-customBills" data-sx-click="switchConfigTab" data-sx-arg="customBills"
+                    class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                     <i class="fa-solid fa-palette mr-1.5"></i> Colores e Imágenes
                 </button>
-                <button id="cfgTab-denoms" data-sx-click="switchConfigTab" data-sx-arg="denoms" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                <button id="cfgTab-denoms" data-sx-click="switchConfigTab" data-sx-arg="denoms"
+                    class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                     <i class="fa-solid fa-coins mr-1.5"></i> Denominaciones
                 </button>
             </div>
@@ -505,36 +612,51 @@
             <!-- TAB 1: APARIENCIA Y DESPIECE -->
             <div id="cfgView-appearance" class="p-4 overflow-y-auto flex-grow relative">
                 <!-- Sticky Live Interactive Card Preview -->
-                <div class="sticky -top-4 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pt-2 pb-3 mb-4 border-b border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <div
+                    class="sticky -top-4 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pt-2 pb-3 mb-4 border-b border-slate-200/80 dark:border-slate-800 shadow-xs">
                     <div class="flex items-center justify-between px-1 mb-1.5">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <span
+                            class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                             <i class="fa-solid fa-eye text-blue-600 dark:text-sky-400"></i> Vista previa en vivo
                         </span>
-                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Reacciona a los cambios en tiempo real</span>
+                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Reacciona a los cambios
+                            en tiempo real</span>
                     </div>
                     <div id="appearanceLivePreviewCard" class="w-full"></div>
                 </div>
 
                 <!-- Cash Breakdown Layout Preferences -->
-                <div class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 mb-3.5 space-y-3">
-                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fa-solid fa-layer-group text-blue-600 dark:text-sky-400"></i> Despiece de Efectivo en Tarjetas
+                <div
+                    class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 mb-3.5 space-y-3">
+                    <div
+                        class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-layer-group text-blue-600 dark:text-sky-400"></i> Despiece de Efectivo en
+                        Tarjetas
                     </div>
 
                     <!-- Display Format -->
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Formato de cantidad</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Cómo se presenta la cantidad de cada denominación.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Formato de cantidad
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Cómo se presenta la cantidad de
+                                cada denominación.</div>
                         </div>
-                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
-                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="badge" id="fmtBtn-badge" class="px-2.5 py-1 rounded-md transition-all flex items-center gap-1" title="Icono con círculo de unidades superpuesto">
+                        <div
+                            class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="badge"
+                                id="fmtBtn-badge" class="px-2.5 py-1 rounded-md transition-all flex items-center gap-1"
+                                title="Icono con círculo de unidades superpuesto">
                                 <i class="fa-solid fa-circle-dot text-[10px]"></i> Círculo
                             </button>
-                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="qty_x_denom" id="fmtBtn-qty_x_denom" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: 2 × [2000]">
+                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="qty_x_denom"
+                                id="fmtBtn-qty_x_denom" class="px-2.5 py-1 rounded-md transition-all"
+                                title="Ejemplo: 2 × [2000]">
                                 2 × [Icono]
                             </button>
-                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="denom_x_qty" id="fmtBtn-denom_x_qty" class="px-2.5 py-1 rounded-md transition-all" title="Ejemplo: [2000] × 2">
+                            <button type="button" data-sx-click="setBreakdownFormat" data-sx-arg="denom_x_qty"
+                                id="fmtBtn-denom_x_qty" class="px-2.5 py-1 rounded-md transition-all"
+                                title="Ejemplo: [2000] × 2">
                                 [Icono] × 2
                             </button>
                         </div>
@@ -545,17 +667,23 @@
                     <!-- Item Size Scale -->
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Tamaño de billetes y monedas</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Escala de fichas, iconos y números.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Tamaño de billetes y
+                                monedas</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Escala de fichas, iconos y
+                                números.</div>
                         </div>
-                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
-                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="compact" id="sizeBtn-compact" class="px-2.5 py-1 rounded-md transition-all">
+                        <div
+                            class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="compact"
+                                id="sizeBtn-compact" class="px-2.5 py-1 rounded-md transition-all">
                                 Compacto
                             </button>
-                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="normal" id="sizeBtn-normal" class="px-2.5 py-1 rounded-md transition-all">
+                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="normal"
+                                id="sizeBtn-normal" class="px-2.5 py-1 rounded-md transition-all">
                                 Normal
                             </button>
-                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="large" id="sizeBtn-large" class="px-2.5 py-1 rounded-md transition-all">
+                            <button type="button" data-sx-click="setBreakdownSize" data-sx-arg="large"
+                                id="sizeBtn-large" class="px-2.5 py-1 rounded-md transition-all">
                                 Grande
                             </button>
                         </div>
@@ -566,15 +694,23 @@
                     <!-- Elements per row -->
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Elementos por fila</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Cantidad máxima de billetes/monedas en cada línea.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Elementos por fila
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Cantidad máxima de
+                                billetes/monedas en cada línea.</div>
                         </div>
-                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
-                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="3" id="colBtn-3" class="px-2.5 py-1 rounded-md transition-all">3</button>
-                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="4" id="colBtn-4" class="px-2.5 py-1 rounded-md transition-all">4</button>
-                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="5" id="colBtn-5" class="px-2.5 py-1 rounded-md transition-all">5</button>
-                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="6" id="colBtn-6" class="px-2.5 py-1 rounded-md transition-all">6</button>
-                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="auto" id="colBtn-auto" class="px-2.5 py-1 rounded-md transition-all">Auto</button>
+                        <div
+                            class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="3" id="colBtn-3"
+                                class="px-2.5 py-1 rounded-md transition-all">3</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="4" id="colBtn-4"
+                                class="px-2.5 py-1 rounded-md transition-all">4</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="5" id="colBtn-5"
+                                class="px-2.5 py-1 rounded-md transition-all">5</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="6" id="colBtn-6"
+                                class="px-2.5 py-1 rounded-md transition-all">6</button>
+                            <button type="button" data-sx-click="setBreakdownColumns" data-sx-arg="auto"
+                                id="colBtn-auto" class="px-2.5 py-1 rounded-md transition-all">Auto</button>
                         </div>
                     </div>
 
@@ -583,12 +719,17 @@
                     <!-- Separate bills and coins -->
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Separar billetes y monedas</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Billetes en la fila superior y monedas en la fila inferior.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Separar billetes y
+                                monedas</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Billetes en la fila superior y
+                                monedas en la fila inferior.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchGroupByType" data-sx-change="toggleBreakdownGroupByType" class="sr-only peer">
-                            <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            <input type="checkbox" id="switchGroupByType" data-sx-change="toggleBreakdownGroupByType"
+                                class="sr-only peer">
+                            <div
+                                class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                            </div>
                         </label>
                     </div>
 
@@ -597,35 +738,54 @@
                     <!-- Show zero placeholders (Bandeja fija) -->
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Mostrar espacios en cero (Bandeja fija)</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las denominaciones no utilizadas atenuadas para mantener posiciones fijas.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Mostrar espacios en
+                                cero (Bandeja fija)</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las denominaciones no
+                                utilizadas atenuadas para mantener posiciones fijas.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchShowZeros" data-sx-change="toggleBreakdownShowZeros" class="sr-only peer">
-                            <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            <input type="checkbox" id="switchShowZeros" data-sx-change="toggleBreakdownShowZeros"
+                                class="sr-only peer">
+                            <div
+                                class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                            </div>
                         </label>
                     </div>
                 </div>
 
                 <!-- 3-State Status Colors & Card Numbering -->
-                <div class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 mb-3.5 space-y-3">
-                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fa-solid fa-traffic-light text-blue-600 dark:text-sky-400"></i> Estados y Numeración de Tarjetas
+                <div
+                    class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 mb-3.5 space-y-3">
+                    <div
+                        class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-traffic-light text-blue-600 dark:text-sky-400"></i> Estados y Numeración
+                        de Tarjetas
                     </div>
                     <div class="space-y-1.5">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Paleta de colores de estado (Pendiente → En sobre → Pagado)</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Elige cómo se colorea la barra izquierda de cada colaborador.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Paleta de colores de
+                                estado (Pendiente → En sobre → Pagado)</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Elige cómo se colorea la barra
+                                izquierda de cada colaborador.</div>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                            <button type="button" id="statusScheme-traffic" data-sx-click="setStatusColorScheme" data-sx-arg="traffic"
+                        <div
+                            class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                            <button type="button" id="statusScheme-traffic" data-sx-click="setStatusColorScheme"
+                                data-sx-arg="traffic"
                                 class="py-1.5 px-2.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
-                                <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="w-2 h-2 rounded-full bg-blue-600"></span><span class="w-2 h-2 rounded-full bg-emerald-500"></span></span>
+                                <span class="inline-flex items-center gap-0.5"><span
+                                        class="w-2 h-2 rounded-full bg-amber-500"></span><span
+                                        class="w-2 h-2 rounded-full bg-blue-600"></span><span
+                                        class="w-2 h-2 rounded-full bg-emerald-500"></span></span>
                                 <span>Ámbar → Azul → Verde</span>
                             </button>
-                            <button type="button" id="statusScheme-classic" data-sx-click="setStatusColorScheme" data-sx-arg="classic"
+                            <button type="button" id="statusScheme-classic" data-sx-click="setStatusColorScheme"
+                                data-sx-arg="classic"
                                 class="py-1.5 px-2.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
-                                <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="w-2 h-2 rounded-full bg-blue-600"></span><span class="w-2 h-2 rounded-full bg-slate-400"></span></span>
+                                <span class="inline-flex items-center gap-0.5"><span
+                                        class="w-2 h-2 rounded-full bg-emerald-500"></span><span
+                                        class="w-2 h-2 rounded-full bg-blue-600"></span><span
+                                        class="w-2 h-2 rounded-full bg-slate-400"></span></span>
                                 <span>Verde → Azul → Gris</span>
                             </button>
                         </div>
@@ -633,29 +793,42 @@
                     <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
                     <div class="flex items-center justify-between gap-3 flex-wrap">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Número mostrado en la barra izquierda</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">La referencia interna de SA nunca se modifica en documentos ni hojas.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Número mostrado en la
+                                barra izquierda</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">La referencia interna de SA
+                                nunca se modifica en documentos ni hojas.</div>
                         </div>
-                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
-                            <button type="button" id="cardNumMode-ref" data-sx-click="setCardNumberMode" data-sx-arg="ref" class="px-2.5 py-1 rounded-md transition-all"># Ref SA</button>
-                            <button type="button" id="cardNumMode-order" data-sx-click="setCardNumberMode" data-sx-arg="order" class="px-2.5 py-1 rounded-md transition-all"># Orden SplitX</button>
+                        <div
+                            class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" id="cardNumMode-ref" data-sx-click="setCardNumberMode"
+                                data-sx-arg="ref" class="px-2.5 py-1 rounded-md transition-all"># Ref SA</button>
+                            <button type="button" id="cardNumMode-order" data-sx-click="setCardNumberMode"
+                                data-sx-arg="order" class="px-2.5 py-1 rounded-md transition-all"># Orden
+                                SplitX</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Visual preference switches -->
-                <div class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
-                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                <div
+                    class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                    <div
+                        class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                         <i class="fa-solid fa-brush text-blue-600 dark:text-sky-400"></i> Estilo General
                     </div>
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Usar imágenes de billetes y monedas</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las fotos oficiales de la moneda dominicana.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Usar imágenes de
+                                billetes y monedas</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las fotos oficiales de
+                                la moneda dominicana.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchUseImages" data-sx-change="toggleUseDefaultImages" class="sr-only peer">
-                            <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            <input type="checkbox" id="switchUseImages" data-sx-change="toggleUseDefaultImages"
+                                class="sr-only peer">
+                            <div
+                                class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                            </div>
                         </label>
                     </div>
                     <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
@@ -664,22 +837,27 @@
                     <div class="space-y-1.5">
                         <div class="flex items-center justify-between gap-3">
                             <div>
-                                <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Color del texto en iconos vectoriales</div>
-                                <div class="text-[11px] text-slate-500 dark:text-slate-400">Contraste y legibilidad de los números dentro de los iconos de billetes y monedas.</div>
+                                <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Color del texto en
+                                    iconos vectoriales</div>
+                                <div class="text-[11px] text-slate-500 dark:text-slate-400">Contraste y legibilidad de
+                                    los números dentro de los iconos de billetes y monedas.</div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-800">
-                            <button id="chipTextMode-dark_tone" data-sx-click="setChipTextColor" data-sx-arg="dark_tone" 
+                        <div
+                            class="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                            <button id="chipTextMode-dark_tone" data-sx-click="setChipTextColor" data-sx-arg="dark_tone"
                                 class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
-                                <span class="w-2.5 h-2.5 rounded-full bg-blue-900 border border-blue-950/40 shrink-0"></span>
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-blue-900 border border-blue-950/40 shrink-0"></span>
                                 <span>Tono oscuro</span>
                             </button>
-                            <button id="chipTextMode-black" data-sx-click="setChipTextColor" data-sx-arg="black" 
+                            <button id="chipTextMode-black" data-sx-click="setChipTextColor" data-sx-arg="black"
                                 class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
-                                <span class="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-700 shrink-0"></span>
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-700 shrink-0"></span>
                                 <span>Negro</span>
                             </button>
-                            <button id="chipTextMode-white" data-sx-click="setChipTextColor" data-sx-arg="white" 
+                            <button id="chipTextMode-white" data-sx-click="setChipTextColor" data-sx-arg="white"
                                 class="py-1.5 px-2 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
                                 <span class="w-2.5 h-2.5 rounded-full bg-white border border-slate-400 shrink-0"></span>
                                 <span>Blanco</span>
@@ -689,23 +867,32 @@
                     <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Monedas en figuras redondas</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las monedas ($25, $10, $5, $1) circulares en vez de rectangulares.</div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Monedas en figuras
+                                redondas</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Muestra las monedas ($25, $10,
+                                $5, $1) circulares en vez de rectangulares.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchRoundCoins" data-sx-change="toggleRoundCoins" class="sr-only peer">
-                            <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            <input type="checkbox" id="switchRoundCoins" data-sx-change="toggleRoundCoins"
+                                class="sr-only peer">
+                            <div
+                                class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                            </div>
                         </label>
                     </div>
                     <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
                     <div class="flex items-center justify-between gap-3">
                         <div>
                             <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Modo Oscuro</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Activa la interfaz oscura de alto contraste.</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Activa la interfaz oscura de
+                                alto contraste.</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                            <input type="checkbox" id="switchDarkMode" data-sx-change="toggleTheme" class="sr-only peer">
-                            <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            <input type="checkbox" id="switchDarkMode" data-sx-change="toggleTheme"
+                                class="sr-only peer">
+                            <div
+                                class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600">
+                            </div>
                         </label>
                     </div>
                 </div>
@@ -714,18 +901,23 @@
             <!-- TAB 2: COLORES E IMÁGENES -->
             <div id="cfgView-customBills" class="hidden p-4 overflow-y-auto flex-grow">
                 <div class="mb-3 space-y-2">
-                    <p class="text-xs text-slate-600 dark:text-slate-300 font-medium">Personaliza el color de fondo o sube fotos propias para cada billete o moneda.</p>
-                    <div id="customBillsCurrencyBadge" class="text-[11px] text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950/50 rounded-xl p-2 border border-blue-100 dark:border-blue-900">
+                    <p class="text-xs text-slate-600 dark:text-slate-300 font-medium">Personaliza el color de fondo o
+                        sube fotos propias para cada billete o moneda.</p>
+                    <div id="customBillsCurrencyBadge"
+                        class="text-[11px] text-blue-600 dark:text-sky-400 bg-blue-50 dark:bg-blue-950/50 rounded-xl p-2 border border-blue-100 dark:border-blue-900">
                         <i class="fa-solid fa-circle-info mr-1"></i>
                         Las imágenes personalizadas cargadas desde tu PC tienen prioridad sobre las fotos por defecto.
                     </div>
                 </div>
                 <div id="appearanceList" class="space-y-2"></div>
-                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3 justify-between items-center">
-                    <button data-sx-click="resetAllAppearance" class="text-xs font-semibold text-rose-500 hover:text-rose-600 hover:underline flex items-center gap-1.5">
+                <div
+                    class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-3 justify-between items-center">
+                    <button data-sx-click="resetAllAppearance"
+                        class="text-xs font-semibold text-rose-500 hover:text-rose-600 hover:underline flex items-center gap-1.5">
                         <i class="fa-solid fa-rotate-left"></i> Restaurar todos los colores
                     </button>
-                    <button data-sx-click="clearAllImages" class="text-xs font-semibold text-amber-500 hover:text-amber-600 hover:underline flex items-center gap-1.5">
+                    <button data-sx-click="clearAllImages"
+                        class="text-xs font-semibold text-amber-500 hover:text-amber-600 hover:underline flex items-center gap-1.5">
                         <i class="fa-solid fa-image"></i> Quitar imágenes personalizadas
                     </button>
                 </div>
@@ -737,15 +929,22 @@
                 <div>
                     <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
                         <div>
-                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Presets de País y Moneda</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Selecciona tu país para cargar sus denominaciones y símbolos oficiales.</div>
+                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Presets de País y Moneda
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Selecciona tu país para cargar
+                                sus denominaciones y símbolos oficiales.</div>
                         </div>
-                        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
-                            <span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Símbolo:</span>
-                            <input type="text" id="currencySymbolInput" data-sx-change="setCurrencySymbol" class="w-14 text-center text-xs font-bold font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-1 py-0.5 text-slate-800 dark:text-slate-100">
+                        <div
+                            class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span
+                                class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Símbolo:</span>
+                            <input type="text" id="currencySymbolInput" data-sx-change="setCurrencySymbol"
+                                class="w-14 text-center text-xs font-bold font-mono bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-1 py-0.5 text-slate-800 dark:text-slate-100">
                         </div>
                     </div>
-                    <div id="currencyPresetGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800"></div>
+                    <div id="currencyPresetGrid"
+                        class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto p-1 bg-slate-50/50 dark:bg-slate-950/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                    </div>
                 </div>
 
                 <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
@@ -754,29 +953,40 @@
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <div>
-                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Denominaciones Activas</div>
-                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Puedes agregar denominaciones personalizadas o eliminar las no deseadas.</div>
+                            <div class="text-xs font-bold text-slate-800 dark:text-slate-200">Denominaciones Activas
+                            </div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Puedes agregar denominaciones
+                                personalizadas o eliminar las no deseadas.</div>
                         </div>
                     </div>
                     <div class="flex gap-2 mb-3">
                         <div class="relative flex-grow">
-                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono" id="addDenomSymbolPrefix">RD$</span>
-                            <input type="number" step="any" id="newDenomInput" placeholder="Valor (ej. 2000)" class="ring-input pl-14 w-full text-xs" data-sx-enter="addDenomination">
+                            <span
+                                class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono"
+                                id="addDenomSymbolPrefix">RD$</span>
+                            <input type="number" step="any" id="newDenomInput" placeholder="Valor (ej. 2000)"
+                                class="ring-input pl-14 w-full text-xs" data-sx-enter="addDenomination">
                         </div>
-                        <button data-sx-click="addDenomination" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 shrink-0 transition-colors">
+                        <button data-sx-click="addDenomination"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs flex items-center gap-1.5 shrink-0 transition-colors">
                             <i class="fa-solid fa-plus"></i> Agregar
                         </button>
                     </div>
-                    <div id="denomListConfig" class="flex flex-wrap gap-2 p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 min-h-[48px]"></div>
+                    <div id="denomListConfig"
+                        class="flex flex-wrap gap-2 p-2.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800 min-h-[48px]">
+                    </div>
                 </div>
             </div>
 
-            <div class="p-3 bg-slate-50 dark:bg-slate-950 flex justify-between items-center shrink-0 border-t border-slate-100 dark:border-slate-800">
-                <button data-sx-click="resetDenominations" id="cfgResetBtn" class="text-xs text-rose-500 hover:underline hidden flex items-center gap-1.5 font-semibold">
+            <div
+                class="p-3 bg-slate-50 dark:bg-slate-950 flex justify-between items-center shrink-0 border-t border-slate-100 dark:border-slate-800">
+                <button data-sx-click="resetDenominations" id="cfgResetBtn"
+                    class="text-xs text-rose-500 hover:underline hidden flex items-center gap-1.5 font-semibold">
                     <i class="fa-solid fa-rotate-left"></i> Restaurar al preset activo
                 </button>
                 <span></span>
-                <button data-sx-click="closeConfigModal" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs">Listo</button>
+                <button data-sx-click="closeConfigModal"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs">Listo</button>
             </div>
         </div>
     </div>
@@ -784,12 +994,16 @@
     <!-- ═══════════════════════════════════════════
          OPERATIONS MODAL (REINICIAR / RESTAURAR / BORRAR TODO)
     ═══════════════════════════════════════════ -->
-    <div id="operationsModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col anim-pop border border-slate-200 dark:border-slate-800">
+    <div id="operationsModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col anim-pop border border-slate-200 dark:border-slate-800">
             <!-- Header -->
-            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+            <div
+                class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Operaciones de Nómina</h3>
-                <button data-sx-click="closeOperationsModal" aria-label="Cerrar operaciones" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeOperationsModal" aria-label="Cerrar operaciones"
+                    class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -801,8 +1015,10 @@
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-arrow-rotate-left text-2xl text-amber-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
-                        <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Reiniciar Operación de Caja</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Conserva los empleados y montos, pero vacía Mi Caja, retiros y pagos</div>
+                        <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Reiniciar Operación de Caja
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Conserva los empleados y montos,
+                            pero vacía Mi Caja, retiros y pagos</div>
                     </div>
                 </button>
 
@@ -811,53 +1027,70 @@
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-clock-rotate-left text-2xl text-blue-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
-                        <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Restaurar Última Importación</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" id="opDescRestore">Recupera la nómina original tal como se importó de Excel o JSON</div>
+                        <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Restaurar Última Importación
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" id="opDescRestore">Recupera la
+                            nómina original tal como se importó de Excel o JSON</div>
                     </div>
                 </button>
 
                 <!-- Option 3: Respaldo íntegro y privacidad (Issue #11) -->
                 <div class="pt-1 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">Respaldo y Privacidad Local</div>
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">Respaldo y
+                        Privacidad Local</div>
                     <div class="grid grid-cols-2 gap-2">
                         <button type="button" data-sx-click="exportFullBackup"
                             class="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-slate-900 hover:bg-emerald-50/50 dark:hover:bg-slate-800 transition-all flex items-center gap-2.5">
                             <i class="fa-solid fa-download text-lg text-emerald-600 dark:text-emerald-400 shrink-0"></i>
                             <div class="min-w-0">
                                 <div class="font-bold text-xs text-slate-800 dark:text-slate-100">Guardar Respaldo</div>
-                                <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Nómina, caja y plantillas</div>
+                                <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Nómina, caja y
+                                    plantillas</div>
                             </div>
                         </button>
-                        <label class="cursor-pointer text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 bg-white dark:bg-slate-900 hover:bg-blue-50/50 dark:hover:bg-slate-800 transition-all flex items-center gap-2.5">
+                        <label
+                            class="cursor-pointer text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 bg-white dark:bg-slate-900 hover:bg-blue-50/50 dark:hover:bg-slate-800 transition-all flex items-center gap-2.5">
                             <i class="fa-solid fa-upload text-lg text-blue-600 dark:text-blue-400 shrink-0"></i>
                             <div class="min-w-0">
-                                <div class="font-bold text-xs text-slate-800 dark:text-slate-100">Restaurar Respaldo</div>
-                                <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Archivo .json SplitX</div>
+                                <div class="font-bold text-xs text-slate-800 dark:text-slate-100">Restaurar Respaldo
+                                </div>
+                                <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Archivo .json
+                                    SplitX</div>
                             </div>
-                            <input type="file" accept=".json,application/json" class="hidden" data-sx-change="importFullBackup">
+                            <input type="file" accept=".json,application/json" class="hidden"
+                                data-sx-change="importFullBackup">
                         </label>
                     </div>
                     <button type="button" data-sx-click="opPurgeDocumentPii"
                         class="w-full text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-300 dark:hover:border-amber-700 bg-white dark:bg-slate-900 hover:bg-amber-50/50 dark:hover:bg-slate-800 transition-all flex items-center gap-3">
                         <i class="fa-solid fa-user-shield text-lg text-amber-600 dark:text-amber-400 shrink-0"></i>
                         <div class="flex-grow min-w-0">
-                            <div class="font-bold text-xs text-slate-800 dark:text-slate-100">Purgar Datos Personales de Documentos</div>
-                            <div class="text-[10px] text-slate-500 dark:text-slate-400">Borra cédulas, direcciones y salarios contractuales sin tocar tus plantillas</div>
+                            <div class="font-bold text-xs text-slate-800 dark:text-slate-100">Purgar Datos Personales de
+                                Documentos</div>
+                            <div class="text-[10px] text-slate-500 dark:text-slate-400">Borra cédulas, direcciones y
+                                salarios contractuales sin tocar tus plantillas</div>
                         </div>
                     </button>
-                    <div id="opCorruptBackupCard" class="hidden p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 space-y-2">
+                    <div id="opCorruptBackupCard"
+                        class="hidden p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 space-y-2">
                         <div class="flex items-start gap-2">
-                            <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 shrink-0"></i>
+                            <i
+                                class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 shrink-0"></i>
                             <div class="min-w-0">
-                                <div class="font-bold text-xs text-amber-900 dark:text-amber-200">Copia de recuperación disponible</div>
-                                <div class="text-[10px] text-amber-800 dark:text-amber-300">Se detectaron datos dañados al iniciar. Puedes descargar el archivo localmente para inspeccionarlo sin subirlo a ningún servidor.</div>
+                                <div class="font-bold text-xs text-amber-900 dark:text-amber-200">Copia de recuperación
+                                    disponible</div>
+                                <div class="text-[10px] text-amber-800 dark:text-amber-300">Se detectaron datos dañados
+                                    al iniciar. Puedes descargar el archivo localmente para inspeccionarlo sin subirlo a
+                                    ningún servidor.</div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button type="button" data-sx-click="downloadCorruptBackup" class="flex-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors">
+                            <button type="button" data-sx-click="downloadCorruptBackup"
+                                class="flex-1 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors">
                                 <i class="fa-solid fa-download mr-1"></i> Descargar copia
                             </button>
-                            <button type="button" data-sx-click="discardCorruptBackup" class="px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs font-medium transition-colors">
+                            <button type="button" data-sx-click="discardCorruptBackup"
+                                class="px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-xs font-medium transition-colors">
                                 Descartar
                             </button>
                         </div>
@@ -869,15 +1102,19 @@
                     class="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all flex items-center gap-3.5">
                     <i class="fa-solid fa-trash-can text-2xl text-rose-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
-                        <div class="font-bold text-sm text-rose-600 dark:text-rose-400">Limpiar Todo (Nueva Nómina)</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Elimina todos los empleados y vacía la caja por completo</div>
+                        <div class="font-bold text-sm text-rose-600 dark:text-rose-400">Limpiar Todo (Nueva Nómina)
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Elimina todos los empleados y
+                            vacía la caja por completo</div>
                     </div>
                 </button>
             </div>
 
             <!-- Footer -->
-            <div class="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
-                <button type="button" data-sx-click="closeOperationsModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
+            <div
+                class="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
+                <button type="button" data-sx-click="closeOperationsModal"
+                    class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
             </div>
         </div>
     </div>
@@ -885,12 +1122,16 @@
     <!-- ═══════════════════════════════════════════
          EXPORT MODAL (EXCEL / PDF / CSV)
     ═══════════════════════════════════════════ -->
-    <div id="exportModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col anim-pop border border-slate-200 dark:border-slate-800">
+    <div id="exportModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col anim-pop border border-slate-200 dark:border-slate-800">
             <!-- Header -->
-            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+            <div
+                class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">Exportar Nómina</h3>
-                <button data-sx-click="closeExportModal" aria-label="Cerrar exportación" class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeExportModal" aria-label="Cerrar exportación"
+                    class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -903,7 +1144,8 @@
                     <i class="fa-solid fa-file-excel text-2xl text-green-600 dark:text-green-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
                         <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Microsoft Excel</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Hoja de cálculo .xlsx con desglose completo</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Hoja de cálculo .xlsx con
+                            desglose completo</div>
                     </div>
                 </button>
 
@@ -913,7 +1155,8 @@
                     <i class="fa-solid fa-file-pdf text-2xl text-red-600 dark:text-red-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
                         <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Documento PDF</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Archivo .pdf listo para imprimir</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Archivo .pdf listo para imprimir
+                        </div>
                     </div>
                 </button>
 
@@ -923,14 +1166,17 @@
                     <i class="fa-solid fa-file-csv text-2xl text-blue-600 dark:text-blue-500 shrink-0"></i>
                     <div class="flex-grow min-w-0">
                         <div class="font-bold text-sm text-slate-800 dark:text-slate-100">Archivo CSV</div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Archivo .csv para importar en otros sistemas</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Archivo .csv para importar en
+                            otros sistemas</div>
                     </div>
                 </button>
             </div>
 
             <!-- Footer -->
-            <div class="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
-                <button type="button" data-sx-click="closeExportModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
+            <div
+                class="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
+                <button type="button" data-sx-click="closeExportModal"
+                    class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cerrar</button>
             </div>
         </div>
     </div>
@@ -938,42 +1184,57 @@
     <!-- ═══════════════════════════════════════════
          IMPORT MODAL
     ═══════════════════════════════════════════ -->
-    <div id="importModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
+    <div id="importModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100">Importar Empleados</h3>
-                <button data-sx-click="closeImportModal" aria-label="Cerrar importación" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
+                <button data-sx-click="closeImportModal" aria-label="Cerrar importación"
+                    class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             <div class="p-4">
                 <div class="flex gap-1 mb-3 bg-slate-100 dark:bg-slate-950 p-1 rounded-lg">
-                    <button id="importTab-excel" data-sx-click="switchImportTab" data-sx-arg="excel" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-sm">
+                    <button id="importTab-excel" data-sx-click="switchImportTab" data-sx-arg="excel"
+                        class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-300 shadow-sm">
                         <i class="fa-solid fa-table mr-1"></i> Excel / TSV
                     </button>
-                    <button id="importTab-json" data-sx-click="switchImportTab" data-sx-arg="json" class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                    <button id="importTab-json" data-sx-click="switchImportTab" data-sx-arg="json"
+                        class="flex-1 py-1.5 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                         <i class="fa-solid fa-code mr-1"></i> JSON
                     </button>
                 </div>
-                <div id="importInfo-excel" class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-100 dark:border-blue-900 mb-3 space-y-1.5">
-                    <p class="text-[10px] font-mono text-blue-600 dark:text-sky-400 uppercase tracking-wide font-bold">Formato Excel (copiar y pegar columnas separadas por Tab)</p>
+                <div id="importInfo-excel"
+                    class="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-lg border border-blue-100 dark:border-blue-900 mb-3 space-y-1.5">
+                    <p class="text-[10px] font-mono text-blue-600 dark:text-sky-400 uppercase tracking-wide font-bold">
+                        Formato Excel (copiar y pegar columnas separadas por Tab)</p>
                     <p class="text-[11px] text-blue-800 dark:text-sky-200"><strong>1. Simple (3 columnas):</strong></p>
-                    <code class="text-[10px] font-mono text-blue-700 dark:text-sky-300 block whitespace-pre overflow-x-auto bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ Monto Neto</code>
-                    <p class="text-[11px] text-blue-800 dark:text-sky-200"><strong>2. Nómina completa (mismo orden del Excel exportado por SplitX):</strong></p>
-                    <code class="text-[10px] font-mono text-blue-700 dark:text-sky-300 block whitespace-pre overflow-x-auto bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ Bruto │ Bonif. │ Desc. │ Despues desc. │ Prestamos │ Neto</code>
+                    <code
+                        class="text-[10px] font-mono text-blue-700 dark:text-sky-300 block whitespace-pre overflow-x-auto bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ Monto Neto</code>
+                    <p class="text-[11px] text-blue-800 dark:text-sky-200"><strong>2. Nómina completa (mismo orden del
+                            Excel exportado por SplitX):</strong></p>
+                    <code
+                        class="text-[10px] font-mono text-blue-700 dark:text-sky-300 block whitespace-pre overflow-x-auto bg-blue-100 dark:bg-blue-900/60 rounded p-1"># │ Nombre │ Bruto │ Bonif. │ Desc. │ Despues desc. │ Prestamos │ Neto</code>
                     <p class="text-[10px] text-blue-600 dark:text-sky-400 leading-snug">
-                        ✓ También acepta 7 columnas sin <em>Despues desc.</em> o <strong>pegar con encabezados</strong> (en cualquier orden) directamente desde la hoja exportada por SplitX; las columnas de denominaciones y filas de totales se omiten automáticamente.
+                        ✓ También acepta 7 columnas sin <em>Despues desc.</em> o <strong>pegar con encabezados</strong>
+                        (en cualquier orden) directamente desde la hoja exportada por SplitX; las columnas de
+                        denominaciones y filas de totales se omiten automáticamente.
                     </p>
                 </div>
                 <div id="excelFormatRow" class="flex items-center gap-2 mb-3">
-                    <label for="excelAmountFormat" class="text-xs font-medium text-slate-600 dark:text-slate-300">Formato de montos</label>
-                    <select id="excelAmountFormat" class="flex-1 min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2 py-1.5 text-xs">
+                    <label for="excelAmountFormat"
+                        class="text-xs font-medium text-slate-600 dark:text-slate-300">Formato de montos</label>
+                    <select id="excelAmountFormat"
+                        class="flex-1 min-w-0 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2 py-1.5 text-xs">
                         <option value="auto">Detectar / avisar si es ambiguo</option>
                         <option value="en">1,234.56 (inglés)</option>
                         <option value="es">1.234,56 (español)</option>
                     </select>
                 </div>
-                <div id="importInfo-json" class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 mb-3 hidden">
+                <div id="importInfo-json"
+                    class="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 mb-3 hidden">
                     <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wide mb-1">Ejemplo:</p>
                     <code class="text-xs font-mono text-blue-600 dark:text-sky-400 block whitespace-pre">[
   { "nombre": "Juan Perez", "monto": 2500 },
@@ -983,16 +1244,24 @@
                 <textarea id="jsonImportInput" rows="6"
                     class="w-full p-3 text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-900 transition-all"
                     placeholder="Pega aquí las filas copiadas desde Excel..."></textarea>
-                <div id="importPreview" class="hidden mt-2 bg-green-50 dark:bg-emerald-950/40 border border-green-200 dark:border-emerald-800 rounded-lg p-2 max-h-28 overflow-y-auto">
-                    <p class="text-[10px] text-green-700 dark:text-emerald-400 font-bold uppercase mb-1">Vista previa (<span id="importPreviewCount">0</span> detectados)</p>
-                    <div id="importPreviewList" class="text-xs text-green-800 dark:text-emerald-300 font-mono space-y-0.5"></div>
+                <div id="importPreview"
+                    class="hidden mt-2 bg-green-50 dark:bg-emerald-950/40 border border-green-200 dark:border-emerald-800 rounded-lg p-2 max-h-28 overflow-y-auto">
+                    <p class="text-[10px] text-green-700 dark:text-emerald-400 font-bold uppercase mb-1">Vista previa
+                        (<span id="importPreviewCount">0</span> detectados)</p>
+                    <div id="importPreviewList"
+                        class="text-xs text-green-800 dark:text-emerald-300 font-mono space-y-0.5"></div>
                 </div>
                 <div id="importValidation" class="hidden mt-2 rounded-lg border p-2.5"></div>
-                <p id="importErrorMsg" class="text-xs text-rose-500 mt-2 hidden whitespace-pre-line max-h-40 overflow-y-auto" role="alert"></p>
+                <p id="importErrorMsg"
+                    class="text-xs text-rose-500 mt-2 hidden whitespace-pre-line max-h-40 overflow-y-auto" role="alert">
+                </p>
             </div>
-            <div class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-                <button data-sx-click="closeImportModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
-                <button data-sx-click="processImport" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm font-medium">
+            <div
+                class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button data-sx-click="closeImportModal"
+                    class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">Cancelar</button>
+                <button data-sx-click="processImport"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors shadow-sm font-medium">
                     <i class="fa-solid fa-file-import mr-1"></i> Cargar Datos
                 </button>
             </div>
@@ -1002,14 +1271,19 @@
     <!-- ═══════════════════════════════════════════
          IMPORT HISTORY MODAL
     ═══════════════════════════════════════════ -->
-    <div id="historyModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col max-h-[85vh]">
+    <div id="historyModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col max-h-[85vh]">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <div>
                     <h3 class="font-bold text-slate-800 dark:text-slate-100">Historial de nóminas</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Las últimas 10 importaciones, la más reciente arriba.</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Las últimas 10 importaciones, la más reciente
+                        arriba.</p>
                 </div>
-                <button data-sx-click="closeHistoryModal" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all" aria-label="Cerrar">
+                <button data-sx-click="closeHistoryModal"
+                    class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all"
+                    aria-label="Cerrar">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -1020,10 +1294,13 @@
     <!-- ═══════════════════════════════════════════
          POST-IMPORT: AUTO-DISTRIBUTE MODAL
     ═══════════════════════════════════════════ -->
-    <div id="postImportModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
+    <div id="postImportModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                <div
+                    class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                     <i class="fa-solid fa-circle-check text-xl"></i>
                 </div>
                 <div>
@@ -1032,11 +1309,13 @@
                 </div>
             </div>
             <div class="p-5 space-y-3">
-                <p class="text-sm text-slate-600 dark:text-slate-300">¿Deseas calcular y repartir el efectivo automáticamente?</p>
+                <p class="text-sm text-slate-600 dark:text-slate-300">¿Deseas calcular y repartir el efectivo
+                    automáticamente?</p>
                 <div class="bg-blue-50 dark:bg-blue-950/40 rounded-xl p-3 border border-blue-100 dark:border-blue-900">
                     <p class="text-xs text-blue-700 dark:text-blue-300 font-medium">
                         <i class="fa-solid fa-bolt mr-1"></i>
-                        <strong>Reparto automático</strong> calcula los billetes necesarios, los agrega a tu caja y distribuye a todos los empleados al instante.
+                        <strong>Reparto automático</strong> calcula los billetes necesarios, los agrega a tu caja y
+                        distribuye a todos los empleados al instante.
                     </p>
                 </div>
                 <div class="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-200 dark:border-slate-800">
@@ -1046,11 +1325,14 @@
                     </p>
                 </div>
             </div>
-            <div class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
-                <button data-sx-click="closePostImportModal" data-sx-arg="false" class="px-4 py-2.5 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">
+            <div
+                class="p-4 bg-slate-50 dark:bg-slate-950 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                <button data-sx-click="closePostImportModal" data-sx-arg="false"
+                    class="px-4 py-2.5 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">
                     <i class="fa-solid fa-hand mr-1"></i> Manual
                 </button>
-                <button data-sx-click="closePostImportModal" data-sx-arg="true" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm font-bold flex items-center gap-2">
+                <button data-sx-click="closePostImportModal" data-sx-arg="true"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm font-bold flex items-center gap-2">
                     <i class="fa-solid fa-bolt"></i> Repartir Automático
                 </button>
             </div>
@@ -1060,18 +1342,23 @@
     <!-- ═══════════════════════════════════════════
          GENERIC CUSTOM DIALOG / ALERT / CONFIRM MODAL
     ═══════════════════════════════════════════ -->
-    <div id="customDialogModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-[110] flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col">
+    <div id="customDialogModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-[110] flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col">
             <div class="p-5 flex items-start gap-4">
-                <div id="dialogIconContainer" class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl shadow-xs">
+                <div id="dialogIconContainer"
+                    class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl shadow-xs">
                     <i id="dialogIcon" class="fa-solid fa-circle-question"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <h3 id="dialogTitle" class="font-bold text-slate-900 dark:text-slate-100 text-base leading-snug">Confirmar acción</h3>
+                    <h3 id="dialogTitle" class="font-bold text-slate-900 dark:text-slate-100 text-base leading-snug">
+                        Confirmar acción</h3>
                     <p id="dialogMessage" class="text-xs text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed"></p>
                 </div>
             </div>
-            <div id="dialogActions" class="p-3.5 bg-slate-50 dark:bg-slate-950/80 flex flex-wrap justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+            <div id="dialogActions"
+                class="p-3.5 bg-slate-50 dark:bg-slate-950/80 flex flex-wrap justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
                 <!-- Dynamic buttons rendered here -->
             </div>
         </div>
@@ -1080,23 +1367,30 @@
     <!-- ═══════════════════════════════════════════
          EDIT EMPLOYEE MODAL
     ═══════════════════════════════════════════ -->
-    <div id="editEmployeeModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] anim-pop border border-slate-100 dark:border-slate-800">
+    <div id="editEmployeeModal" role="dialog" aria-modal="true"
+        class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] anim-pop border border-slate-100 dark:border-slate-800">
             <!-- Header -->
-            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-slate-50/80 dark:bg-slate-900/90">
+            <div
+                class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-slate-50/80 dark:bg-slate-900/90">
                 <div class="flex items-center gap-2.5 min-w-0">
-                    <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-800">
+                    <div
+                        class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-800">
                         <i class="fa-solid fa-user-pen text-sm"></i>
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base truncate" id="editModalTitle">Editar Empleado</h3>
+                            <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base truncate"
+                                id="editModalTitle">Editar Empleado</h3>
                             <span id="editModalBadge" class="hidden"></span>
                         </div>
-                        <p class="text-[11px] text-slate-400 dark:text-slate-400 truncate font-mono" id="editModalSubtitle">ID: #0</p>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-400 truncate font-mono"
+                            id="editModalSubtitle">ID: #0</p>
                     </div>
                 </div>
-                <button data-sx-click="closeEditModal" aria-label="Cerrar edición de empleado" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all shrink-0">
+                <button data-sx-click="closeEditModal" aria-label="Cerrar edición de empleado"
+                    class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all shrink-0">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
@@ -1107,133 +1401,205 @@
 
                 <!-- Name Field -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Nombre del empleado</label>
-                    <input type="text" id="editEmpName" class="ring-input text-sm font-medium" placeholder="Ej. Juan Pérez">
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Nombre del
+                        empleado</label>
+                    <input type="text" id="editEmpName" class="ring-input text-sm font-medium"
+                        placeholder="Ej. Juan Pérez">
                 </div>
 
                 <!-- Gross Salary -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Sueldo Bruto</label>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Sueldo
+                        Bruto</label>
                     <div class="relative">
-                        <input type="number" min="0" step="0.01" id="editEmpGross" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-12 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
-                        <span id="editGrossSymbol" class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">RD$</span>
+                        <input type="number" min="0" step="0.01" id="editEmpGross"
+                            data-sx-input="updateModalCalculations"
+                            class="ring-input font-mono pl-12 font-semibold text-slate-800 dark:text-slate-100"
+                            placeholder="0.00">
+                        <span id="editGrossSymbol"
+                            class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">RD$</span>
                     </div>
                 </div>
 
                 <!-- Bonuses & Discounts in 2 Columns -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <!-- Bonuses -->
-                    <div class="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                    <div
+                        class="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
                         <div class="flex justify-between items-center mb-1.5">
-                            <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Bonificaciones</label>
-                            <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
-                                <button type="button" id="bonusTypeFixed" data-sx-click="setModalAdjustmentType" data-sx-arg="bonus" data-sx-arg2="fixed" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
-                                <button type="button" id="bonusTypePercent" data-sx-click="setModalAdjustmentType" data-sx-arg="bonus" data-sx-arg2="percent" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
+                            <label
+                                class="text-xs font-semibold text-slate-700 dark:text-slate-200">Bonificaciones</label>
+                            <div
+                                class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
+                                <button type="button" id="bonusTypeFixed" data-sx-click="setModalAdjustmentType"
+                                    data-sx-arg="bonus" data-sx-arg2="fixed"
+                                    class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
+                                <button type="button" id="bonusTypePercent" data-sx-click="setModalAdjustmentType"
+                                    data-sx-arg="bonus" data-sx-arg2="percent"
+                                    class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
                             </div>
                         </div>
                         <div class="relative">
-                            <input type="number" min="0" step="0.01" id="editEmpBonus" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-12" placeholder="0">
-                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="bonusSymbol">RD$</span>
+                            <input type="number" min="0" step="0.01" id="editEmpBonus"
+                                data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-12"
+                                placeholder="0">
+                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold"
+                                id="bonusSymbol">RD$</span>
                         </div>
-                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-1.5 font-semibold text-right" id="bonusCalcDisplay">+0.00</div>
+                        <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-1.5 font-semibold text-right"
+                            id="bonusCalcDisplay">+0.00</div>
                     </div>
 
                     <!-- Discounts -->
-                    <div class="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
+                    <div
+                        class="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800">
                         <div class="flex justify-between items-center mb-1.5">
                             <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Descuentos</label>
-                            <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
-                                <button type="button" id="discountTypeFixed" data-sx-click="setModalAdjustmentType" data-sx-arg="discount" data-sx-arg2="fixed" class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
-                                <button type="button" id="discountTypePercent" data-sx-click="setModalAdjustmentType" data-sx-arg="discount" data-sx-arg2="percent" class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
+                            <div
+                                class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[10px] font-bold">
+                                <button type="button" id="discountTypeFixed" data-sx-click="setModalAdjustmentType"
+                                    data-sx-arg="discount" data-sx-arg2="fixed"
+                                    class="px-2 py-0.5 rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs">Fijo</button>
+                                <button type="button" id="discountTypePercent" data-sx-click="setModalAdjustmentType"
+                                    data-sx-arg="discount" data-sx-arg2="percent"
+                                    class="px-2 py-0.5 rounded-md transition-all text-slate-500 dark:text-slate-400">%</button>
                             </div>
                         </div>
                         <div class="relative">
-                            <input type="number" min="0" step="0.01" id="editEmpDiscount" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-12" placeholder="0">
-                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="discountSymbol">RD$</span>
+                            <input type="number" min="0" step="0.01" id="editEmpDiscount"
+                                data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-12"
+                                placeholder="0">
+                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold"
+                                id="discountSymbol">RD$</span>
                         </div>
-                        <div class="text-[10px] text-rose-600 dark:text-rose-400 font-mono mt-1.5 font-semibold text-right" id="discountCalcDisplay">-0.00</div>
+                        <div class="text-[10px] text-rose-600 dark:text-rose-400 font-mono mt-1.5 font-semibold text-right"
+                            id="discountCalcDisplay">-0.00</div>
                     </div>
                 </div>
 
                 <!-- Loans Deduction & Details -->
-                <div class="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <div
+                    class="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-2">
                     <div class="flex justify-between items-center">
-                        <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Deducción por Préstamos (Cuota)</label>
-                        <button type="button" data-sx-click="toggleLoanDetailsPanel" class="text-[10px] text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 font-bold flex items-center gap-1">
-                            <i class="fa-solid fa-sliders text-[9px]"></i> <span id="toggleLoanDetailsText">Detalles (Interés/Saldo)</span>
+                        <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">Deducción por Préstamos
+                            (Cuota)</label>
+                        <button type="button" data-sx-click="toggleLoanDetailsPanel"
+                            class="text-[10px] text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-sliders text-[9px]"></i> <span id="toggleLoanDetailsText">Detalles
+                                (Interés/Saldo)</span>
                         </button>
                     </div>
                     <div class="relative">
-                        <input type="number" min="0" step="0.01" id="editEmpLoans" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-12 bg-white dark:bg-slate-950 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
-                        <span id="editLoansSymbol" class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">RD$</span>
+                        <input type="number" min="0" step="0.01" id="editEmpLoans"
+                            data-sx-input="updateModalCalculations"
+                            class="ring-input font-mono pl-12 bg-white dark:bg-slate-950 font-semibold text-slate-800 dark:text-slate-100"
+                            placeholder="0.00">
+                        <span id="editLoansSymbol"
+                            class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">RD$</span>
                     </div>
 
                     <!-- Expanded Loan Details (Optional) -->
-                    <div id="loanDetailsExpanded" class="hidden pt-2 border-t border-slate-200/70 dark:border-slate-800 space-y-2">
+                    <div id="loanDetailsExpanded"
+                        class="hidden pt-2 border-t border-slate-200/70 dark:border-slate-800 space-y-2">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Capital cuota</label>
-                                <input type="number" min="0" step="0.01" id="editEmpLoanPrincipal" data-sx-input="calcLoanFromDetails" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
+                                <label
+                                    class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Capital
+                                    cuota</label>
+                                <input type="number" min="0" step="0.01" id="editEmpLoanPrincipal"
+                                    data-sx-input="calcLoanFromDetails"
+                                    class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950"
+                                    placeholder="0.00">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Tasa Interés (%)</label>
-                                <input type="number" min="0" step="0.01" id="editEmpLoanInterestRate" data-sx-input="calcLoanFromDetails" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00%">
+                                <label
+                                    class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Tasa
+                                    Interés (%)</label>
+                                <input type="number" min="0" step="0.01" id="editEmpLoanInterestRate"
+                                    data-sx-input="calcLoanFromDetails"
+                                    class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950"
+                                    placeholder="0.00%">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Monto Interés cuota</label>
-                                <input type="number" min="0" step="0.01" id="editEmpLoanInterestAmount" data-sx-input="calcLoanFromInterestAmount" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
+                                <label
+                                    class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Monto
+                                    Interés cuota</label>
+                                <input type="number" min="0" step="0.01" id="editEmpLoanInterestAmount"
+                                    data-sx-input="calcLoanFromInterestAmount"
+                                    class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950"
+                                    placeholder="0.00">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Saldo restante total</label>
-                                <input type="number" min="0" step="0.01" id="editEmpLoanRemainingBalance" class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950" placeholder="0.00">
+                                <label
+                                    class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Saldo
+                                    restante total</label>
+                                <input type="number" min="0" step="0.01" id="editEmpLoanRemainingBalance"
+                                    class="ring-input text-xs font-mono py-1 bg-white dark:bg-slate-950"
+                                    placeholder="0.00">
                             </div>
                         </div>
-                        <p class="text-[9px] text-slate-400 dark:text-slate-500">Si indicas capital y %, la cuota total de préstamo se calcula automáticamente.</p>
+                        <p class="text-[9px] text-slate-400 dark:text-slate-500">Si indicas capital y %, la cuota total
+                            de préstamo se calcula automáticamente.</p>
                     </div>
                 </div>
 
                 <!-- Net Amount & Calculation Panel -->
-                <div class="p-3.5 rounded-xl border border-blue-100 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 space-y-2">
+                <div
+                    class="p-3.5 rounded-xl border border-blue-100 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/30 space-y-2">
                     <div class="flex justify-between items-center">
                         <label class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                             <i class="fa-solid fa-calculator text-blue-600 dark:text-sky-400"></i> Sueldo Neto a Pagar
                         </label>
-                        <button type="button" data-sx-click="syncNetFromCalculated" class="text-[10px] font-bold text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 hover:underline">
-                            <i class="fa-solid fa-arrows-rotate mr-0.5"></i> Usar calculado (<span id="calcFormulaNet">0.00</span>)
+                        <button type="button" data-sx-click="syncNetFromCalculated"
+                            class="text-[10px] font-bold text-blue-600 dark:text-sky-400 hover:text-blue-800 dark:hover:text-sky-300 hover:underline">
+                            <i class="fa-solid fa-arrows-rotate mr-0.5"></i> Usar calculado (<span
+                                id="calcFormulaNet">0.00</span>)
                         </button>
                     </div>
                     <div class="relative">
-                        <input type="number" min="0" step="0.01" id="editEmpNet" data-sx-input="updateModalCalculations" data-sx-arg="true" class="ring-input font-mono font-bold text-base text-slate-900 dark:text-slate-50 pl-12 bg-white dark:bg-slate-950" placeholder="0.00">
-                        <span id="editNetSymbol" class="absolute left-3 top-2.5 text-sm text-slate-400 font-bold">RD$</span>
+                        <input type="number" min="0" step="0.01" id="editEmpNet" data-sx-input="updateModalCalculations"
+                            data-sx-arg="true"
+                            class="ring-input font-mono font-bold text-base text-slate-900 dark:text-slate-50 pl-12 bg-white dark:bg-slate-950"
+                            placeholder="0.00">
+                        <span id="editNetSymbol"
+                            class="absolute left-3 top-2.5 text-sm text-slate-400 font-bold">RD$</span>
                     </div>
                     <!-- Status message -->
-                    <div id="editModalReconciledStatus" class="text-xs flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
+                    <div id="editModalReconciledStatus"
+                        class="text-xs flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
                         <i class="fa-solid fa-circle-check"></i> <span>Nómina cuadrada perfectamente</span>
                     </div>
                 </div>
 
                 <!-- Cash Breakdown Preview -->
                 <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1.5 flex items-center justify-between">
+                    <div
+                        class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1.5 flex items-center justify-between">
                         <span>Desglose estimado en efectivo</span>
-                        <span id="editModalBreakdownTotal" class="font-mono text-slate-700 dark:text-slate-200 font-bold">0.00</span>
+                        <span id="editModalBreakdownTotal"
+                            class="font-mono text-slate-700 dark:text-slate-200 font-bold">0.00</span>
                     </div>
-                    <div id="editModalBreakdownChips" class="flex flex-wrap items-center gap-1.5 min-h-[32px] p-2 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200/70 dark:border-slate-800">
+                    <div id="editModalBreakdownChips"
+                        class="flex flex-wrap items-center gap-1.5 min-h-[32px] p-2 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200/70 dark:border-slate-800">
                         <!-- chips injected live -->
                     </div>
                 </div>
             </div>
 
             <!-- Footer -->
-            <div class="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 justify-between items-center shrink-0">
-                <button type="button" id="revertEmpBtn" data-sx-click="revertEmployeeToOriginal" class="text-xs text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-950/60 px-3 py-2 rounded-lg font-semibold transition-all flex items-center gap-1.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+            <div
+                class="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 justify-between items-center shrink-0">
+                <button type="button" id="revertEmpBtn" data-sx-click="revertEmployeeToOriginal"
+                    class="text-xs text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-950/60 px-3 py-2 rounded-lg font-semibold transition-all flex items-center gap-1.5 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
                     <i class="fa-solid fa-clock-rotate-left"></i> Restaurar original
                 </button>
                 <div class="flex gap-2 ml-auto">
-                    <button type="button" data-sx-click="closeEditModal" class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cancelar</button>
-                    <button type="button" data-sx-click="saveEmployeeModal" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm transition-colors shadow-sm font-semibold flex items-center gap-1.5">
+                    <button type="button" data-sx-click="closeEditModal"
+                        class="px-4 py-2 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium">Cancelar</button>
+                    <button type="button" data-sx-click="saveEmployeeModal"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm transition-colors shadow-sm font-semibold flex items-center gap-1.5">
                         <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
                     </button>
                 </div>
@@ -1241,9 +1607,13 @@
         </div>
     </div>
 
+    <!-- Accessible Toast Notification Region -->
+    <div id="toastRegion" role="region" aria-label="Notificaciones" aria-live="polite" class="fixed right-4 bottom-20 sm:bottom-4 z-[100] pointer-events-none flex flex-col items-end gap-2"></div>
+
     <!-- JavaScript Logic -->
     <script src="js/SplitXApp.js"></script>
     <div id="sheetStudio" hidden></div>
     <div id="documentStudio" hidden></div>
 </body>
+
 </html>

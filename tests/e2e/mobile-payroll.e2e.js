@@ -94,9 +94,20 @@ describe('mobile payroll workflow at 390x844', () => {
             await page.locator('#appToast button:has-text("Deshacer")').click();
             await page.waitForSelector('#employeeList button[data-card-action="revert-status"][disabled]');
 
-            // Re-advance -> En sobre -> Pagado
+            // Toast × close button dismisses immediately + Navbar Undo/Redo (Ctrl+Z / Ctrl+Y)
+            await page.waitForSelector('#appToast button[aria-label="Cerrar notificación"]');
+            await page.locator('#appToast button[aria-label="Cerrar notificación"]').click();
+            await page.waitForSelector('#appToast', { state: 'detached' });
+
+            // Re-advance -> En sobre, then Undo & Redo via navbar buttons
             await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
             await page.waitForSelector('#employeeList button.status-packed[data-card-action="advance-status"]');
+            await page.locator('#undoBtn').click();
+            await page.waitForSelector('#employeeList button[data-card-action="revert-status"][disabled]');
+            await page.locator('#redoBtn').click();
+            await page.waitForSelector('#employeeList button.status-packed[data-card-action="advance-status"]');
+
+            // Continue -> Pagado
             await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
             await page.waitForSelector('#employeeList button.status-paid-green[data-card-action="advance-status"]');
             await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double', { state: 'attached' });

@@ -708,8 +708,67 @@
         return { name, amountText };
     };
 
+    /**
+     * Pila inmutable de historial Deshacer / Rehacer (Ctrl+Z / Ctrl+Y) con deduplicación
+     * y límite máximo de instantáneas para no inflar memoria.
+     * @param {number} [maxSize]
+     */
+    const createUndoStack = (maxSize = 40) => {
+        const limit = Math.max(2, Math.floor(Number(maxSize) || 40));
+        /** @type {string[]} */
+        let entries = [];
+        let index = -1;
+
+        /** @param {unknown} snap */
+        const serialize = (snap) => JSON.stringify(snap);
+        /** @param {string} raw */
+        const parse = (raw) => JSON.parse(raw);
+
+        /** @param {unknown} initialSnapshot */
+        const reset = (initialSnapshot) => {
+            entries = [serialize(initialSnapshot)];
+            index = 0;
+        };
+
+        /** @param {unknown} snapshot */
+        const push = (snapshot) => {
+            const raw = serialize(snapshot);
+            if (index >= 0 && entries[index] === raw) return false;
+            if (index < entries.length - 1) {
+                entries = entries.slice(0, index + 1);
+            }
+            entries.push(raw);
+            if (entries.length > limit) {
+                entries.shift();
+            }
+            index = entries.length - 1;
+            return true;
+        };
+
+        const canUndo = () => index > 0;
+        const canRedo = () => index >= 0 && index < entries.length - 1;
+
+        const undo = () => {
+            if (!canUndo()) return null;
+            index -= 1;
+            return parse(entries[index]);
+        };
+
+        const redo = () => {
+            if (!canRedo()) return null;
+            index += 1;
+            return parse(entries[index]);
+        };
+
+        const size = () => entries.length;
+        const cursor = () => index;
+
+        return { reset, push, undo, redo, canUndo, canRedo, size, cursor };
+    };
+
     return {
         createCore,
+        createUndoStack,
         toCents,
         fromCents,
         getEmployeePayoutStatus,

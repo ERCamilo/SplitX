@@ -8,6 +8,7 @@ const makeFakeDoc = () => {
     const byId = new Map();
     const makeEl = (id = '') => {
         const classes = new Set();
+        const attrs = new Map();
         const children = [];
         const el = {
             id,
@@ -17,6 +18,10 @@ const makeFakeDoc = () => {
             innerHTML: '',
             onclick: null,
             children,
+            setAttribute: (k, v) => attrs.set(k, String(v)),
+            getAttribute: (k) => (attrs.has(k) ? attrs.get(k) : null),
+            addEventListener: () => {},
+            contains: () => false,
             classList: {
                 add: (c) => classes.add(c),
                 remove: (c) => classes.delete(c),
@@ -99,6 +104,18 @@ describe('SplitXDialogs (Issue #28 extraction)', () => {
         actionBtn.onclick();
         assert.equal(calls, 1, 'onAction must fire exactly once even on double-click');
         assert.equal(doc.byId.get('appToast'), undefined, 'toast must dismiss itself after action');
+    });
+
+    test('showToast renders an accessible close button (×) that dismisses immediately without waiting', () => {
+        const doc = makeFakeDoc();
+        const dialogs = SplitXDialogs.createDialogs({ documentRef: doc, escapeHTML: SplitXCurrencies.escapeHTML, toastMs: 60000 });
+        dialogs.showToast('Notificación larga', 'info');
+        const toast = doc.byId.get('appToast');
+        assert.ok(toast, 'toast must be mounted');
+        const closeBtn = toast.children.find((ch) => ch.getAttribute && ch.getAttribute('aria-label') === 'Cerrar notificación');
+        assert.ok(closeBtn, 'toast must include a close button with aria-label="Cerrar notificación"');
+        closeBtn.onclick();
+        assert.equal(doc.byId.get('appToast'), undefined, 'clicking × must dismiss toast immediately');
     });
 
     test('concurrent showCustomDialog calls queue FIFO so no Promise is stranded (Sprint B)', async () => {

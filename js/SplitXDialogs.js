@@ -79,8 +79,12 @@
             }
             const previous = doc.getElementById('appToast');
             if (previous) previous.remove();
+            const priorFocus = doc.activeElement || null;
             const toast = doc.createElement('div');
             toast.id = 'appToast';
+            if (typeof toast.setAttribute === 'function') {
+                toast.setAttribute('role', 'status');
+            }
             const toneClass = type === 'success'
                 ? 'bg-emerald-50 dark:bg-emerald-950/95 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
                 : type === 'error'
@@ -95,34 +99,84 @@
                     : type === 'warning'
                         ? 'fa-triangle-exclamation'
                         : 'fa-circle-info';
-            toast.className = `fixed right-4 bottom-20 sm:bottom-4 z-[100] max-w-sm px-4 py-3 rounded-lg shadow-lg border text-sm font-medium flex items-center gap-2 ${toneClass}`;
-            toast.innerHTML = `<span class="flex-1 min-w-0"><i class="fa-solid ${iconName} mr-2"></i>${escapeHTML(message)}</span>`;
+            const host = doc.getElementById('toastRegion');
+            const posClass = host
+                ? 'pointer-events-auto max-w-sm'
+                : 'fixed right-4 bottom-20 sm:bottom-4 z-[100] max-w-sm';
+            toast.className = `${posClass} px-3.5 py-2.5 rounded-lg shadow-lg border text-sm font-medium flex items-center gap-2 ${toneClass}`;
+            toast.innerHTML = `<span class="flex-1 min-w-0"><i class="fa-solid ${iconName} mr-2" aria-hidden="true"></i>${escapeHTML(message)}</span>`;
+
+            const dismissToast = (restoreFocus = false) => {
+                if (toastTimer) {
+                    clearTimeout(toastTimer);
+                    toastTimer = null;
+                }
+                const hadFocus = restoreFocus && doc.activeElement && typeof toast.contains === 'function' && toast.contains(doc.activeElement);
+                toast.remove();
+                if (hadFocus && priorFocus && typeof priorFocus.focus === 'function') {
+                    try { priorFocus.focus(); } catch (_) { /* ignore */ }
+                }
+            };
+
+            const effectiveMs = opts && opts.durationMs !== undefined ? opts.durationMs : toastMs;
+            const scheduleDismiss = () => {
+                if (toastTimer) {
+                    clearTimeout(toastTimer);
+                    toastTimer = null;
+                }
+                if (effectiveMs > 0) {
+                    toastTimer = setTimeout(() => {
+                        toastTimer = null;
+                        // Pause dismissal while a control inside the toast holds keyboard focus
+                        if (doc.activeElement && typeof toast.contains === 'function' && toast.contains(doc.activeElement)) {
+                            return;
+                        }
+                        toast.remove();
+                    }, effectiveMs);
+                }
+            };
+
             if (opts && opts.actionLabel && typeof opts.onAction === 'function') {
                 const actionBtn = doc.createElement('button');
                 actionBtn.type = 'button';
                 actionBtn.textContent = String(opts.actionLabel);
-                actionBtn.className = 'shrink-0 px-2.5 py-1 rounded-md text-xs font-bold bg-slate-900/10 hover:bg-slate-900/20 dark:bg-white/15 dark:hover:bg-white/25 transition-colors cursor-pointer';
+                actionBtn.className = 'shrink-0 min-h-[24px] px-2.5 py-1 rounded-md text-xs font-bold bg-slate-900/10 hover:bg-slate-900/20 dark:bg-white/15 dark:hover:bg-white/25 transition-colors cursor-pointer';
                 let fired = false;
                 actionBtn.onclick = () => {
                     if (fired) return;
                     fired = true;
-                    if (toastTimer) {
-                        clearTimeout(toastTimer);
-                        toastTimer = null;
-                    }
-                    toast.remove();
+                    dismissToast(true);
                     opts.onAction && opts.onAction();
                 };
                 toast.appendChild(actionBtn);
             }
-            doc.body.appendChild(toast);
-            const effectiveMs = opts && opts.durationMs !== undefined ? opts.durationMs : toastMs;
-            if (effectiveMs > 0) {
-                toastTimer = setTimeout(() => {
-                    toastTimer = null;
-                    toast.remove();
-                }, effectiveMs);
+
+            const closeBtn = doc.createElement('button');
+            closeBtn.type = 'button';
+            if (typeof closeBtn.setAttribute === 'function') {
+                closeBtn.setAttribute('aria-label', 'Cerrar notificación');
+                closeBtn.setAttribute('title', 'Cerrar notificación');
             }
+            closeBtn.className = 'shrink-0 min-w-[24px] min-h-[24px] w-6 h-6 rounded-md flex items-center justify-center opacity-70 hover:opacity-100 hover:bg-slate-900/10 dark:hover:bg-white/15 transition-all cursor-pointer';
+            closeBtn.innerHTML = '<i class="fa-solid fa-xmark text-xs" aria-hidden="true"></i>';
+            closeBtn.onclick = () => dismissToast(true);
+            toast.appendChild(closeBtn);
+
+            if (typeof toast.addEventListener === 'function') {
+                toast.addEventListener('focusin', () => {
+                    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+                });
+                toast.addEventListener('focusout', () => scheduleDismiss());
+            }
+
+            (host || doc.body).appendChild(toast);
+            if (typeof doc.ariaNotify === 'function') {
+                try {
+                    const announcement = opts && opts.actionLabel ? `${message}. Acciones disponibles.` : String(message);
+                    doc.ariaNotify(announcement);
+                } catch (_) { /* ignore */ }
+            }
+            scheduleDismiss();
         };
 
         /** @param {{ title?: string, message?: string, icon?: string, type?: string, buttons?: Array<{ label: string, value: any, icon?: string, isPrimary?: boolean, class?: string }> }} opts @param {(val: any) => void} resolve */

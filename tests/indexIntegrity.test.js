@@ -217,5 +217,8 @@ describe('index.html structural & script integrity', () => {
         const appCss = fs.readFileSync(path.join(ROOT, 'css', 'app.css'), 'utf8');
         assert.match(appCss, /scroll-padding-top:\s*4\.5rem/, 'html must set scroll-padding-top for sticky header focus visibility');
         assert.match(appCss, /#panel-caja\s*\{[\s\S]*position:\s*sticky;[\s\S]*align-self:\s*flex-start;[\s\S]*100dvh/, '#panel-caja must stick on desktop with dvh max-height');
+        for (const id of ['undoBtn', 'redoBtn', 'toastRegion']) {
+            assert.match(html, new RegExp(`id="${id}"`), `missing Undo/Redo or toast region element #${id}`);
+        }
     });
 });

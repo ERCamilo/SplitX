@@ -515,6 +515,49 @@ describe('Sprint A financial hardening: integer cents, invariants & bank limits'
         assert.equal(summary.net, 2000, 'negative afterDiscounts must not subtract from normal-mode payroll net');
     });
 
+    test('createUndoStack supports undo/redo, deduplication, branch truncation, maxSize cap and immutable clones', () => {
+        const { createUndoStack } = require('../js/SplitXCore.js');
+        const stack = createUndoStack(3);
+        stack.reset({ step: 0, employees: [{ id: 1, amount: 100 }] });
+        assert.equal(stack.canUndo(), false);
+        assert.equal(stack.canRedo(), false);
+
+        // Identical snapshot must be deduplicated
+        stack.push({ step: 0, employees: [{ id: 1, amount: 100 }] });
+        assert.equal(stack.canUndo(), false);
+
+        stack.push({ step: 1, employees: [{ id: 1, amount: 200 }] });
+        stack.push({ step: 2, employees: [{ id: 1, amount: 300 }] });
+        assert.equal(stack.canUndo(), true);
+        assert.equal(stack.canRedo(), false);
+
+        // Undo returns deep clone (mutating return value must not corrupt stack)
+        const u1 = stack.undo();
+        assert.equal(u1.step, 1);
+        u1.employees[0].amount = 9999;
+        assert.equal(stack.canRedo(), true);
+
+        // Redo recovers step 2 cleanly
+        const r1 = stack.redo();
+        assert.equal(r1.step, 2);
+        assert.equal(r1.employees[0].amount, 300);
+
+        // Undo to step 1 and push a new branch -> redo history must truncate
+        assert.equal(stack.undo().step, 1);
+        assert.equal(stack.undo().step, 0);
+        assert.equal(stack.undo(), null);
+        stack.push({ step: 10, employees: [{ id: 1, amount: 500 }] });
+        assert.equal(stack.canRedo(), false);
+
+        // maxSize cap evicts oldest snapshots cleanly
+        stack.push({ step: 11, employees: [] });
+        stack.push({ step: 12, employees: [] });
+        assert.equal(stack.size(), 3);
+        assert.equal(stack.undo().step, 11);
+        assert.equal(stack.undo().step, 10);
+        assert.equal(stack.undo(), null);
+    });
+
     test('500-case deterministic fuzz invariant: assigned + missing === effectiveAmount to the exact cent', () => {
         let seed = 1337;
         const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };

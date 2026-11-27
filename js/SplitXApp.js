@@ -430,6 +430,74 @@ const app = (() => {
             state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
         applyTheme();
+        undoStack.reset(captureUndoSnapshot());
+    };
+
+    const undoStack = SplitXCore.createUndoStack(40);
+    const captureUndoSnapshot = () => ({
+        employees: state.employees,
+        inventory: state.inventory,
+        bankLimits: state.bankLimits,
+        payrollMode: state.payrollMode,
+        payrollLoanFund: state.payrollLoanFund,
+        currency: state.currency,
+        currencySymbol: state.currencySymbol,
+        denominations: state.denominations,
+        coinDenoms: state.coinDenoms
+    });
+    const applyUndoSnapshot = (snap) => {
+        if (!snap || typeof snap !== 'object') return;
+        state.employees = Array.isArray(snap.employees) ? snap.employees : [];
+        state.inventory = snap.inventory && typeof snap.inventory === 'object' ? snap.inventory : {};
+        state.bankLimits = snap.bankLimits && typeof snap.bankLimits === 'object' ? snap.bankLimits : {};
+        state.payrollMode = snap.payrollMode === 'deductions' ? 'deductions' : 'normal';
+        state.payrollLoanFund = Number(snap.payrollLoanFund) || 0;
+        if (snap.currency) state.currency = snap.currency;
+        if (snap.currencySymbol) state.currencySymbol = sanitizeCurrencySymbol(snap.currencySymbol);
+        if (Array.isArray(snap.denominations) && snap.denominations.length > 0) state.denominations = [...snap.denominations];
+        if (Array.isArray(snap.coinDenoms) && snap.coinDenoms.length > 0) state.coinDenoms = [...snap.coinDenoms];
+    };
+    const syncUndoRedoButtons = () => {
+        const setBtn = (id, enabled) => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+            btn.classList.toggle('opacity-40', !enabled);
+            btn.classList.toggle('cursor-not-allowed', !enabled);
+            btn.classList.toggle('cursor-pointer', enabled);
+        };
+        setBtn('undoBtn', undoStack.canUndo());
+        setBtn('redoBtn', undoStack.canRedo());
+    };
+    const undoAction = () => {
+        if (!undoStack.canUndo()) return;
+        const beforeSnap = JSON.parse(JSON.stringify(captureUndoSnapshot()));
+        const prevSnap = undoStack.undo();
+        if (!prevSnap) return;
+        applyUndoSnapshot(prevSnap);
+        clearCuadreState();
+        if (!saveData({ fromHistory: true })) {
+            undoStack.redo();
+            applyUndoSnapshot(beforeSnap);
+            renderAll();
+            return;
+        }
+        showToast('Cambio deshecho (Ctrl+Z).', 'info');
+    };
+    const redoAction = () => {
+        if (!undoStack.canRedo()) return;
+        const beforeSnap = JSON.parse(JSON.stringify(captureUndoSnapshot()));
+        const nextSnap = undoStack.redo();
+        if (!nextSnap) return;
+        applyUndoSnapshot(nextSnap);
+        clearCuadreState();
+        if (!saveData({ fromHistory: true })) {
+            undoStack.undo();
+            applyUndoSnapshot(beforeSnap);
+            renderAll();
+            return;
+        }
+        showToast('Cambio rehecho (Ctrl+Y).', 'info');
     };
 
     let _lastKnownRev = 0;
@@ -439,18 +507,21 @@ const app = (() => {
 
     const mintEpoch = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
-    const commitStateToStorage = (forceRevBase = 0) => {
+    const commitStateToStorage = (forceRevBase = 0, { fromHistory = false } = {}) => {
         state.schemaVersion = SplitXState.SCHEMA_VERSION;
         const nextRev = Math.max(Number(state._rev) || 0, _lastKnownRev, forceRevBase) + 1;
         state._rev = nextRev;
         if (!state._epoch) state._epoch = _lastKnownEpoch || mintEpoch();
         _lastKnownRev = nextRev;
         _lastKnownEpoch = state._epoch;
+        if (!fromHistory) {
+            undoStack.push(captureUndoSnapshot());
+        }
         storageSet('Split_data', JSON.stringify(state));
         renderAll();
     };
 
-    const saveData = () => {
+    const saveData = (opts = {}) => {
         // Compare-And-Swap (CAS): prevent a stale tab from silently erasing another tab's payouts or restored backup
         try {
             const rawStored = typeof localStorage !== 'undefined' ? localStorage.getItem(SplitXStorage.KEYS.DATA) : null;
@@ -520,7 +591,7 @@ const app = (() => {
             }
         } catch (_) { /* storage unavailable -> fallback to normal write */ }
 
-        commitStateToStorage(0);
+        commitStateToStorage(0, opts);
         return true;
     };
 
@@ -1433,6 +1504,7 @@ const app = (() => {
         renderCuadre(ledger);
         renderConfigModal();
         updateTotals(coverage, bankData, payrollSummary, ledger);
+        syncUndoRedoButtons();
         if (document.getElementById('appearanceLivePreviewCard')) {
             renderAppearancePreviewCard();
         }
@@ -2691,13 +2763,45 @@ const app = (() => {
             }
         });
 
-        // Global Escape key handler for all visible modals and mobile drawer (topmost first)
+        // Global keyboard handler: Escape (modals) + Ctrl+Z / Ctrl+Y (Undo/Redo outside text inputs & modals)
         document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape') return;
             const isOpen = (id) => {
                 const el = document.getElementById(id);
-                return !!(el && !el.classList.contains('hidden'));
+                return !!(el && !el.classList.contains('hidden') && !el.hidden);
             };
+            const anyModalOpen = () => (
+                isOpen('customDialogModal') || isOpen('editEmployeeModal') || isOpen('postImportModal') ||
+                isOpen('configModal') || isOpen('operationsModal') || isOpen('importModal') ||
+                isOpen('exportModal') || isOpen('historyModal') ||
+                isOpen('sheetStudio') || isOpen('documentStudio')
+            );
+
+            if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+                const key = String(e.key || '').toLowerCase();
+                if (key === 'z' || key === 'y') {
+                    const target = e.target;
+                    const tag = target && target.tagName ? String(target.tagName).toUpperCase() : '';
+                    const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!(target && target.isContentEditable);
+                    if (!isEditable && !anyModalOpen()) {
+                        if (key === 'z' && !e.shiftKey) {
+                            if (undoStack.canUndo()) {
+                                e.preventDefault();
+                                undoAction();
+                            }
+                            return;
+                        }
+                        if ((key === 'y' && !e.shiftKey) || (key === 'z' && e.shiftKey)) {
+                            if (undoStack.canRedo()) {
+                                e.preventDefault();
+                                redoAction();
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
+
+            if (e.key !== 'Escape') return;
             if (isOpen('customDialogModal')) { closeCustomDialog(false); return; }
             if (isOpen('editEmployeeModal')) { closeEditModal(); return; }
             if (isOpen('postImportModal')) { closePostImportModal(false); return; }
@@ -2779,6 +2883,8 @@ const app = (() => {
         if (typeof SplitXActionDelegation !== 'undefined') {
             SplitXActionDelegation.installActionDelegation(document, {
                 openImportModal: () => openImportModal(),
+                undoAction: () => undoAction(),
+                redoAction: () => redoAction(),
                 closeImportModal: () => closeImportModal(),
                 switchImportTab: (_el, _e, tab) => switchImportTab(tab),
                 processImport: () => processImport(),
@@ -2897,6 +3003,8 @@ const app = (() => {
         openCuadreView,
         clearCuadreChecks,
         applyCuadreSwapToBox,
+        undoAction,
+        redoAction,
         setStatusColorScheme,
         setCardNumberMode,
         updateInventory,
