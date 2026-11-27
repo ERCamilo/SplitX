@@ -114,6 +114,12 @@
         if (p.data && p.data.employees !== undefined && !Array.isArray(p.data.employees)) {
             throw new Error('Lista de empleados inválida en el respaldo.');
         }
+        if (p.data && p.data.inventory !== undefined && !isPlainObj(p.data.inventory)) {
+            throw new Error('Inventario de caja inválido en el respaldo.');
+        }
+        if (p.data && p.data.bankLimits !== undefined && !isPlainObj(p.data.bankLimits)) {
+            throw new Error('Límites bancarios inválidos en el respaldo.');
+        }
         if (p.history !== null && p.history !== undefined && !Array.isArray(p.history)) {
             throw new Error('Historial de importaciones inválido en el respaldo.');
         }
@@ -133,6 +139,9 @@
         }));
 
         if (cleanPayload.data) {
+            if (Array.isArray(cleanPayload.data.employees)) {
+                cleanPayload.data.employees = cleanPayload.data.employees.filter((/** @type {unknown} */ e) => isPlainObj(e));
+            }
             if (cleanPayload.data.currencySymbol !== undefined) {
                 cleanPayload.data.currencySymbol = SplitXCurrencies.sanitizeCurrencySymbol(cleanPayload.data.currencySymbol);
             }
@@ -203,13 +212,28 @@
     };
 
     /**
-     * Restaura un respaldo validado. Si falla la validación, lanza sin modificar el almacenamiento.
-     * @param {{ set: (k: string, v: string) => any, remove: (k: string) => void }} storage
+     * Restaura un respaldo validado de forma atómica con rollback si alguna escritura falla por cuota o bloqueo.
+     * @param {{ get?: (k: string) => string | null, set: (k: string, v: string) => any, remove: (k: string) => void }} storage
      * @param {unknown} input
      */
     const restoreBackup = (storage, input) => {
         const clean = validateBackup(input);
         const KEYS = SplitXStorage.KEYS;
+        const ALL_KEYS = SplitXStorage.ALL_KEYS || Object.values(KEYS);
+
+        // Snapshot prior raw values for atomic rollback
+        /** @type {Array<[string, string | null]>} */
+        const snapshot = ALL_KEYS.map((/** @type {string} */ k) => [k, typeof storage.get === 'function' ? storage.get(k) : null]);
+
+        const rollback = () => {
+            for (const [key, prev] of snapshot) {
+                try {
+                    if (prev === null || prev === undefined) storage.remove(key);
+                    else storage.set(key, prev);
+                } catch (_) { /* best-effort rollback */ }
+            }
+        };
+
         /** @type {Array<[string, unknown]>} */
         const entries = [
             [KEYS.DATA, clean.payload.data],
@@ -217,9 +241,24 @@
             [KEYS.SHEETS, clean.payload.sheets],
             [KEYS.DOCUMENTS, clean.payload.documents]
         ];
-        for (const [key, val] of entries) {
-            if (val === null) storage.remove(key);
-            else storage.set(key, JSON.stringify(val));
+        try {
+            for (const [key, val] of entries) {
+                if (val === null) {
+                    storage.remove(key);
+                } else {
+                    const res = storage.set(key, JSON.stringify(val));
+                    if (res && res.ok === false) {
+                        const why = res.reason === 'quota' ? 'almacenamiento lleno' : 'almacenamiento bloqueado';
+                        throw new Error(`No se pudo restaurar el respaldo (${why}). Tus datos anteriores fueron conservados.`);
+                    }
+                }
+            }
+            // Clear legacy v1 sheets and stale corrupt backups so they cannot resurrect after reload
+            storage.remove(KEYS.SHEETS_LEGACY);
+            storage.remove(KEYS.CORRUPT_BACKUP);
+        } catch (err) {
+            rollback();
+            throw err;
         }
         return { ok: true, summary: clean.summary };
     };

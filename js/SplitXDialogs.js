@@ -60,6 +60,8 @@
 
         /** @type {((val: any) => void) | null} */
         let activeDialogResolver = null;
+        /** @type {Array<{ opts: any, resolve: (val: any) => void }>} */
+        const dialogQueue = [];
 
         /** @param {string} message @param {string} [type] */
         const showToast = (message, type = 'success') => {
@@ -74,39 +76,21 @@
             if (toastMs > 0) setTimeout(() => toast.remove(), toastMs);
         };
 
-        /** @param {any} result */
-        const closeCustomDialog = (result) => {
-            const modal = doc ? doc.getElementById('customDialogModal') : null;
-            if (modal) modal.classList.add('hidden');
-            if (activeDialogResolver) {
-                const resolve = activeDialogResolver;
-                activeDialogResolver = null;
-                resolve(result);
-            }
-        };
-
-        /**
-         * @param {{
-         *   title?: string,
-         *   message?: string,
-         *   icon?: string,
-         *   type?: string,
-         *   buttons?: Array<{ label: string, value: any, icon?: string, isPrimary?: boolean, class?: string }>
-         * }} opts
-         */
-        const showCustomDialog = ({
+        /** @param {{ title?: string, message?: string, icon?: string, type?: string, buttons?: Array<{ label: string, value: any, icon?: string, isPrimary?: boolean, class?: string }> }} opts @param {(val: any) => void} resolve */
+        const presentDialog = ({
             title = 'Atención',
             message = '',
             icon = 'fa-circle-info',
             type = 'info',
             buttons = []
-        }) => new Promise((resolve) => {
+        }, resolve) => {
             activeDialogResolver = resolve;
 
             const modal = doc ? doc.getElementById('customDialogModal') : null;
             if (!modal) {
                 activeDialogResolver = null;
                 resolve(false);
+                pumpQueue();
                 return;
             }
             const iconCont = doc.getElementById('dialogIconContainer');
@@ -138,6 +122,43 @@
             }
 
             modal.classList.remove('hidden');
+        };
+
+        const pumpQueue = () => {
+            if (activeDialogResolver || !dialogQueue.length) return;
+            const next = dialogQueue.shift();
+            if (next) presentDialog(next.opts, next.resolve);
+        };
+
+        /** @param {any} result */
+        const closeCustomDialog = (result) => {
+            const modal = doc ? doc.getElementById('customDialogModal') : null;
+            if (modal) modal.classList.add('hidden');
+            if (activeDialogResolver) {
+                const resolve = activeDialogResolver;
+                activeDialogResolver = null;
+                resolve(result);
+            }
+            if (dialogQueue.length) {
+                Promise.resolve().then(pumpQueue);
+            }
+        };
+
+        /**
+         * @param {{
+         *   title?: string,
+         *   message?: string,
+         *   icon?: string,
+         *   type?: string,
+         *   buttons?: Array<{ label: string, value: any, icon?: string, isPrimary?: boolean, class?: string }>
+         * }} opts
+         */
+        const showCustomDialog = (opts) => new Promise((resolve) => {
+            if (activeDialogResolver) {
+                dialogQueue.push({ opts, resolve });
+                return;
+            }
+            presentDialog(opts, resolve);
         });
 
         /** @param {any} msgOrOpts @param {string} [optionalTitle] */

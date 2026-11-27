@@ -345,6 +345,14 @@ describe('Sprint A financial hardening: integer cents, invariants & bank limits'
         assert.equal(res.employees[0].amount, 99.99999999999999);
     });
 
+    test('parseQuickAddLine never truncates comma-separated salaries like "Juan 4,500" to 4 (Sprint B)', () => {
+        const { parseQuickAddLine } = require('../js/SplitXCore.js');
+        assert.deepEqual(parseQuickAddLine('Juan 4,500.00'), { name: 'Juan', amountText: '4,500.00' });
+        assert.deepEqual(parseQuickAddLine('Juan 4,500'), { name: 'Juan', amountText: '4,500' });
+        assert.deepEqual(parseQuickAddLine('Ana-María 500'), { name: 'Ana-María', amountText: '500' });
+        assert.equal(parseQuickAddLine('Solo Nombre'), null);
+    });
+
     test('500-case deterministic fuzz invariant: assigned + missing === effectiveAmount to the exact cent', () => {
         let seed = 1337;
         const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };

@@ -12,8 +12,14 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    const SCHEMA_VERSION = 1;
+
+    /** @param {unknown} v */
+    const isPlainObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
     /**
-     * Nunca lanza: un valor corrupto devuelve { ok: false, data: null, backup } para poder respaldarlo y arrancar limpio.
+     * Nunca lanza: un valor corrupto (JSON roto o estructura incompatible) devuelve
+     * { ok: false, data: null, backup } para poder respaldarlo y arrancar limpio.
      * @param {string | null | undefined} raw
      * @returns {{ ok: true, data: Record<string, any> | null, backup?: undefined } | { ok: false, data: null, backup: string }}
      */
@@ -21,7 +27,14 @@
         if (raw === null || raw === undefined || raw === '') return { ok: true, data: null };
         try {
             const data = JSON.parse(raw);
-            if (data && typeof data === 'object' && !Array.isArray(data)) return { ok: true, data };
+            if (isPlainObj(data)) {
+                const employeesValid = data.employees === undefined || Array.isArray(data.employees);
+                const inventoryValid = data.inventory === undefined || isPlainObj(data.inventory);
+                const bankLimitsValid = data.bankLimits === undefined || isPlainObj(data.bankLimits);
+                if (employeesValid && inventoryValid && bankLimitsValid) {
+                    return { ok: true, data };
+                }
+            }
         } catch (_e) {}
         return { ok: false, data: null, backup: String(raw) };
     };
@@ -103,6 +116,7 @@
     };
 
     return {
+        SCHEMA_VERSION,
         parseSavedState,
         loadOrRecoverState,
         getCorruptBackup,

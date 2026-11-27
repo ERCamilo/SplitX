@@ -74,6 +74,25 @@ describe('SplitXDialogs (Issue #28 extraction)', () => {
         assert.equal(doc.body.children.length, 1);
         assert.match(doc.body.children[0].innerHTML, /Hola &lt;b&gt;mundo&lt;\/b&gt;/);
     });
+
+    test('concurrent showCustomDialog calls queue FIFO so no Promise is stranded (Sprint B)', async () => {
+        const doc = makeFakeDoc();
+        const dialogs = SplitXDialogs.createDialogs({ documentRef: doc, escapeHTML: SplitXCurrencies.escapeHTML });
+        const p1 = dialogs.showCustomConfirm({ title: 'Primero', message: 'M1' });
+        const p2 = dialogs.showCustomConfirm({ title: 'Segundo', message: 'M2' });
+
+        // First dialog is visible now
+        assert.equal(doc.byId.get('dialogTitle').textContent, 'Primero');
+        doc.byId.get('dialogActions').children[1].onclick();
+        assert.equal(await p1, true);
+
+        // Second dialog automatically opens next and resolves cleanly
+        await new Promise((r) => setTimeout(r, 0));
+        assert.equal(doc.byId.get('dialogTitle').textContent, 'Segundo');
+        assert.equal(doc.byId.get('customDialogModal').classList.contains('hidden'), false);
+        doc.byId.get('dialogActions').children[0].onclick();
+        assert.equal(await p2, false);
+    });
 });
 
 describe('SplitXEmployeeCard & Smart Advisor (Issue #28 extraction)', () => {

@@ -385,6 +385,23 @@
         return { employees: next, count };
     };
 
+    /**
+     * Parsea entrada rápida como "Juan 4,500.00", "Ana-María 500" o "1. Juan Pérez 4500"
+     * sin truncar separadores de miles.
+     * @param {unknown} raw
+     * @returns {{ name: string, amountText: string } | null}
+     */
+    const parseQuickAddLine = (raw) => {
+        const text = String(raw ?? '').trim();
+        if (!text) return null;
+        const match = text.match(/^[\d.\-)\s]*([a-zA-Z\u00C0-\u024F][a-zA-Z\u00C0-\u024F\s'’.-]*?)[,\s]+(-?\d[\d.,]*)$/);
+        if (!match) return null;
+        const name = match[1].trim();
+        const amountText = match[2].trim();
+        if (!name || !amountText) return null;
+        return { name, amountText };
+    };
+
     return {
         createCore,
         toCents,
@@ -393,6 +410,7 @@
         sanitizeInventoryQty,
         sanitizeBankLimit,
         parseManualAmount,
+        parseQuickAddLine,
         clampLoanFund,
         roundEmployeeAmounts
     };

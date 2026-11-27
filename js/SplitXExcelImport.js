@@ -176,13 +176,39 @@
             if (allAtLeast8) {
                 const first = sampleRows[0];
                 const isExact8 = sampleRows.every(c => c.length === 8);
-                const hasTail = sampleRows.some(hasExportStatusTail);
                 const payrollSliceLooksNumeric = first.slice(2, 8).some(Boolean) &&
                     first.slice(2, 8).every(v => looksLikeMoneyOrEmpty(v, format));
-                if (isExact8 || hasTail || payrollSliceLooksNumeric) {
+                if (isExact8) {
                     return {
                         mode: 'payroll-8',
                         map: { number: 0, name: 1, gross: 2, bonuses: 3, discounts: 4, afterDiscounts: 5, loans: 6, net: 7 }
+                    };
+                }
+                // For rows wider than 8 cols (e.g. denomination columns + Estado/Pagado tail),
+                // distinguish payroll export from simple export (# | Nombre | Monto | bill counts... | OK | No)
+                // by verifying the payroll arithmetic invariant: Bruto + Bonif - Desc ≈ Despues desc.
+                if (payrollSliceLooksNumeric) {
+                    const toNum = (/** @type {string} */ raw) => (raw ? parseMoney(raw, { format }) : 0);
+                    const matchesPayrollMath = sampleRows.every(row => {
+                        if (!row.slice(2, 8).every(v => looksLikeMoneyOrEmpty(v, format))) return false;
+                        const g = toNum(row[2]);
+                        const b = toNum(row[3]);
+                        const d = toNum(row[4]);
+                        const after = toNum(row[5]);
+                        return Math.abs((g + b - d) - after) <= 0.02;
+                    });
+                    if (matchesPayrollMath) {
+                        return {
+                            mode: 'payroll-8',
+                            map: { number: 0, name: 1, gross: 2, bonuses: 3, discounts: 4, afterDiscounts: 5, loans: 6, net: 7 }
+                        };
+                    }
+                }
+                // Headerless SplitX simple export (# | Nombre | Monto | bill counts... | OK/Incompleto | Sí/No)
+                if (sampleRows.some(hasExportStatusTail) && looksLikeMoneyOrEmpty(first[2], format) && first[2]) {
+                    return {
+                        mode: 'simple',
+                        map: { number: 0, name: 1, net: 2, paid: first.length - 1 }
                     };
                 }
             }
@@ -298,7 +324,9 @@
                             };
 
                             try {
-                                const empNum = columnMap?.number !== undefined ? (cols[columnMap.number] || '').trim() : (cols[0] || '').trim();
+                                const empNum = columnMap
+                                    ? (columnMap.number !== undefined ? (cols[columnMap.number] || '').trim() : '')
+                                    : (cols[0] || '').trim();
                                 const paid = columnMap?.paid !== undefined ? parsePaidFlag(cols[columnMap.paid]) : false;
 
                                 if (hasPayrollColumns && columnMap) {

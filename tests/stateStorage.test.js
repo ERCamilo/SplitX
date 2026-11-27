@@ -98,3 +98,44 @@ describe('loadOrRecoverState & corrupt backup persistence (Issue #9)', () => {
         assert.equal(SplitXState.getCorruptBackup(storage, SplitXStorage.KEYS), null);
     });
 });
+
+describe('Sprint B persistence hardening: memStore precedence & structural schema validation', () => {
+    test('SplitXStorage.get returns newer memStore value over stale backend after quota failure', () => {
+        let failNext = false;
+        const map = new Map([['Split_data', '{"employees":[{"name":"Viejo"}]}']]);
+        const storage = SplitXStorage.createStorage({
+            backend: {
+                getItem: (k) => (map.has(k) ? map.get(k) : null),
+                setItem: (k, v) => {
+                    if (failNext) { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }
+                    map.set(k, String(v));
+                },
+                removeItem: (k) => map.delete(k)
+            }
+        });
+        failNext = true;
+        const res = storage.set('Split_data', '{"employees":[{"name":"Nuevo"}]}');
+        assert.equal(res.ok, false);
+        assert.equal(res.reason, 'quota');
+        assert.equal(storage.get('Split_data'), '{"employees":[{"name":"Nuevo"}]}', 'get() must return newest post-quota in-memory value');
+
+        // Once backend succeeds again, memStore is cleared and backend value is authoritative
+        failNext = false;
+        assert.equal(storage.set('Split_data', '{"employees":[{"name":"Persistido"}]}').ok, true);
+        assert.equal(storage.get('Split_data'), '{"employees":[{"name":"Persistido"}]}');
+    });
+
+    test('parseSavedState rejects structurally corrupted valid JSON (employees/inventory/bankLimits wrong types)', () => {
+        for (const bad of [
+            '{"employees":null}',
+            '{"employees":"oops"}',
+            '{"employees":[],"inventory":null}',
+            '{"employees":[],"inventory":[]}',
+            '{"employees":[],"bankLimits":"bad"}'
+        ]) {
+            const res = parseSavedState(bad);
+            assert.equal(res.ok, false, `must reject structurally invalid state: ${bad}`);
+            assert.equal(res.backup, bad);
+        }
+    });
+});

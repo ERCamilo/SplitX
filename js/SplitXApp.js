@@ -306,6 +306,8 @@ const app = (() => {
         if (loaded.data) {
             const parsed = loaded.data;
             state = { ...state, ...parsed };
+            state.schemaVersion = Number(state.schemaVersion) || SplitXState.SCHEMA_VERSION;
+            _lastKnownRev = Number(state._rev) || 0;
             if (!state.currency) state.currency = 'DOP';
             state.currencySymbol = sanitizeCurrencySymbol(state.currencySymbol || 'RD$');
             const cleanDenoms = Array.isArray(state.denominations)
@@ -342,10 +344,34 @@ const app = (() => {
         applyTheme();
     };
 
+    let _lastKnownRev = 0;
+    let _externalTabConflictNotified = false;
+
     const saveData = () => {
+        state.schemaVersion = SplitXState.SCHEMA_VERSION;
+        const nextRev = Math.max(Number(state._rev) || 0, _lastKnownRev) + 1;
+        state._rev = nextRev;
+        _lastKnownRev = nextRev;
         storageSet('Split_data', JSON.stringify(state));
         renderAll();
     };
+
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('storage', (event) => {
+            if (event.key !== SplitXStorage.KEYS.DATA || !event.newValue) return;
+            const incoming = SplitXState.parseSavedState(event.newValue);
+            if (!incoming.ok || !incoming.data) return;
+            const incomingRev = Number(incoming.data._rev) || 0;
+            if (incomingRev > _lastKnownRev) {
+                _lastKnownRev = incomingRev;
+                if (!_externalTabConflictNotified) {
+                    _externalTabConflictNotified = true;
+                    showToast('Otra pestaña modificó la nómina. Recarga esta pestaña para evitar sobrescribir cambios.', 'info');
+                    setTimeout(() => { _externalTabConflictNotified = false; }, 8000);
+                }
+            }
+        });
+    }
 
     // --- CORE LOGIC: DISTRIBUTION & CURRENCY ---
     const getCurrencySymbol = () => state.currencySymbol || 'RD$';
@@ -372,6 +398,7 @@ const app = (() => {
         if (!sheetStudio) {
             sheetStudio = SheetStudio.createStudio({
                 root: document.getElementById('sheetStudio'),
+                storage: appStorage,
                 getEmployees: () => state.employees,
                 getNetAmount: (emp) => getEffectiveEmployeeAmount(emp),
                 onOpenDocuments: () => { sheetStudio.close(); void openDocumentStudio(); }
@@ -387,6 +414,7 @@ const app = (() => {
         try {
             if (!documentStudio) documentStudio = DocumentStudio.createStudio({
                 root: document.getElementById('documentStudio'),
+                storage: appStorage,
                 getEmployees: () => state.employees,
                 getNetAmount: emp => getEffectiveEmployeeAmount(emp)
             });
@@ -461,8 +489,8 @@ const app = (() => {
 
         if (!name && !valStr) return;
         if (name && !valStr) {
-            const match = name.match(/^[\d\.\-\)\s]*([a-zA-Z\u00C0-\u00FF\s]+)[,\s]+(\d+(\.\d+)?)/);
-            if (match) { name = match[1].trim(); valStr = match[2]; }
+            const quick = SplitXCore.parseQuickAddLine(name);
+            if (quick) { name = quick.name; valStr = quick.amountText; }
         }
 
         if (name && valStr) {
@@ -1716,8 +1744,8 @@ const app = (() => {
         let valStr = amtInput.value.trim();
         if (!name && !valStr) return;
         if (name && !valStr) {
-            const match = name.match(/^[\d\.\-\)\s]*([a-zA-Z\u00C0-\u00FF\s]+)[,\s]+(\d+(\.\d+)?)/);
-            if (match) { name = match[1].trim(); valStr = match[2]; }
+            const quick = SplitXCore.parseQuickAddLine(name);
+            if (quick) { name = quick.name; valStr = quick.amountText; }
         }
         if (name && valStr) {
             const parsed = SplitXCore.parseManualAmount(valStr, (v) => SplitXExcelImport.parseMoney(v));

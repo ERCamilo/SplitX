@@ -104,11 +104,18 @@
     /** @param {HistoryEntry} entry @param {Array<Record<string, any>>} employees */
     const isCurrent = (entry, employees) => Array.isArray(employees) && employees.length > 0 && entry.signature === entrySignature(employees);
 
+    /** @param {Period | null | undefined} a @param {Period | null | undefined} b */
+    const samePeriod = (a, b) => (!a && !b) || (!!a && !!b && (a.start || '') === (b.start || '') && (a.end || '') === (b.end || ''));
+
     /**
-     * Agrega al inicio; si la misma nómina ya estaba, se mueve arriba (sin duplicar).
+     * Agrega al inicio; si la misma nómina del mismo período ya estaba, se mueve arriba (sin duplicar).
+     * Períodos distintos con salarios fijos idénticos se conservan ambos.
      * @param {HistoryEntry[]} list @param {HistoryEntry} entry @param {number} [max]
      */
-    const addEntry = (list, entry, max = MAX_ENTRIES) => [entry, ...(list || []).filter((e) => e.signature !== entry.signature)].slice(0, max);
+    const addEntry = (list, entry, max = MAX_ENTRIES) => [
+        entry,
+        ...(list || []).filter((e) => !(e.signature === entry.signature && samePeriod(e.period, entry.period)))
+    ].slice(0, max);
 
     /** @param {HistoryEntry[]} list @param {string} id */
     const removeEntry = (list, id) => (list || []).filter((e) => e.id !== id);
@@ -140,16 +147,23 @@
     };
 
     /**
-     * Guarda lo que quepa: recorta por tamaño y, ante un error de cuota, sigue quitando la más antigua.
+     * Guarda lo que quepa: recorta por tamaño y, ante un error de cuota (lanzado o retornado), sigue quitando la más antigua.
      * Nunca lanza: el historial es secundario, la nómina actual ya se guardó aparte.
-     * @param {{ setItem: (k: string, v: string) => void }} storage @param {HistoryEntry[]} list
+     * @param {{ setItem: (k: string, v: string) => any }} storage @param {HistoryEntry[]} list
      * @returns {HistoryEntry[]} lo que quedó guardado
      */
     const save = (storage, list) => {
         let out = trimToChars(list, MAX_CHARS);
         while (true) {
             try {
-                storage.setItem(STORAGE_KEY, JSON.stringify(out));
+                const res = storage.setItem(STORAGE_KEY, JSON.stringify(out));
+                if (res && res.ok === false) {
+                    if (res.reason === 'quota' && out.length > 0) {
+                        out = out.slice(0, -1);
+                        continue;
+                    }
+                    return res.reason === 'quota' ? out : list;
+                }
                 return out;
             } catch (e) {
                 const quota = /quota/i.test(String(/** @type {any} */ (e)?.name) + String(/** @type {any} */ (e)?.message));

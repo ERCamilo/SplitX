@@ -59,7 +59,10 @@
         };
         const save = () => {
             const clean = D.safeState(state);
-            storage.set(D.KEY,JSON.stringify(clean));
+            const res = /** @type {any} */ (storage.set(D.KEY, JSON.stringify(clean)));
+            if (res && res.ok === false) {
+                throw new Error(res.reason === 'quota' ? 'almacenamiento lleno' : 'almacenamiento bloqueado');
+            }
             state = clean;
         };
         const load = () => {

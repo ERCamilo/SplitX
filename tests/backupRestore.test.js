@@ -155,4 +155,51 @@ describe('SplitXBackup: full versioned backup & validated restore (Issue #11)', 
         assert.equal(after.templates.length, 1);
         assert.deepEqual(after.people, {});
     });
+
+    test('restoreBackup rolls back all keys atomically if a write fails mid-restore and clears legacy/corrupt keys on success (Sprint B)', () => {
+        const map = new Map();
+        let failKey = null;
+        const storage = SplitXStorage.createStorage({
+            backend: {
+                getItem: (k) => (map.has(k) ? map.get(k) : null),
+                setItem: (k, v) => {
+                    if (k === failKey) { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }
+                    map.set(k, String(v));
+                },
+                removeItem: (k) => map.delete(k)
+            }
+        });
+
+        const origData = JSON.stringify({ currency: 'DOP', employees: [{ id: 1, name: 'Original', amount: 500 }] });
+        const origSheets = JSON.stringify({ version: 2, templates: [] });
+        storage.set(SplitXStorage.KEYS.DATA, origData);
+        storage.set(SplitXStorage.KEYS.SHEETS, origSheets);
+        storage.set(SplitXStorage.KEYS.SHEETS_LEGACY, '{"A":{"old":true}}');
+        storage.set(SplitXStorage.KEYS.CORRUPT_BACKUP, '{"corrupt":');
+
+        const backup = JSON.stringify({
+            schema: 'splitx-backup/v1',
+            version: 1,
+            exportedAt: '2026-11-26T00:00:00Z',
+            payload: {
+                data: { currency: 'USD', employees: [{ id: 2, name: 'New', amount: 100 }] },
+                history: [],
+                sheets: { version: 2, templates: [] },
+                documents: { version: 1, activeId: 'a', templates: [], people: {} }
+            }
+        });
+
+        // Fail on DOCUMENTS write -> DATA and SHEETS must roll back to original!
+        failKey = SplitXStorage.KEYS.DOCUMENTS;
+        assert.throws(() => SplitXBackup.restoreBackup(storage, backup), /lleno|bloqueado|restaurar/i);
+        assert.equal(storage.get(SplitXStorage.KEYS.DATA), origData, 'DATA must roll back on partial restore failure');
+        assert.equal(storage.get(SplitXStorage.KEYS.SHEETS), origSheets, 'SHEETS must roll back on partial restore failure');
+
+        // Succeed -> SHEETS_LEGACY and CORRUPT_BACKUP must be cleared
+        failKey = null;
+        const okRes = SplitXBackup.restoreBackup(storage, backup);
+        assert.equal(okRes.ok, true);
+        assert.equal(storage.get(SplitXStorage.KEYS.SHEETS_LEGACY), null);
+        assert.equal(storage.get(SplitXStorage.KEYS.CORRUPT_BACKUP), null);
+    });
 });

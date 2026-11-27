@@ -93,4 +93,13 @@ describe('employee Word-like document templates',()=>{
    const names=D.placeholders('Ingreso {{name}}. {{name}} {{startDate}} {{gross}}');
    assert.deepEqual(names,['name','startDate','gross']);
  });
+ test('personKey sanitizes employeeNumber with spaces or punctuation so safeState never drops personal fields (Sprint B)',()=>{
+   for (const weird of ['#1', 'EMP 01', '01.', 'A/12', 'Juan Pérez']) {
+     const emp = { ...employee(), employeeNumber: weird };
+     const key = D.personKey(emp);
+     assert.ok(key && /^[A-Za-z0-9:_-]{1,100}$/.test(key), `invalid key "${key}" for "${weird}"`);
+     const saved = D.safeState({ people: { [key]: { idNumber: '001-0000000-1' } } });
+     assert.equal(saved.people[key]?.idNumber, '001-0000000-1', `safeState dropped data for "${weird}"`);
+   }
+ });
 });

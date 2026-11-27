@@ -52,16 +52,17 @@
 
         /** @param {string} key @returns {string | null} */
         const get = (key) => {
+            // memStore holds only newer writes that failed to persist to backend (set() clears it on success)
+            if (memStore.has(key)) return memStore.get(key) ?? null;
             if (backend) {
                 try {
                     const val = backend.getItem(key);
                     if (val !== null && val !== undefined) return val;
-                    return memStore.has(key) ? (memStore.get(key) ?? null) : null;
                 } catch (_) {
-                    return memStore.has(key) ? (memStore.get(key) ?? null) : null;
+                    return null;
                 }
             }
-            return memStore.has(key) ? (memStore.get(key) ?? null) : null;
+            return null;
         };
 
         /** @param {string} key @param {string} value @returns {{ ok: boolean, reason?: 'quota' | 'blocked' }} */

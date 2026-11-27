@@ -84,7 +84,12 @@
         const typeOf = (sheet) => (sheet === 'A' ? 'cards' : 'table');
         const activeEntry = () => state.store.templates.find((t) => t.id === state.store.active[state.sheet]);
         const tpl = () => activeEntry().template;
-        const save = () => storage.set(STORE_KEY, JSON.stringify(state.store));
+        const save = () => {
+            const res = storage.set(STORE_KEY, JSON.stringify(state.store));
+            if (res && res.ok === false) {
+                toast('No se pudo guardar la plantilla (almacenamiento lleno o bloqueado).');
+            }
+        };
         const load = () => {
             let raw = null;
             try { raw = JSON.parse(storage.get(STORE_KEY) || 'null'); } catch (e) { raw = null; }
@@ -1566,6 +1571,7 @@
 
         const api = {
             open: () => {
+                load();
                 rootEl.classList.add('ss');
                 employees = opts.getEmployees() || [];
                 if (state.printOpts.mode === 'custom') state.printOpts.ids = state.printOpts.ids.filter((id) => employees.some((e) => e.id === id));

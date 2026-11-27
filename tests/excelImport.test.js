@@ -172,4 +172,28 @@ describe('pasted Excel: payroll breakdown & exported sheet round-trip', () => {
         assert.equal(parseMoney('S/ 850.00'), 850);
         assert.equal(parseMoney('£ 400.25'), 400.25);
     });
+
+    test('headerless simple SplitX export with denomination columns and OK/No tail is NOT misclassified as payroll-8 (Sprint B)', () => {
+        // # | Nombre | Monto | RD$2000 | RD$1000 | RD$500 | RD$200 | RD$100 | RD$50 | RD$25 | Estado | Pagado
+        const raw = [
+            '1\tAna Pérez\t5000\t2\t1\t0\t0\t0\t0\t0\tOK\tNo',
+            '2\tLuis Gómez\t3500\t1\t1\t1\t0\t0\t0\t0\tOK\tSí'
+        ].join('\n');
+        const result = parseExcelText(raw);
+        assert.equal(result.detectedFormat, 'simple');
+        assert.equal(result.errors.length, 0);
+        assert.equal(result.employees[0].amount, 5000);
+        assert.equal(result.employees[1].amount, 3500);
+    });
+
+    test('headered import without # column leaves employeeNumber empty instead of copying employee name (Sprint B)', () => {
+        const raw = [
+            'Nombre\tBruto\tNeto',
+            'Juan Pérez\t10000\t9500'
+        ].join('\n');
+        const result = parseExcelText(raw);
+        assert.equal(result.errors.length, 0);
+        assert.equal(result.employees[0].name, 'Juan Pérez');
+        assert.equal(result.employees[0].employeeNumber, undefined);
+    });
 });

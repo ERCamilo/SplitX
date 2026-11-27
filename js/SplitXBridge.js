@@ -226,8 +226,8 @@
                         ]
                     });
 
-                    if (choice === 'cancel') {
-                        // Cancelar no consume el transferId: el emisor puede reintentar
+                    if (choice !== 'replace' && choice !== 'append') {
+                        // Cancelar (o cierre sin elección válida) no consume el transferId: el emisor puede reintentar
                         if (transferId) processedTransfers.delete(transferId);
                         if (event.source && typeof event.source.postMessage === 'function') {
                             event.source.postMessage({
@@ -333,11 +333,11 @@
             const buffered = early ? early.messages.splice(0) : [];
             if (early) early.stop();
             windowRef.addEventListener('message', handleMessage);
-            emitReady();
-            // Procesa en orden lo que SA envió mientras la página cargaba.
+            // Procesa primero lo que SA ya envió mientras la página cargaba antes de emitir READY.
             for (const event of buffered) {
                 await handleMessage(event);
             }
+            emitReady();
         };
 
         const detach = () => {

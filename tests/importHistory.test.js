@@ -196,3 +196,34 @@ describe('describeEntry', () => {
         assert.equal(H.describeEntry(e, NOW).periodLabel, '16 dic 2026 – 15 ene 2027');
     });
 });
+
+describe('Sprint B history durability: non-throwing quota adapter & distinct pay periods', () => {
+    test('save evicts oldest entries when storage adapter returns { ok: false, reason: "quota" } instead of throwing', () => {
+        const store = {};
+        let calls = 0;
+        const storage = {
+            setItem: (k, v) => {
+                calls++;
+                if (v.length > 2500) return { ok: false, reason: 'quota' };
+                store[k] = v;
+                return { ok: true };
+            },
+            getItem: (k) => store[k] ?? null
+        };
+        let list = [];
+        for (let i = 1; i <= 4; i++) {
+            list = H.addEntry(list, H.createEntry({ employees: emps(6, i), source: 'sa', now: new Date(NOW.getTime() + i) }));
+        }
+        const saved = H.save(storage, list);
+        assert.ok(saved.length >= 1 && saved.length < 4, `expected eviction, got ${saved.length}`);
+        assert.equal(H.load(storage).length, saved.length);
+        assert.ok(calls > 1);
+    });
+
+    test('identical fixed-salary payrolls from different pay periods are both preserved in history', () => {
+        const p1 = H.createEntry({ employees: emps(2), source: 'sa', period: { start: '2026-11-01', end: '2026-11-15' }, now: NOW });
+        const p2 = H.createEntry({ employees: emps(2), source: 'sa', period: { start: '2026-11-16', end: '2026-11-30' }, now: new Date(NOW.getTime() + 1000) });
+        const list = H.addEntry(H.addEntry([], p1), p2);
+        assert.equal(list.length, 2, 'consecutive pay periods with identical salaries must not erase each other');
+    });
+});

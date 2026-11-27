@@ -86,11 +86,31 @@
         }
         return state;
     };
+    /** @param {string} s */
+    const keyHash = (s) => {
+        let h = 2166136261;
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+        return h.toString(36);
+    };
+    /**
+     * Preserves already-safe [A-Za-z0-9_-] segments verbatim while encoding unsafe characters
+     * (spaces, #, /, ., accents) so personKey() always passes safeState()'s strict regex.
+     * @param {unknown} raw @param {number} [maxLen]
+     */
+    const safeKeyPart = (raw, maxLen = 40) => {
+        const s = String(raw ?? '').trim();
+        if (/^[A-Za-z0-9_-]+$/.test(s) && s.length <= maxLen) return s;
+        const cleaned = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+        const tag = keyHash(s);
+        const head = (cleaned || 'x').slice(0, Math.max(1, maxLen - tag.length - 1));
+        return `${head}_${tag}`;
+    };
+
     /** @param {any} employee */
     const personKey = employee =>
-        employee?.sourceEmployeeId ? 'source:'+String(employee.sourceEmployeeId) :
-        employee?.employeeNumber ? 'project:'+String(employee.exportContext?.projectId || 'none')+':no:'+String(employee.employeeNumber) :
-        employee?.id !== undefined ? 'id:'+String(employee.id) : null;
+        employee?.sourceEmployeeId ? 'source:' + safeKeyPart(employee.sourceEmployeeId, 80) :
+        employee?.employeeNumber ? 'project:' + safeKeyPart(employee.exportContext?.projectId || 'none', 40) + ':no:' + safeKeyPart(employee.employeeNumber, 40) :
+        employee?.id !== undefined ? 'id:' + safeKeyPart(employee.id, 80) : null;
 
     /** @param {unknown} value @param {string} [currency] */
     const numberMoney = (value, currency='DOP') => {
