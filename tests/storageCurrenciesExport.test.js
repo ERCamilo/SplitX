@@ -178,6 +178,7 @@ describe('SplitXExport CSV injection protection & currency formatting (Issues #2
                 totalToWithdraw: 0
             }
         });
+        assert.match(csv, /1,Ana,1000,0,0,1000,0,1000,/, 'CSV employee row in normal mode must report 0 deducted loans to match footer');
         assert.match(csv, /Total Préstamos Descontados en Nómina.*,0/);
         assert.equal(/Recaudación Restante en Empresa,200/.test(csv), false);
     });

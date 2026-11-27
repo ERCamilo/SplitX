@@ -391,7 +391,7 @@
                 lines.push(csvRow([
                     row.idx, row.name,
                     p.gross ?? '', p.bonuses ?? '', p.discounts ?? '',
-                    p.afterDiscounts ?? '', p.loans ?? '',
+                    p.afterDiscounts ?? '', isNormalMode ? 0 : (p.loans ?? ''),
                     row.amount, paidStatus, details.join(' + '), row.status
                 ]));
             } else {
