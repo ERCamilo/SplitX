@@ -407,7 +407,13 @@
                 : (emp.isEdited || false);
 
             const currentStatus = emp.payoutStatus || (emp.paid ? 'paid' : 'pending');
-            const amountChanged = Math.abs((Number(emp.amount) || 0) - calc.net) > 0.001;
+            const isNormalMode = state.payrollMode === 'normal';
+            const oldEffective = (isNormalMode && emp.payroll && emp.payroll.afterDiscounts !== undefined && emp.payroll.afterDiscounts !== null)
+                ? (Number(emp.payroll.afterDiscounts) || 0)
+                : (Number(emp.amount) || 0);
+            const newEffective = isNormalMode ? calc.afterDiscounts : calc.net;
+            const amountChanged = Math.abs(oldEffective - newEffective) > 0.001 || Math.abs((Number(emp.amount) || 0) - calc.net) > 0.001;
+            const nameChanged = (emp.name || '') !== name;
 
             const applySave = (/** @type {boolean} */ resetEnvelope, /** @type {string | null} */ customToast) => {
                 state.employees = state.employees.map((/** @type {any} */ e) => {
@@ -415,7 +421,7 @@
                     const ledgerPatch = resetEnvelope
                         ? { payoutStatus: 'pending', paid: false, lockedDistribution: null }
                         : {};
-                    return {
+                    const nextEmp = {
                         ...e,
                         ...ledgerPatch,
                         name,
@@ -423,11 +429,11 @@
                         payroll,
                         isEdited: !e.isManual ? isEdited : false
                     };
+                    if (nameChanged && nextEmp.employeeName !== undefined) {
+                        nextEmp.employeeName = name;
+                    }
+                    return nextEmp;
                 });
-
-                if (state.employees.some((/** @type {any} */ e) => e.payroll)) {
-                    state.payrollMode = 'deductions';
-                }
 
                 deps.saveData();
                 closeEditModal();
@@ -437,7 +443,7 @@
             if (currentStatus === 'paid' && amountChanged) {
                 return deps.showCustomConfirm({
                     title: 'Colaborador ya marcado como Pagado',
-                    message: `${emp.name} ya está marcado como Pagado. Cambiar su monto neto a ${deps.fmt(calc.net)} liberará el registro de efectivo fijado y lo devolverá a Pendiente para cuadrar la diferencia. ¿Deseas continuar?`,
+                    message: `${emp.name} ya está marcado como Pagado. Cambiar su monto efectivo a ${deps.fmt(newEffective)} liberará el registro de efectivo fijado y lo devolverá a Pendiente para cuadrar la diferencia. ¿Deseas continuar?`,
                     icon: 'fa-triangle-exclamation',
                     type: 'warning',
                     confirmText: 'Sí, actualizar y pasar a Pendiente',
@@ -464,9 +470,14 @@
             const emp = state.employees.find((/** @type {any} */ e) => e.id === id);
             if (!emp || !emp.originalData) return;
 
+            const currentStatus = emp.payoutStatus || (emp.paid ? 'paid' : 'pending');
+            const extraWarn = currentStatus === 'paid'
+                ? ' Como ya está Pagado, volverá a Pendiente y se liberará su efectivo fijado.'
+                : (currentStatus === 'packed' ? ' Su sobre apartado volverá a Pendiente para rearmarlo.' : '');
+
             const ok = await deps.showCustomConfirm({
                 title: '¿Restaurar valores originales?',
-                message: `¿Deseas restaurar los valores originales de importación para ${emp.name}? Se perderán los cambios manuales aplicados.`,
+                message: `¿Deseas restaurar los valores originales de importación para ${emp.name}? Se perderán los cambios manuales aplicados.${extraWarn}`,
                 icon: 'fa-rotate-left',
                 type: 'warning',
                 confirmText: 'Restaurar',
@@ -475,11 +486,14 @@
             if (!ok) return;
 
             const orig = JSON.parse(JSON.stringify(emp.originalData));
+            const resetEnvelope = currentStatus === 'packed' || currentStatus === 'paid';
             state.employees = state.employees.map((/** @type {any} */ e) => {
                 if (e.id !== id) return e;
                 return {
                     ...e,
+                    ...(resetEnvelope ? { payoutStatus: 'pending', paid: false, lockedDistribution: null } : {}),
                     name: orig.name,
+                    ...(orig.employeeName !== undefined ? { employeeName: orig.employeeName } : {}),
                     amount: orig.amount,
                     payroll: orig.payroll ? JSON.parse(JSON.stringify(orig.payroll)) : undefined,
                     isEdited: false

@@ -126,6 +126,22 @@ describe('addEntry / removeEntry', () => {
         const list = H.addEntry(H.addEntry([], a), b);
         assert.deepEqual(H.removeEntry(list, a.id).map(e => e.id), [b.id]);
     });
+
+    test('restoreEmployees clears payoutStatus and lockedDistribution as well as paid (Sprint E)', () => {
+        const entry = {
+            id: 'h1',
+            employees: [
+                { id: 1, name: 'Ana', amount: 2000, paid: true, payoutStatus: 'paid', lockedDistribution: { 2000: 1 } },
+                { id: 2, name: 'Luis', amount: 1000, paid: false, payoutStatus: 'packed', lockedDistribution: { 1000: 1 } }
+            ]
+        };
+        const restored = H.restoreEmployees(entry);
+        for (const emp of restored) {
+            assert.equal(emp.paid, false);
+            assert.equal(emp.payoutStatus, 'pending');
+            assert.equal(emp.lockedDistribution, null);
+        }
+    });
 });
 
 describe('storage', () => {

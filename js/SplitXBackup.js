@@ -139,34 +139,68 @@
         }));
 
         if (cleanPayload.data) {
+            if (cleanPayload.data.denominations !== undefined) {
+                const safeDenoms = sanitizePositiveNumbers(cleanPayload.data.denominations);
+                if (safeDenoms.length > 0) cleanPayload.data.denominations = safeDenoms;
+                else delete cleanPayload.data.denominations;
+            }
+            const activeDenomSet = Array.isArray(cleanPayload.data.denominations)
+                ? new Set(cleanPayload.data.denominations.map(Number))
+                : null;
+            if (isPlainObj(cleanPayload.data.inventory)) {
+                /** @type {Record<string, number>} */
+                const safeInv = {};
+                for (const [k, v] of Object.entries(cleanPayload.data.inventory)) {
+                    const d = Number(k);
+                    const q = Number.parseInt(String(v ?? ''), 10);
+                    if (Number.isFinite(d) && d > 0) {
+                        safeInv[k] = Number.isFinite(q) && q > 0 ? q : 0;
+                    }
+                }
+                cleanPayload.data.inventory = safeInv;
+            }
+            if (cleanPayload.data.payrollLoanFund !== undefined) {
+                const lf = Number(cleanPayload.data.payrollLoanFund);
+                cleanPayload.data.payrollLoanFund = Number.isFinite(lf) && lf > 0 ? Math.round(lf * 100) / 100 : 0;
+            }
+            if (cleanPayload.data.payrollMode !== undefined) {
+                cleanPayload.data.payrollMode = cleanPayload.data.payrollMode === 'deductions' ? 'deductions' : 'normal';
+            }
             if (Array.isArray(cleanPayload.data.employees)) {
                 cleanPayload.data.employees = cleanPayload.data.employees
                     .filter((/** @type {unknown} */ e) => isPlainObj(e))
                     .map((/** @type {any} */ e) => {
-                        if (e.payoutStatus !== undefined) {
-                            const validStatus = (e.payoutStatus === 'pending' || e.payoutStatus === 'packed' || e.payoutStatus === 'paid')
-                                ? e.payoutStatus
-                                : (e.paid === true ? 'paid' : 'pending');
-                            e.payoutStatus = validStatus;
-                            e.paid = validStatus === 'paid';
-                        }
+                        let cleanDist = null;
                         if (e.lockedDistribution !== undefined) {
                             if (isPlainObj(e.lockedDistribution)) {
                                 /** @type {Record<number, number>} */
-                                const cleanDist = {};
+                                const mapDist = {};
                                 let countEntries = 0;
                                 for (const [k, v] of Object.entries(e.lockedDistribution)) {
                                     const d = Number(k);
                                     const q = Number.parseInt(String(v ?? ''), 10);
-                                    if (Number.isFinite(d) && d > 0 && Number.isFinite(q) && q > 0) {
-                                        cleanDist[d] = q;
+                                    if (Number.isFinite(d) && d > 0 && Number.isFinite(q) && q > 0 && (!activeDenomSet || activeDenomSet.has(d))) {
+                                        mapDist[d] = q;
                                         countEntries += 1;
                                     }
                                 }
-                                e.lockedDistribution = countEntries > 0 ? cleanDist : null;
-                            } else {
+                                cleanDist = countEntries > 0 ? mapDist : null;
+                            }
+                            e.lockedDistribution = cleanDist;
+                        }
+                        if (e.payoutStatus !== undefined) {
+                            let validStatus = (e.payoutStatus === 'pending' || e.payoutStatus === 'packed' || e.payoutStatus === 'paid')
+                                ? e.payoutStatus
+                                : (e.paid === true ? 'paid' : 'pending');
+                            // Enforce cross-invariants: pending cannot hold locked bills; packed with amount > 0 requires locked bills
+                            if (validStatus === 'pending') {
+                                if (e.lockedDistribution !== undefined) e.lockedDistribution = null;
+                            } else if (validStatus === 'packed' && (Number(e.amount) || 0) > 0 && !cleanDist) {
+                                validStatus = 'pending';
                                 e.lockedDistribution = null;
                             }
+                            e.payoutStatus = validStatus;
+                            e.paid = validStatus === 'paid';
                         }
                         return e;
                     });
@@ -179,11 +213,6 @@
             }
             if (cleanPayload.data.currencySymbol !== undefined) {
                 cleanPayload.data.currencySymbol = SplitXCurrencies.sanitizeCurrencySymbol(cleanPayload.data.currencySymbol);
-            }
-            if (cleanPayload.data.denominations !== undefined) {
-                const safeDenoms = sanitizePositiveNumbers(cleanPayload.data.denominations);
-                if (safeDenoms.length > 0) cleanPayload.data.denominations = safeDenoms;
-                else delete cleanPayload.data.denominations;
             }
             if (cleanPayload.data.coinDenoms !== undefined) {
                 const safeCoins = sanitizePositiveNumbers(cleanPayload.data.coinDenoms);
@@ -259,6 +288,13 @@
         // Snapshot prior raw values for atomic rollback
         /** @type {Array<[string, string | null]>} */
         const snapshot = ALL_KEYS.map((/** @type {string} */ k) => [k, typeof storage.get === 'function' ? storage.get(k) : null]);
+        const prevDataObj = safeJsonParse(typeof storage.get === 'function' ? storage.get(KEYS.DATA) : null);
+        if (clean.payload.data && (isPlainObj(prevDataObj) && Number.isFinite(Number(prevDataObj._rev)) || Number.isFinite(Number(clean.payload.data._rev)))) {
+            const prevRev = Number(prevDataObj?._rev) || 0;
+            const restoredRev = Number(clean.payload.data._rev) || 0;
+            clean.payload.data._rev = Math.max(prevRev, restoredRev) + 1;
+            clean.payload.data._epoch = Date.now().toString(36);
+        }
 
         const rollback = () => {
             for (const [key, prev] of snapshot) {

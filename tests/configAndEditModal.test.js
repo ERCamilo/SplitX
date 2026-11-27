@@ -64,7 +64,7 @@ describe('SplitXEditModal pure payroll & loan calculations (#28)', () => {
         assert.equal(res.net, 0);
     });
 
-    test('openEditModal preserves manual unreconciled net and saveEmployeeModal rejects negative or >2 decimal values', () => {
+    test('openEditModal preserves manual unreconciled net and saveEmployeeModal rejects negative or >2 decimal values', async () => {
         const elements = new Map();
         const mk = (id) => {
             const classes = new Set();
@@ -155,6 +155,22 @@ describe('SplitXEditModal pure payroll & loan calculations (#28)', () => {
             modal.openEditModal(10);
             elements.get('editEmpNet').value = '9000';
             modal.saveEmployeeModal();
+            assert.equal(state.employees[0].payoutStatus, 'pending');
+            assert.equal(state.employees[0].lockedDistribution, null);
+
+            // Sprint E: editing a name in 'normal' mode must NEVER silently flip state.payrollMode to 'deductions'
+            state.payrollMode = 'normal';
+            modal.openEditModal(10);
+            elements.get('editEmpName').value = 'Ana Editada';
+            modal.saveEmployeeModal();
+            assert.equal(state.payrollMode, 'normal', 'saveEmployeeModal must not silently switch payrollMode');
+
+            // Sprint E: revertEmployeeToOriginal on a packed employee must reset payoutStatus & lockedDistribution
+            state.employees[0].originalData = { name: 'Ana Orig', amount: 8500, payroll: { gross: 10000, bonuses: 0, discounts: 500, loans: 500, afterDiscounts: 9500, net: 8500 } };
+            state.employees[0].payoutStatus = 'packed';
+            state.employees[0].lockedDistribution = { 1000: 9 };
+            modal.openEditModal(10);
+            await modal.revertEmployeeToOriginal(10);
             assert.equal(state.employees[0].payoutStatus, 'pending');
             assert.equal(state.employees[0].lockedDistribution, null);
         } finally {

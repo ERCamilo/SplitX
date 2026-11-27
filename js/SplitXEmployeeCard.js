@@ -146,7 +146,7 @@
 
             if (currentFormat === 'qty_x_denom') {
                 return `
-                    <div class="inline-flex items-center gap-1.5 ${chipOpacity}" title="${tooltip}">
+                    <div class="inline-flex items-center gap-1.5"${chipOpacity ? ` style="${chipOpacity}"` : ''} title="${tooltip}">
                         <span class="font-mono ${currentSize.textMultiplier} ${isZero ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}">${count}<span class="text-slate-400 font-sans font-normal opacity-70 ml-0.5">×</span></span>
                         ${chipHTML}
                     </div>
@@ -154,7 +154,7 @@
             }
             if (currentFormat === 'denom_x_qty') {
                 return `
-                    <div class="inline-flex items-center gap-1.5 ${chipOpacity}" title="${tooltip}">
+                    <div class="inline-flex items-center gap-1.5"${chipOpacity ? ` style="${chipOpacity}"` : ''} title="${tooltip}">
                         ${chipHTML}
                         <span class="font-mono ${currentSize.textMultiplier} ${isZero ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}"><span class="text-slate-400 font-sans font-normal opacity-70 mr-0.5">×</span>${count}</span>
                     </div>
@@ -414,7 +414,7 @@
         } else if (!isPaid && !isPacked && isCentsDeficit && !isPreview) {
             errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-coins mr-1"></i>Faltan centavos: ${escapeHTML(fmt(emp._missingAmount || 0))}</div>`;
         } else if (!isPaid && !isPacked && hasCents) {
-            errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-scissors mr-1"></i>Monto con centavos (${escapeHTML(fmt(emp.amount))})</div>`;
+            errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-scissors mr-1"></i>Monto con centavos (${escapeHTML(fmt(effAmount))})</div>`;
         }
 
         const cashBoxHTML = breakdownHTML || '<span class="text-[11px] text-slate-400 dark:text-slate-500 italic">Sin billetes asignados...</span>';
@@ -426,7 +426,8 @@
         const pillNumberText = (cardNumberMode === 'ref' && hasEmpNum) ? String(emp.employeeNumber).trim() : stableOrderNum;
         const pillNumSizeClass = pillNumberText.length >= 3 ? 'text-xs' : 'text-base';
 
-        const displayName = (hasEmpNum && emp.employeeName && !emp.isEdited) ? String(emp.employeeName) : String(emp.name || '');
+        const nameWasEdited = !!(emp.isEdited && emp.originalData && emp.originalData.name && emp.name !== emp.originalData.name);
+        const displayName = (hasEmpNum && emp.employeeName && !nameWasEdited) ? String(emp.employeeName) : String(emp.name || '');
         const refBadgeHTML = (cardNumberMode === 'order' && hasEmpNum)
             ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0" title="Referencia SA">Ref #${escapeHTML(emp.employeeNumber)}</span>`
             : '';

@@ -225,4 +225,17 @@ describe('pasted Excel: payroll breakdown & exported sheet round-trip', () => {
         assert.equal(r2.employees[1].paid, false);
         assert.equal(r2.employees[2].paid, false);
     });
+
+    test('skips TOTAL PENDIENTE DE ENTREGA summary row exported by SplitX Sheet 2 (Sprint E)', () => {
+        const raw = [
+            '#\tNombre\tBruto\tBonif.\tDesc.\tDespues desc.\tPrestamos\tNeto\tRD$1000\tEstado\tPagado',
+            '1\tAna\t1000\t0\t0\t1000\t0\t1000\t1\tOK\tPagado',
+            '2\tLuis\t2000\t0\t0\t2000\t0\t2000\t2\tOK\tPendiente',
+            '\tTOTAL NÓMINA\t3000\t0\t0\t3000\t0\t3000\t3\t\t',
+            '\tTOTAL PENDIENTE DE ENTREGA\t\t\t\t\t\t2000\t2\t\t'
+        ].join('\n');
+        const res = parseExcelText(raw);
+        assert.equal(res.errors.length, 0);
+        assert.equal(res.employees.length, 2, 'TOTAL PENDIENTE DE ENTREGA must never be imported as an employee');
+    });
 });

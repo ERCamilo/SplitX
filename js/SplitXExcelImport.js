@@ -142,7 +142,7 @@
             const numCol = (cols[numIdx] || '').trim();
             const nameCol = normalizeHeader(cols[nameIdx] || '');
             if (numCol === '★' || /^fondo (para )?nuevos prestamos/.test(nameCol)) return true;
-            if (!numCol && /^total(es| nomina| general)?$/.test(nameCol)) return true;
+            if (!numCol && /^total(es| nomina| general| pendiente( de entrega)?)?$/.test(nameCol)) return true;
             return false;
         };
 

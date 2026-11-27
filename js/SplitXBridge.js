@@ -241,22 +241,28 @@
                     importMode = choice === 'append' ? 'append' : 'replace';
                     if (choice === 'replace') {
                         state.employees = newEmps;
+                        state.payrollLoanFund = 0;
+                        state.bankLimits = {};
                     } else if (choice === 'append') {
                         state.employees = [...state.employees, ...newEmps];
                     }
                 } else {
                     state.employees = newEmps;
+                    state.payrollLoanFund = 0;
+                    state.bankLimits = {};
                 }
 
-                // La moneda solo cambia cuando el usuario confirma (no al cancelar)
-                if (currency && typeof currency === 'string') {
+                const hasCommittedEnvelopes = importMode === 'append' && state.employees.some((/** @type {any} */ e) => e && (e.payoutStatus === 'packed' || e.payoutStatus === 'paid' || e.paid === true));
+
+                // La moneda solo cambia cuando el usuario confirma y no hay sobres comprometidos en append
+                if (!hasCommittedEnvelopes && currency && typeof currency === 'string') {
                     const code = currency.toUpperCase();
                     if (['DOP', 'USD', 'EUR', 'MXN', 'COP', 'ARS', 'CLP', 'PEN', 'BRL', 'GBP', 'CHF', 'JPY', 'INR', 'PHP', 'RUB'].includes(code)) {
                         setCurrencyPreset(code);
                     }
                 }
 
-                if (state.employees.some((/** @type {any} */ e) => e.payroll)) {
+                if (!hasCommittedEnvelopes && state.employees.some((/** @type {any} */ e) => e.payroll)) {
                     state.payrollMode = 'deductions';
                 }
 

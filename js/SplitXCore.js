@@ -54,12 +54,15 @@
 
     /**
      * Calcula el resumen contable del libro mayor (Cuadre de Mesa en vivo) en centavos enteros.
+     * Mantiene la identidad exacta: totalBox - packedBillsTotal - paidFromBoxTotal + overcommitTotal === looseTotal.
      * @param {number[]} denominations
      * @param {Record<number | string, number>} initialInventory
      * @param {Array<any>} coverageResults
+     * @param {{ amount?: number, missingAmount?: number } | null} [loanFundResult]
      */
-    const computeLedgerSummary = (denominations, initialInventory, coverageResults) => {
+    const computeLedgerSummary = (denominations, initialInventory, coverageResults, loanFundResult = null) => {
         const denoms = Array.isArray(denominations) ? denominations : [];
+        const denomSet = new Set(denoms.map(Number));
         const inv = initialInventory && typeof initialInventory === 'object' ? initialInventory : {};
         const list = Array.isArray(coverageResults) ? coverageResults : [];
 
@@ -82,9 +85,15 @@
         }
 
         let paidCents = 0;
+        let paidFromBoxCents = 0;
+        let paidExternalCents = 0;
         let packedCents = 0;
+        let packedBillsCents = 0;
         let pendingCents = 0;
+        let orphanedLockedCents = 0;
         let paidCount = 0;
+        let paidFromBoxCount = 0;
+        let paidExternalCount = 0;
         let packedCount = 0;
         let pendingCount = 0;
         let shortageCount = 0;
@@ -98,23 +107,34 @@
                 paidCount += 1;
                 paidCents += effCents;
                 if (locked) {
-                    for (const d of denoms) {
-                        const q = locked[d] || 0;
-                        if (q > 0) {
+                    paidFromBoxCount += 1;
+                    for (const [k, q] of Object.entries(locked)) {
+                        const d = Number(k);
+                        if (denomSet.has(d)) {
                             paidBills[d] += q;
                             committedBills[d] += q;
+                            paidFromBoxCents += q * toCents(d);
+                        } else {
+                            orphanedLockedCents += q * toCents(d);
                         }
                     }
+                } else {
+                    paidExternalCount += 1;
+                    paidExternalCents += effCents;
                 }
-            } else if (st === 'packed') {
+            } else if (st === 'packed' && (locked || effCents === 0)) {
                 packedCount += 1;
                 packedCents += effCents;
-                const src = locked || sanitizeLockedDistribution(emp.distribution) || {};
-                for (const d of denoms) {
-                    const q = src[d] || 0;
-                    if (q > 0) {
-                        packedBills[d] += q;
-                        committedBills[d] += q;
+                if (locked) {
+                    for (const [k, q] of Object.entries(locked)) {
+                        const d = Number(k);
+                        if (denomSet.has(d)) {
+                            packedBills[d] += q;
+                            committedBills[d] += q;
+                            packedBillsCents += q * toCents(d);
+                        } else {
+                            orphanedLockedCents += q * toCents(d);
+                        }
                     }
                 }
             } else {
@@ -128,13 +148,16 @@
 
         let totalBoxCents = 0;
         let looseCents = 0;
+        let overcommitCents = 0;
         for (const d of denoms) {
             const dCents = toCents(d);
             const initialQty = Math.max(0, Number(inv[d]) || 0);
             const committedQty = committedBills[d] || 0;
             totalBoxCents += initialQty * dCents;
             if (committedQty > initialQty) {
-                overcommittedDenoms[d] = committedQty - initialQty;
+                const diff = committedQty - initialQty;
+                overcommittedDenoms[d] = diff;
+                overcommitCents += diff * dCents;
                 physicalLooseOnTable[d] = 0;
             } else {
                 physicalLooseOnTable[d] = initialQty - committedQty;
@@ -142,7 +165,11 @@
             }
         }
 
+        const loanFundCents = Math.max(0, toCents(loanFundResult?.amount || 0));
+        const loanFundMissingCents = Math.max(0, toCents(loanFundResult?.missingAmount || 0));
         const totalPayrollCents = paidCents + packedCents + pendingCents;
+        const totalRequiredCents = totalPayrollCents + loanFundCents;
+
         return {
             packedBills,
             paidBills,
@@ -151,11 +178,21 @@
             overcommittedDenoms,
             totalBox: fromCents(totalBoxCents),
             totalPayroll: fromCents(totalPayrollCents),
+            totalRequired: fromCents(totalRequiredCents),
             paidTotal: fromCents(paidCents),
+            paidFromBoxTotal: fromCents(paidFromBoxCents),
+            paidExternalTotal: fromCents(paidExternalCents),
             packedTotal: fromCents(packedCents),
+            packedBillsTotal: fromCents(packedBillsCents),
             pendingTotal: fromCents(pendingCents),
+            loanFundAmount: fromCents(loanFundCents),
+            loanFundMissing: fromCents(loanFundMissingCents),
+            overcommitTotal: fromCents(overcommitCents),
+            orphanedLockedTotal: fromCents(orphanedLockedCents),
             looseTotal: fromCents(looseCents),
             paidCount,
+            paidFromBoxCount,
+            paidExternalCount,
             packedCount,
             pendingCount,
             shortageCount
@@ -331,8 +368,12 @@
 
             for (const idx of indices) {
                 const emp = state.employees[idx];
-                const payoutStatus = getEmployeePayoutStatus(emp);
+                const rawStatus = getEmployeePayoutStatus(emp);
                 const locked = sanitizeLockedDistribution(emp.lockedDistribution);
+                const targetAmount = Math.max(0, fromCents(toCents(getEffectiveEmployeeAmount(emp))));
+                // Enforce invariant: a packed employee with amount > 0 MUST have a lockedDistribution;
+                // otherwise downgrade cleanly to pending so distribution and Cuadre never diverge.
+                const payoutStatus = (rawStatus === 'packed' && targetAmount > 0 && !locked) ? 'pending' : rawStatus;
                 /** @type {Record<number, number>} */
                 let distribution = {};
                 let status = 'ok';
@@ -340,14 +381,13 @@
                 let missingAmount; // solo se define para empleados no pagados
                 /** @type {string[]} */
                 let notes = [];
-                const targetAmount = Math.max(0, fromCents(toCents(getEffectiveEmployeeAmount(emp))));
 
                 if (payoutStatus === 'paid') {
                     // Ledger-paid preserves its locked bills (already deducted above); legacy/checklist paid shows ideal without deducting
                     distribution = locked ? { ...locked } : getIdealBreakdown(targetAmount).distribution;
                 } else if (payoutStatus === 'packed') {
                     // Envelope already assembled and bills reserved in commit pass above
-                    distribution = locked ? { ...locked } : getIdealBreakdown(targetAmount).distribution;
+                    distribution = locked ? { ...locked } : {};
                     missingAmount = 0;
                 } else {
                     // Pending employee: allocate from remaining uncommitted cash
@@ -368,6 +408,7 @@
                     _originalIndex: idx,
                     payoutStatus,
                     paid: payoutStatus === 'paid',
+                    lockedDistribution: payoutStatus === 'pending' ? null : locked,
                     _missingAmount: missingAmount,
                     effectiveAmount: targetAmount,
                     distribution,
@@ -516,6 +557,13 @@
                 tempTotalBreakdown[denom] += loanFundBreakdown[denom] || 0;
             });
 
+            // Include any overcommitted bills when Mi Caja was lowered below already-packed/paid locked envelopes
+            const ledger = computeLedgerSummary(state.denominations, state.inventory, coverage.results, loanFundResult);
+            state.denominations.forEach((/** @type {number} */ denom) => {
+                const overQty = ledger.overcommittedDenoms[denom] || 0;
+                if (overQty > 0) tempTotalBreakdown[denom] += overQty;
+            });
+
             // Apply Limits & Cascade in integer cents
             /** @type {Record<number, { ideal: number, neededAfterCarry: number, final: number }>} */
             let finalOrder = {};
@@ -602,6 +650,8 @@
         const list = Array.isArray(employees) ? employees : [];
         let count = 0;
         const next = list.map(emp => {
+            // Never retroactively alter amounts of already-paid employees
+            if (getEmployeePayoutStatus(emp) === 'paid') return emp;
             const hasPayroll = !!(emp && emp.payroll);
             const curAmount = fromCents(toCents(emp?.amount));
             const curAfter = hasPayroll && emp.payroll.afterDiscounts !== undefined && emp.payroll.afterDiscounts !== null

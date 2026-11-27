@@ -308,6 +308,64 @@ describe('3-State Payout Ledger (Pendiente -> En sobre -> Pagado)', () => {
         assert.equal(res.employees[1].payoutStatus, 'packed');
         assert.deepEqual(res.employees[1].lockedDistribution, { 500: 1 });
     });
+
+    test('Sprint E ledger invariants: paidExternal separation, overcommit in Bank Planner, no packed split-brain, and paid skipped by roundEmployeeAmounts', () => {
+        const { computeLedgerSummary } = require('../js/SplitXCore.js');
+
+        // 1. Hybrid/external paid (lockedDistribution: null) must not corrupt box balance identity
+        const { core: c1, state: s1 } = make({
+            denominations: [1000, 500],
+            inventory: { 1000: 2, 500: 0 }, // 2,000 in box
+            employees: [
+                { id: 1, name: 'ExtPaid', amount: 1000, paid: true, payoutStatus: 'paid', lockedDistribution: null },
+                { id: 2, name: 'Packed', amount: 1000, paid: false, payoutStatus: 'packed', lockedDistribution: { 1000: 1 } },
+                { id: 3, name: 'Pend', amount: 1000, paid: false, payoutStatus: 'pending' }
+            ]
+        });
+        const cov1 = c1.calculateDistribution();
+        const sum1 = computeLedgerSummary(s1.denominations, s1.inventory, cov1.results, cov1.loanFundResult);
+        assert.equal(sum1.paidFromBoxTotal, 0);
+        assert.equal(sum1.paidExternalTotal, 1000);
+        assert.equal(sum1.packedBillsTotal, 1000);
+        assert.equal(sum1.looseTotal, 1000);
+        assert.equal(sum1.totalBox - sum1.packedBillsTotal - sum1.paidFromBoxTotal + sum1.overcommitTotal, sum1.looseTotal);
+
+        // 2. Overcommit: Mi Caja lowered below packed envelope -> Bank Planner must order the missing 2,000!
+        const { core: c2, state: s2 } = make({
+            denominations: [2000, 1000],
+            inventory: { 2000: 0, 1000: 0 },
+            employees: [
+                { id: 1, name: 'Packed', amount: 2000, paid: false, payoutStatus: 'packed', lockedDistribution: { 2000: 1 } }
+            ]
+        });
+        const cov2 = c2.calculateDistribution();
+        const sum2 = computeLedgerSummary(s2.denominations, s2.inventory, cov2.results, cov2.loanFundResult);
+        assert.equal(sum2.overcommitTotal, 2000);
+        const bank2 = c2.calculateBankNeeds(cov2);
+        assert.equal(bank2.breakdown[2000].final, 1, 'Bank Planner must account for overcommitted denominations');
+
+        // 3. Corrupt packed employee with lockedDistribution: null must downgrade to pending (no split-brain)
+        const { core: c3 } = make({
+            denominations: [1000],
+            inventory: { 1000: 1 },
+            employees: [
+                { id: 1, name: 'BadPacked', amount: 1000, paid: false, payoutStatus: 'packed', lockedDistribution: null },
+                { id: 2, name: 'Pend', amount: 1000, paid: false, payoutStatus: 'pending' }
+            ]
+        });
+        const cov3 = c3.calculateDistribution();
+        assert.equal(cov3.results[0].payoutStatus, 'pending');
+        assert.equal(cov3.results[1]._missingAmount, 1000);
+
+        // 4. roundEmployeeAmounts must NEVER mutate already-paid employees
+        const paidRound = roundEmployeeAmounts([
+            { id: 1, name: 'Settled', amount: 100.50, paid: true, payoutStatus: 'paid', lockedDistribution: { 100: 1, 0.25: 2 } },
+            { id: 2, name: 'Pending', amount: 100.50, paid: false, payoutStatus: 'pending' }
+        ], 'normal');
+        assert.equal(paidRound.count, 1);
+        assert.equal(paidRound.employees[0].amount, 100.50);
+        assert.equal(paidRound.employees[1].amount, 100);
+    });
 });
 
 describe('domain validations and rounding helpers (Issue #25)', () => {

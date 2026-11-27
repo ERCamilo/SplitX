@@ -98,6 +98,8 @@
         const copy = clone(e);
         if (entry.context && !isObj(copy.exportContext)) copy.exportContext = clone(entry.context);
         copy.paid = false;
+        copy.payoutStatus = 'pending';
+        copy.lockedDistribution = null;
         return copy;
     });
 

@@ -259,5 +259,16 @@ describe('SplitXEmployeeCard & Smart Advisor (Issue #28 extraction)', () => {
         }, { statusColorScheme: 'classic' });
         assert.match(paidClassic, /status-paid\b/);
         assert.match(paidClassic, /fa-check-double/);
+
+        // Sprint E: zero-chip opacity in qty_x_denom must be in style="...", never inside class="..."
+        const qtyFmtHtml = render({
+            id: 5, _originalIndex: 4, employeeNumber: '009', employeeName: 'Juan Pérez',
+            name: 'Juan Pérez (Ref #009)', originalData: { name: 'Juan Pérez (Ref #009)' },
+            isEdited: true, amount: 1000, paid: false, payoutStatus: 'pending',
+            status: 'ok', distribution: { 1000: 1 }
+        }, { breakdownFormat: 'qty_x_denom', breakdownShowZeros: true });
+        assert.match(qtyFmtHtml, /style="opacity:0\.25;filter:grayscale\(100%\);"/);
+        assert.equal(/class="[^"]*opacity:0\.25/.test(qtyFmtHtml), false, 'CSS opacity must not be injected into class attribute');
+        assert.match(qtyFmtHtml, />Juan Pérez<\/h3>/, 'editing only bonus/loan must preserve clean employeeName');
     });
 });

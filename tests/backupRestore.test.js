@@ -184,6 +184,29 @@ describe('SplitXBackup: full versioned backup & validated restore (Issue #11)', 
         assert.deepEqual(clean.payload.data.employees[0].lockedDistribution, { 2000: 1, 500: 1 });
         assert.equal(clean.payload.data.employees[1].payoutStatus, 'pending');
         assert.equal(clean.payload.data.employees[1].lockedDistribution, null);
+
+        // Sprint E cross-invariants: packed without lockedDistribution downgrades to pending; pending clears lockedDistribution; inventory negatives clamp to 0
+        const crossDirty = {
+            schema: 'splitx-backup/v1',
+            version: 1,
+            payload: {
+                data: {
+                    denominations: [1000, 500],
+                    inventory: { 1000: -5, 500: 3, bad: 'x' },
+                    employees: [
+                        { id: 1, name: 'BadPacked', amount: 1000, paid: false, payoutStatus: 'packed', lockedDistribution: {} },
+                        { id: 2, name: 'BadPending', amount: 1000, paid: false, payoutStatus: 'pending', lockedDistribution: { 1000: 1 } }
+                    ]
+                },
+                history: null, sheets: null, documents: null
+            }
+        };
+        const cleanCross = SplitXBackup.validateBackup(crossDirty);
+        assert.equal(cleanCross.payload.data.inventory[1000], 0);
+        assert.equal(cleanCross.payload.data.inventory[500], 3);
+        assert.equal(cleanCross.payload.data.employees[0].payoutStatus, 'pending');
+        assert.equal(cleanCross.payload.data.employees[0].lockedDistribution, null);
+        assert.equal(cleanCross.payload.data.employees[1].lockedDistribution, null);
     });
 
     test('restoreBackup rolls back all keys atomically if a write fails mid-restore and clears legacy/corrupt keys on success (Sprint B)', () => {

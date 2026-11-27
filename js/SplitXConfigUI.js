@@ -93,6 +93,8 @@
             if (state.employees && state.employees.length > 0) {
                 const first = state.employees[0];
                 sampleEmp = JSON.parse(JSON.stringify(first));
+                sampleEmp.status = 'ok';
+                sampleEmp._missingAmount = 0;
                 if (!sampleEmp.distribution || Object.keys(sampleEmp.distribution).length === 0) {
                     sampleEmp.distribution = { 2000: 7, 1000: 1, 500: 1, 50: 1, 25: 1, 1: 3 };
                 }
