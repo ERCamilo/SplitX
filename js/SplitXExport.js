@@ -55,6 +55,12 @@
         maximumFractionDigits: dec
     });
 
+    /** Integer-cent arithmetic to prevent IEEE-754 float drift on USD/EUR coin sums. */
+    /** @param {unknown} v */
+    const toCents = (v) => Math.round((Number(v) || 0) * 100);
+    /** @param {number} c */
+    const fromCents = (c) => Math.round(c) / 100;
+
     /**
      * @param {string} src
      * @param {string} integrity
@@ -175,29 +181,108 @@
             });
         }
 
-        const loanFundAmount = loanFundResult?.amount || 0;
+        const loanFundAmount = fromCents(toCents(loanFundResult?.amount || 0));
         const loanFundDistribution = loanFundResult?.distribution || {};
-        const loanFundMissing = loanFundResult?.missingAmount || 0;
+        const loanFundMissing = fromCents(toCents(loanFundResult?.missingAmount || 0));
 
-        let totalToWithdraw = 0;
+        let totalToWithdrawCents = 0;
         /** @type {Record<number, number>} */
         const bankSummary = {};
         denoms.forEach(d => {
             const qty = bankData.breakdown[d]?.final || 0;
             bankSummary[d] = qty;
-            totalToWithdraw += qty * d;
+            totalToWithdrawCents += qty * toCents(d);
         });
+        const totalToWithdraw = fromCents(totalToWithdrawCents);
 
         const empRows = results.map((/** @type {any} */ emp, /** @type {number} */ idx) => {
-            const effAmount = getEffectiveEmployeeAmount(emp);
+            const effAmount = fromCents(toCents(getEffectiveEmployeeAmount(emp)));
             const payoutStatus = (emp.payoutStatus === 'paid' || emp.payoutStatus === 'packed' || emp.payoutStatus === 'pending')
                 ? emp.payoutStatus
                 : (emp.paid ? 'paid' : 'pending');
             /** @type {Record<string | number, any>} */
-            const row = { idx: idx + 1, name: emp.name, amount: effAmount, paid: payoutStatus === 'paid', payoutStatus, status: emp.status, payroll: emp.payroll };
+            const row = {
+                idx: idx + 1,
+                name: emp.name,
+                amount: effAmount,
+                paid: payoutStatus === 'paid',
+                payoutStatus,
+                status: emp.status,
+                missingAmount: fromCents(toCents(emp._missingAmount || 0)),
+                payroll: emp.payroll
+            };
             denoms.forEach(d => { row[d] = emp.distribution[d] || 0; });
             return row;
         });
+
+        // Compute exact integer-cent Ledger/Cuadre summary for export reconciliation
+        const inv = state.inventory || {};
+        /** @type {Record<number, number>} */
+        const packedBills = {};
+        /** @type {Record<number, number>} */
+        const paidBills = {};
+        denoms.forEach(d => { packedBills[d] = 0; paidBills[d] = 0; });
+
+        let totalBoxCents = 0;
+        denoms.forEach(d => {
+            totalBoxCents += Math.max(0, Number(inv[d]) || 0) * toCents(d);
+        });
+
+        let paidCents = 0;
+        let packedCents = 0;
+        let pendingCents = 0;
+        let missingCents = toCents(loanFundMissing);
+        let paidCount = 0;
+        let packedCount = 0;
+        let pendingCount = 0;
+
+        results.forEach((/** @type {any} */ emp) => {
+            const st = (emp.payoutStatus === 'paid' || emp.payoutStatus === 'packed' || emp.payoutStatus === 'pending')
+                ? emp.payoutStatus
+                : (emp.paid ? 'paid' : 'pending');
+            const amtCents = toCents(getEffectiveEmployeeAmount(emp));
+            const locked = emp.lockedDistribution && typeof emp.lockedDistribution === 'object' ? emp.lockedDistribution : null;
+            if (st === 'paid') {
+                paidCount += 1;
+                paidCents += amtCents;
+                if (locked) {
+                    denoms.forEach(d => { paidBills[d] += Math.max(0, Number(locked[d]) || 0); });
+                }
+            } else if (st === 'packed') {
+                packedCount += 1;
+                packedCents += amtCents;
+                if (locked) {
+                    denoms.forEach(d => { packedBills[d] += Math.max(0, Number(locked[d]) || 0); });
+                }
+            } else {
+                pendingCount += 1;
+                pendingCents += amtCents;
+                missingCents += toCents(emp._missingAmount || 0);
+            }
+        });
+
+        let looseCents = 0;
+        let overcommitCents = 0;
+        denoms.forEach(d => {
+            const avail = Math.max(0, Number(inv[d]) || 0);
+            const committed = (packedBills[d] || 0) + (paidBills[d] || 0);
+            const diff = avail - committed;
+            if (diff >= 0) looseCents += diff * toCents(d);
+            else overcommitCents += (-diff) * toCents(d);
+        });
+
+        const ledgerSummary = {
+            totalBox: fromCents(totalBoxCents),
+            paidTotal: fromCents(paidCents),
+            packedTotal: fromCents(packedCents),
+            pendingTotal: fromCents(pendingCents + toCents(loanFundAmount)),
+            looseTotal: fromCents(looseCents),
+            overcommitTotal: fromCents(overcommitCents),
+            totalMissing: fromCents(missingCents),
+            paidCount,
+            packedCount,
+            pendingCount
+        };
 
         return {
             payrollMode: state.payrollMode || 'deductions',
@@ -211,7 +296,8 @@
             loanFundDistribution,
             bankData,
             bankSummary,
-            totalToWithdraw
+            totalToWithdraw,
+            ledgerSummary
         };
     };
 
@@ -278,18 +364,33 @@
         lines.push(csvRow(['--- RESUMEN FINANCIERO Y SOLICITUD BANCARIA ---']));
         lines.push(csvRow(['Concepto', `Monto (${currencySymbol})`]));
         if (hasPayroll) {
-            lines.push(csvRow(['Total Sueldo Bruto', payrollSummary.gross]));
-            lines.push(csvRow(['Total Bonificaciones', payrollSummary.bonuses]));
-            lines.push(csvRow(['Total Descuentos', payrollSummary.discounts]));
-            lines.push(csvRow(['Total Préstamos Descontados en Nómina', loansDeducted]));
-            lines.push(csvRow(['Fondo Reservado para Nuevos Préstamos', loanFundAmount]));
-            lines.push(csvRow(['Recaudación Restante en Empresa', Math.max(0, loansDeducted - loanFundAmount)]));
-            lines.push(csvRow(['Total Neto Nómina a Pagar', payrollSummary.net]));
+            lines.push(csvRow(['Total Sueldo Bruto', fromCents(toCents(payrollSummary.gross))]));
+            lines.push(csvRow(['Total Bonificaciones', fromCents(toCents(payrollSummary.bonuses))]));
+            lines.push(csvRow(['Total Descuentos', fromCents(toCents(payrollSummary.discounts))]));
+            lines.push(csvRow(['Total Préstamos Descontados en Nómina', fromCents(toCents(loansDeducted))]));
+            lines.push(csvRow(['Fondo Reservado para Nuevos Préstamos', fromCents(toCents(loanFundAmount))]));
+            lines.push(csvRow(['Recaudación Restante en Empresa', Math.max(0, fromCents(toCents(loansDeducted) - toCents(loanFundAmount)))]));
+            lines.push(csvRow(['Total Neto Nómina a Pagar', fromCents(toCents(payrollSummary.net))]));
         } else {
-            lines.push(csvRow(['Total Nómina', empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + e.amount, 0)]));
-            if (loanFundAmount > 0) lines.push(csvRow(['Fondo Nuevos Préstamos', loanFundAmount]));
+            const totalNominaCents = empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + toCents(e.amount), 0);
+            lines.push(csvRow(['Total Nómina', fromCents(totalNominaCents)]));
+            if (loanFundAmount > 0) lines.push(csvRow(['Fondo Nuevos Préstamos', fromCents(toCents(loanFundAmount))]));
         }
-        lines.push(csvRow(['TOTAL A RETIRAR DEL BANCO (NÓMINA + RESERVA)', totalToWithdraw]));
+        lines.push(csvRow(['TOTAL A RETIRAR DEL BANCO (NÓMINA + RESERVA)', fromCents(toCents(totalToWithdraw))]));
+
+        const ls = data.ledgerSummary;
+        if (ls && (ls.totalBox > 0 || ls.packedCount > 0 || ls.paidCount > 0 || ls.totalMissing > 0 || ls.overcommitTotal > 0)) {
+            lines.push('');
+            lines.push(csvRow(['--- CUADRE DE CAJA Y ESTADO DE ENTREGA ---']));
+            lines.push(csvRow(['Concepto', `Monto (${currencySymbol})`]));
+            lines.push(csvRow(['Caja inicial', ls.totalBox]));
+            lines.push(csvRow(['Pagado', ls.paidTotal]));
+            lines.push(csvRow(['En sobre', ls.packedTotal]));
+            lines.push(csvRow(['Pendiente', ls.pendingTotal]));
+            lines.push(csvRow(['Suelto en mesa', ls.looseTotal]));
+            if (ls.overcommitTotal > 0) lines.push(csvRow(['SOBRECOMPROMISO EN CAJA', ls.overcommitTotal]));
+            if (ls.totalMissing > 0) lines.push(csvRow(['FALTANTE EN CAJA', ls.totalMissing]));
+        }
         return lines.join('\n') + '\n';
     };
 
@@ -343,7 +444,7 @@
                 return;
             }
             const XLSX = /** @type {any} */ (globalThis).XLSX;
-            const { payrollMode, denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw, bankSummary } = getData();
+            const { payrollMode, denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, totalToWithdraw, bankSummary, ledgerSummary } = getData();
             const isNormalMode = payrollMode === 'normal';
             const loansDeducted = isNormalMode ? 0 : payrollSummary.loans;
             const hasPayroll = payrollSummary.count > 0;
@@ -360,21 +461,21 @@
                 ['1. RESUMEN DE BILLETES Y MONEDAS PARA PAGO EN CAJA'],
                 [`Denominación (${sym})`, 'Cantidad de Billetes', `Valor Total (${sym})`]
             ];
-            let grandTotal = 0;
+            let grandTotalCents = 0;
             denoms.forEach(d => {
                 const qty = summary[d] || 0;
-                const val = qty * d;
-                grandTotal += val;
-                s1Data.push([d, qty, val]);
+                const valCents = qty * toCents(d);
+                grandTotalCents += valCents;
+                s1Data.push([d, qty, fromCents(valCents)]);
             });
-            s1Data.push(['TOTAL NÓMINA EN CAJA', '', grandTotal]);
+            s1Data.push(['TOTAL NÓMINA EN CAJA', '', fromCents(grandTotalCents)]);
             s1Data.push([]);
 
             s1Data.push(['2. SOLICITUD DE RETIRO AL BANCO (VENTANILLA)']);
             s1Data.push([`Denominación (${sym})`, 'Cantidad a Retirar', `Valor Total (${sym})`]);
             denoms.forEach(d => {
                 const qty = bankSummary[d] || 0;
-                s1Data.push([d, qty, qty * d]);
+                s1Data.push([d, qty, fromCents(qty * toCents(d))]);
             });
             s1Data.push(['TOTAL A SOLICITAR AL BANCO', '', totalToWithdraw]);
             s1Data.push([]);
@@ -382,14 +483,27 @@
             if (hasPayroll || loanFundAmount > 0) {
                 s1Data.push(['3. RESUMEN DE PRÉSTAMOS Y RESERVAS']);
                 s1Data.push(['Concepto', '', `Monto (${sym})`]);
-                s1Data.push(['Sueldo Bruto Total', '', payrollSummary.gross]);
-                s1Data.push(['Bonificaciones Totales', '', payrollSummary.bonuses]);
-                s1Data.push(['Descuentos Totales', '', payrollSummary.discounts]);
-                s1Data.push([isNormalMode ? 'Préstamos Descontados (Modo Normal: Omitidos)' : 'Préstamos Descontados en Nómina', '', loansDeducted]);
+                s1Data.push(['Sueldo Bruto Total', '', fromCents(toCents(payrollSummary.gross))]);
+                s1Data.push(['Bonificaciones Totales', '', fromCents(toCents(payrollSummary.bonuses))]);
+                s1Data.push(['Descuentos Totales', '', fromCents(toCents(payrollSummary.discounts))]);
+                s1Data.push([isNormalMode ? 'Préstamos Descontados (Modo Normal: Omitidos)' : 'Préstamos Descontados en Nómina', '', fromCents(toCents(loansDeducted))]);
                 s1Data.push(['Fondo Reservado para Nuevos Préstamos', '', loanFundAmount]);
-                s1Data.push(['Recaudación Restante en Empresa', '', Math.max(0, loansDeducted - loanFundAmount)]);
-                s1Data.push(['Total Neto a Pagar a Empleados', '', payrollSummary.net]);
+                s1Data.push(['Recaudación Restante en Empresa', '', Math.max(0, fromCents(toCents(loansDeducted) - toCents(loanFundAmount)))]);
+                s1Data.push(['Total Neto a Pagar a Empleados', '', fromCents(toCents(payrollSummary.net))]);
                 s1Data.push(['Total Efectivo a Retirar del Banco', '', totalToWithdraw]);
+                s1Data.push([]);
+            }
+
+            if (ledgerSummary && (ledgerSummary.totalBox > 0 || ledgerSummary.packedCount > 0 || ledgerSummary.paidCount > 0 || ledgerSummary.totalMissing > 0 || ledgerSummary.overcommitTotal > 0)) {
+                s1Data.push(['CUADRE DE CAJA Y ESTADO DE ENTREGA']);
+                s1Data.push(['Concepto', '', `Monto (${sym})`]);
+                s1Data.push(['Caja inicial', '', ledgerSummary.totalBox]);
+                s1Data.push([`Pagado (${ledgerSummary.paidCount})`, '', ledgerSummary.paidTotal]);
+                s1Data.push([`En sobre (${ledgerSummary.packedCount})`, '', ledgerSummary.packedTotal]);
+                s1Data.push([`Pendiente (${ledgerSummary.pendingCount})`, '', ledgerSummary.pendingTotal]);
+                s1Data.push(['Suelto en mesa', '', ledgerSummary.looseTotal]);
+                if (ledgerSummary.overcommitTotal > 0) s1Data.push(['SOBRECOMPROMISO EN CAJA', '', ledgerSummary.overcommitTotal]);
+                if (ledgerSummary.totalMissing > 0) s1Data.push(['FALTANTE EN CAJA', '', ledgerSummary.totalMissing]);
             }
 
             const ws1 = XLSX.utils.aoa_to_sheet(s1Data);
@@ -440,7 +554,7 @@
                 ]);
             }
 
-            const totalNominaAmount = empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + e.amount, 0) + loanFundAmount;
+            const totalNominaAmount = fromCents(empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + toCents(e.amount), 0) + toCents(loanFundAmount));
             const totalRow = hasPayroll
                 ? ['', 'TOTAL NÓMINA', payrollSummary.gross, payrollSummary.bonuses, payrollSummary.discounts, payrollSummary.afterDiscounts, loansDeducted, totalNominaAmount]
                 : ['', 'TOTAL', totalNominaAmount];
@@ -451,7 +565,7 @@
 
             const hasPaidRows = empRows.some((/** @type {any} */ e) => e.paid);
             if (hasPaidRows) {
-                const pendingAmount = empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (!e.paid ? e.amount : 0), 0) + loanFundAmount;
+                const pendingAmount = fromCents(empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (!e.paid ? toCents(e.amount) : 0), 0) + toCents(loanFundAmount));
                 const pendingRow = hasPayroll
                     ? ['', 'TOTAL PENDIENTE DE ENTREGA', '', '', '', '', '', pendingAmount]
                     : ['', 'TOTAL PENDIENTE DE ENTREGA', pendingAmount];
@@ -478,7 +592,7 @@
             ];
             denoms.forEach(d => {
                 const qty = bankSummary[d] || 0;
-                s3Data.push([d, qty, qty * d]);
+                s3Data.push([d, qty, fromCents(qty * toCents(d))]);
             });
             s3Data.push([]);
             s3Data.push(['TOTAL GENERAL A RETIRAR', '', totalToWithdraw]);
@@ -509,7 +623,7 @@
             const state = deps.getState();
             const sym = deps.getCurrencySymbol();
             const money = (/** @type {number} */ n, /** @type {number} */ dec = 2) => `${sym} ${formatNum(n, dec)}`;
-            const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount } = getData();
+            const { denoms, summary, empRows, payrollSummary, loanFundResult, loanFundAmount, ledgerSummary } = getData();
             const dateTag = isoDateTag();
             const today = new Date().toLocaleDateString('es-DO');
 
@@ -535,20 +649,20 @@
 
             /** @type {any[]} */
             const summaryBody = [];
-            let grandTotalCash = 0;
+            let grandTotalCashCents = 0;
             denoms.forEach(d => {
                 const qty = summary[d] || 0;
-                const val = qty * d;
-                grandTotalCash += val;
+                const valCents = qty * toCents(d);
+                grandTotalCashCents += valCents;
                 if (qty > 0) {
                     const dec = Number.isInteger(d) ? 0 : 2;
-                    summaryBody.push([money(d, dec), qty.toLocaleString('en-US'), money(val)]);
+                    summaryBody.push([money(d, dec), qty.toLocaleString('en-US'), money(fromCents(valCents))]);
                 }
             });
             summaryBody.push([
                 { content: 'TOTAL GENERAL', styles: { fontStyle: 'bold' } },
                 { content: '', styles: { fontStyle: 'bold' } },
-                { content: money(grandTotalCash), styles: { fontStyle: 'bold' } }
+                { content: money(fromCents(grandTotalCashCents)), styles: { fontStyle: 'bold' } }
             ]);
 
             const table1Width = 190;
@@ -564,6 +678,40 @@
                 alternateRowStyles: { fillColor: [248, 250, 252] }
             });
 
+            if (ledgerSummary && (ledgerSummary.totalBox > 0 || ledgerSummary.packedCount > 0 || ledgerSummary.paidCount > 0 || ledgerSummary.totalMissing > 0 || ledgerSummary.overcommitTotal > 0)) {
+                /** @type {any[]} */
+                const cuadreRows = [
+                    ['Caja inicial', money(ledgerSummary.totalBox)],
+                    [`Pagado (${ledgerSummary.paidCount})`, money(ledgerSummary.paidTotal)],
+                    [`En sobre (${ledgerSummary.packedCount})`, money(ledgerSummary.packedTotal)],
+                    [`Pendiente (${ledgerSummary.pendingCount})`, money(ledgerSummary.pendingTotal)],
+                    [{ content: 'Suelto en mesa', styles: { fontStyle: 'bold' } }, { content: money(ledgerSummary.looseTotal), styles: { fontStyle: 'bold' } }]
+                ];
+                if (ledgerSummary.overcommitTotal > 0) {
+                    cuadreRows.push([
+                        { content: 'SOBRECOMPROMISO EN CAJA', styles: { fontStyle: 'bold', textColor: [225, 29, 72] } },
+                        { content: money(ledgerSummary.overcommitTotal), styles: { fontStyle: 'bold', textColor: [225, 29, 72] } }
+                    ]);
+                }
+                if (ledgerSummary.totalMissing > 0) {
+                    cuadreRows.push([
+                        { content: 'FALTANTE EN CAJA', styles: { fontStyle: 'bold', textColor: [225, 29, 72] } },
+                        { content: money(ledgerSummary.totalMissing), styles: { fontStyle: 'bold', textColor: [225, 29, 72] } }
+                    ]);
+                }
+                doc.autoTable({
+                    head: [['Cuadre de Caja y Estado de Entrega', 'Monto']],
+                    body: cuadreRows,
+                    startY: (doc.lastAutoTable?.finalY || 110) + 10,
+                    tableWidth: table1Width,
+                    margin: { left: (pageW - table1Width) / 2 },
+                    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 2.5 },
+                    headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    columnStyles: { 0: { halign: 'left', cellWidth: 125 }, 1: { halign: 'right', cellWidth: 65 } },
+                    alternateRowStyles: { fillColor: [248, 250, 252] }
+                });
+            }
+
             // Página 2: Resumen de Pagos y Préstamos
             doc.addPage('a4', 'landscape');
             doc.setFont('helvetica', 'bold');
@@ -577,7 +725,7 @@
             doc.text(`Fecha: ${today}`, pageW / 2, 24, { align: 'center' });
 
             const isNormalMode = state.payrollMode === 'normal';
-            const netDisplay = payrollSummary.net || empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + e.amount, 0);
+            const netDisplay = payrollSummary.net || fromCents(empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + toCents(e.amount), 0));
             const cascadeBody = isNormalMode ? [
                 ['1. Sueldo Bruto Total', money(payrollSummary.gross), money(payrollSummary.gross)],
                 ['2. (+) Bonificaciones', `+${money(payrollSummary.bonuses)}`, money((payrollSummary.gross || 0) + (payrollSummary.bonuses || 0))],
@@ -678,10 +826,11 @@
             }
 
             const totalRowIndex = empBody.length;
+            const pdfTotalNomina = fromCents(empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + toCents(e.amount), 0) + toCents(loanFundAmount));
             empBody.push([
                 { content: '', styles: { fontStyle: 'bold' } },
                 { content: 'TOTALES', styles: { fontStyle: 'bold' } },
-                { content: money(empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + e.amount, 0) + loanFundAmount), styles: { fontStyle: 'bold' } },
+                { content: money(pdfTotalNomina), styles: { fontStyle: 'bold' } },
                 ...denoms.map(d => ({
                     content: (empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (e[d] || 0), 0) + (loanFundResult.distribution[d] || 0)) || '—',
                     styles: { fontStyle: 'bold' }
@@ -691,7 +840,7 @@
             const hasPaidInPdf = empRows.some((/** @type {any} */ e) => e.paid);
             const pendingRowIndex = hasPaidInPdf ? empBody.length : -1;
             if (hasPaidInPdf) {
-                const pendingAmt = empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (!e.paid ? e.amount : 0), 0) + loanFundAmount;
+                const pendingAmt = fromCents(empRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => s + (!e.paid ? toCents(e.amount) : 0), 0) + toCents(loanFundAmount));
                 empBody.push([
                     { content: '', styles: { fontStyle: 'bold' } },
                     { content: 'TOTAL PENDIENTE DE ENTREGA', styles: { fontStyle: 'bold' } },
@@ -772,12 +921,12 @@
                     ];
                 });
 
-                const totalPrincipal = displayRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => {
+                const totalPrincipal = fromCents(displayRows.reduce((/** @type {number} */ s, /** @type {any} */ e) => {
                     const ld = e.payroll?.loanDetails || {};
                     const loanVal = e.payroll?.loans || 0;
-                    const principal = ld.principal !== undefined ? ld.principal : Math.max(0, loanVal - (ld.interestAmount || 0));
-                    return s + principal;
-                }, 0);
+                    const principal = ld.principal !== undefined ? ld.principal : Math.max(0, fromCents(toCents(loanVal) - toCents(ld.interestAmount || 0)));
+                    return s + toCents(principal);
+                }, 0));
                 loanEmpBody.push([
                     { content: '', styles: { fontStyle: 'bold' } },
                     { content: 'TOTALES', styles: { fontStyle: 'bold' } },

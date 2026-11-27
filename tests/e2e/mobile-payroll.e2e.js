@@ -87,13 +87,35 @@ describe('mobile payroll workflow at 390x844', () => {
             await page.locator('#bnav-nomina').click();
             assert.equal(await page.locator('#employeeList').isVisible(), true);
 
-            // Click 1 -> En sobre (blue pill + single check)
+            // Click 1 -> En sobre (blue pill + single check) + 5s Toast Undo works
             await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
             await page.waitForSelector('#employeeList button.status-packed[data-card-action="advance-status"]');
-            // Click 2 -> Pagado (double check)
+            await page.waitForSelector('#appToast button:has-text("Deshacer")');
+            await page.locator('#appToast button:has-text("Deshacer")').click();
+            await page.waitForSelector('#employeeList button[data-card-action="revert-status"][disabled]');
+
+            // Re-advance -> En sobre -> Pagado
+            await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
+            await page.waitForSelector('#employeeList button.status-packed[data-card-action="advance-status"]');
             await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
             await page.waitForSelector('#employeeList button.status-paid-green[data-card-action="advance-status"]');
             await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double', { state: 'attached' });
+
+            // Search & Status Filter (accent-insensitive search + status pills without mutating list)
+            await page.fill('#empSearchInput', 'maria');
+            assert.match(await page.textContent('#employeeList'), /María Móvil/);
+            await page.locator('#empFilterPending').click();
+            assert.match(await page.textContent('#employeeList'), /Ningún colaborador coincide/);
+            await page.locator('#employeeList button:has-text("Limpiar filtros")').click();
+            assert.match(await page.textContent('#employeeList'), /María Móvil/);
+
+            // Cuadre physical count net variance (bill swap nets to 0)
+            await page.locator('#bnav-cuadre').click();
+            await page.waitForSelector('#cuadreTableBody input[data-cuadre-actual="1000"]');
+            await page.fill('#cuadreTableBody input[data-cuadre-actual="1000"]', '1');
+            await page.waitForSelector('#cuadreVarianceBanner:not(.hidden)');
+            assert.match(await page.textContent('#cuadreVarianceBanner'), /Sobran/);
+            await page.locator('#bnav-nomina').click();
 
             // 4. Open & close Operations / Backup modal via accessible aria-label buttons
             await page.locator('nav button[aria-label="Operaciones de nómina"]').click();

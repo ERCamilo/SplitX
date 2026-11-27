@@ -299,24 +299,26 @@
                     <table class="w-full text-xs text-left">
                         <thead class="text-[11px] text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-950 sticky top-0">
                             <tr>
-                                <th class="px-2.5 py-2 text-center w-8">Ok</th>
-                                <th class="px-2 py-2">Billete</th>
-                                <th class="px-1.5 py-2 text-center">Caja</th>
-                                <th class="px-1.5 py-2 text-center text-blue-600 dark:text-blue-400">Sobres</th>
-                                <th class="px-1.5 py-2 text-center">Pag.</th>
-                                <th class="px-3 py-2 text-right font-bold">Mano</th>
+                                <th class="px-2 py-2 text-center w-8">Ok</th>
+                                <th class="px-1.5 py-2">Billete</th>
+                                <th class="px-1 py-2 text-center">Caja</th>
+                                <th class="px-1 py-2 text-center text-blue-600 dark:text-blue-400">Sobres</th>
+                                <th class="px-1 py-2 text-center">Pag.</th>
+                                <th class="px-1.5 py-2 text-right font-bold">Mano</th>
+                                <th class="px-2 py-2 text-center text-emerald-700 dark:text-emerald-400">Real</th>
                             </tr>
                         </thead>
                         <tbody id="cuadreTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
                     </table>
                 </div>
 
-                <div class="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-1.5 text-xs">
+                <div class="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs">
+                    <div id="cuadreVarianceBanner" class="hidden p-2.5 rounded-lg border text-xs font-semibold"></div>
                     <div id="cuadreBalanceFooter" class="space-y-1 font-mono"></div>
                     <div class="pt-2 flex items-center justify-between gap-2 border-t border-slate-200/80 dark:border-slate-800">
                         <span id="cuadreChecklistStatus" class="text-[11px] text-slate-500 dark:text-slate-400">0 verificados</span>
                         <button type="button" data-sx-click="clearCuadreChecks" class="text-[11px] font-semibold text-blue-600 dark:text-sky-400 hover:underline">
-                            Limpiar tildes
+                            Limpiar cuadre
                         </button>
                     </div>
                 </div>
@@ -382,6 +384,29 @@
                             <i class="fa-solid fa-file-export text-xs"></i>
                             <span class="hidden sm:inline">Exportar</span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- Search & Status Filter Bar (view-only, never mutates cash allocation) -->
+                <div id="empFilterBar" class="px-3 sm:px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center gap-2">
+                    <div class="relative flex-1 min-w-[140px]">
+                        <i class="fa-solid fa-magnifying-glass text-[11px] text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        <input type="search" id="empSearchInput" data-sx-input="setEmployeeSearch" placeholder="Buscar por nombre o #..." aria-label="Buscar colaborador"
+                            class="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none">
+                        <button type="button" id="empSearchClearBtn" data-sx-click="clearEmployeeSearch" aria-label="Limpiar búsqueda"
+                            class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-1 flex-wrap" role="group" aria-label="Filtrar por estado de pago">
+                        <button type="button" id="empFilterAll" data-sx-click="setEmployeeStatusFilter" data-sx-arg="all"
+                            class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900">Todos</button>
+                        <button type="button" id="empFilterPending" data-sx-click="setEmployeeStatusFilter" data-sx-arg="pending"
+                            class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 dark:bg-slate-800 dark:text-slate-300">Pend.</button>
+                        <button type="button" id="empFilterPacked" data-sx-click="setEmployeeStatusFilter" data-sx-arg="packed"
+                            class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300">Sobre</button>
+                        <button type="button" id="empFilterPaid" data-sx-click="setEmployeeStatusFilter" data-sx-arg="paid"
+                            class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-800 dark:text-slate-300">Pag.</button>
                     </div>
                 </div>
 

@@ -63,17 +63,66 @@
         /** @type {Array<{ opts: any, resolve: (val: any) => void }>} */
         const dialogQueue = [];
 
-        /** @param {string} message @param {string} [type] */
-        const showToast = (message, type = 'success') => {
+        /** @type {any} */
+        let toastTimer = null;
+
+        /**
+         * @param {string} message
+         * @param {string} [type]
+         * @param {{ actionLabel?: string, onAction?: () => void, durationMs?: number } | null} [opts]
+         */
+        const showToast = (message, type = 'success', opts = null) => {
             if (!doc) return;
+            if (toastTimer) {
+                clearTimeout(toastTimer);
+                toastTimer = null;
+            }
             const previous = doc.getElementById('appToast');
             if (previous) previous.remove();
             const toast = doc.createElement('div');
             toast.id = 'appToast';
-            toast.className = `fixed right-4 bottom-20 sm:bottom-4 z-[100] max-w-sm px-4 py-3 rounded-lg shadow-lg border text-sm font-medium ${type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`;
-            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-info'} mr-2"></i>${escapeHTML(message)}`;
+            const toneClass = type === 'success'
+                ? 'bg-emerald-50 dark:bg-emerald-950/95 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                : type === 'error'
+                    ? 'bg-rose-50 dark:bg-rose-950/95 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                    : type === 'info'
+                        ? 'bg-blue-50 dark:bg-blue-950/95 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
+                        : 'bg-amber-50 dark:bg-amber-950/95 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200';
+            const iconName = type === 'success'
+                ? 'fa-circle-check'
+                : type === 'error'
+                    ? 'fa-circle-exclamation'
+                    : type === 'warning'
+                        ? 'fa-triangle-exclamation'
+                        : 'fa-circle-info';
+            toast.className = `fixed right-4 bottom-20 sm:bottom-4 z-[100] max-w-sm px-4 py-3 rounded-lg shadow-lg border text-sm font-medium flex items-center gap-2 ${toneClass}`;
+            toast.innerHTML = `<span class="flex-1 min-w-0"><i class="fa-solid ${iconName} mr-2"></i>${escapeHTML(message)}</span>`;
+            if (opts && opts.actionLabel && typeof opts.onAction === 'function') {
+                const actionBtn = doc.createElement('button');
+                actionBtn.type = 'button';
+                actionBtn.textContent = String(opts.actionLabel);
+                actionBtn.className = 'shrink-0 px-2.5 py-1 rounded-md text-xs font-bold bg-slate-900/10 hover:bg-slate-900/20 dark:bg-white/15 dark:hover:bg-white/25 transition-colors cursor-pointer';
+                let fired = false;
+                actionBtn.onclick = () => {
+                    if (fired) return;
+                    fired = true;
+                    if (toastTimer) {
+                        clearTimeout(toastTimer);
+                        toastTimer = null;
+                    }
+                    toast.remove();
+                    opts.onAction && opts.onAction();
+                };
+                toast.appendChild(actionBtn);
+            }
             doc.body.appendChild(toast);
-            if (toastMs > 0) setTimeout(() => toast.remove(), toastMs);
+            const effectiveMs = opts && opts.durationMs !== undefined ? opts.durationMs : toastMs;
+            if (effectiveMs > 0) {
+                toastTimer = setTimeout(() => {
+                    toastTimer = null;
+                    toast.remove();
+                }, effectiveMs);
+            }
         };
 
         /** @param {{ title?: string, message?: string, icon?: string, type?: string, buttons?: Array<{ label: string, value: any, icon?: string, isPrimary?: boolean, class?: string }> }} opts @param {(val: any) => void} resolve */

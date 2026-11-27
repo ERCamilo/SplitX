@@ -22,8 +22,16 @@ const makeFakeDoc = () => {
                 remove: (c) => classes.delete(c),
                 contains: (c) => classes.has(c)
             },
-            appendChild: (ch) => { children.push(ch); return ch; },
-            remove: () => { if (el.id) byId.delete(el.id); }
+            appendChild: (ch) => {
+                children.push(ch);
+                if (ch && ch.id) byId.set(ch.id, ch);
+                return ch;
+            },
+            remove: () => {
+                if (el.id) byId.delete(el.id);
+                const idx = body.children.indexOf(el);
+                if (idx >= 0) body.children.splice(idx, 1);
+            }
         };
         if (id) byId.set(id, el);
         return el;
@@ -73,6 +81,24 @@ describe('SplitXDialogs (Issue #28 extraction)', () => {
         dialogs.showToast('Hola <b>mundo</b>', 'success');
         assert.equal(doc.body.children.length, 1);
         assert.match(doc.body.children[0].innerHTML, /Hola &lt;b&gt;mundo&lt;\/b&gt;/);
+    });
+
+    test('showToast supports optional action button (Undo) that fires at most once and dismisses toast (Sprint F)', () => {
+        const doc = makeFakeDoc();
+        const dialogs = SplitXDialogs.createDialogs({ documentRef: doc, escapeHTML: SplitXCurrencies.escapeHTML, toastMs: 0 });
+        let calls = 0;
+        dialogs.showToast('Sobre apartado: Ana', 'success', {
+            actionLabel: 'Deshacer',
+            onAction: () => { calls += 1; }
+        });
+        const toast = doc.byId.get('appToast');
+        assert.ok(toast, 'toast must be mounted with id appToast');
+        const actionBtn = toast.children.find((ch) => ch.textContent === 'Deshacer');
+        assert.ok(actionBtn, 'toast must render a clickable Deshacer action button');
+        actionBtn.onclick();
+        actionBtn.onclick();
+        assert.equal(calls, 1, 'onAction must fire exactly once even on double-click');
+        assert.equal(doc.byId.get('appToast'), undefined, 'toast must dismiss itself after action');
     });
 
     test('concurrent showCustomDialog calls queue FIFO so no Promise is stranded (Sprint B)', async () => {

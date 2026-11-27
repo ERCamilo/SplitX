@@ -48,8 +48,23 @@ const app = (() => {
 
     // Sort mode: 'status' (Prioridad) | 'ref' (Lista fija)
     let sortMode = 'status';
-    // Session physical count checkboxes for the Cuadre tab
+    // View-only search & status filter (never mutates state.employees or cash allocation)
+    let empSearchQuery = '';
+    let empStatusFilter = 'all'; // 'all' | 'pending' | 'packed' | 'paid'
+    // Session physical count checkboxes & optional actual counts for the Cuadre tab
     const cuadreCheckedDenoms = new Set();
+    const cuadreActualCounts = new Map();
+    let _lastRenderedLedger = null;
+    const clearEmployeeFiltersQuiet = () => {
+        empSearchQuery = '';
+        empStatusFilter = 'all';
+        const input = document.getElementById('empSearchInput');
+        if (input) input.value = '';
+    };
+    const clearCuadreState = () => {
+        cuadreCheckedDenoms.clear();
+        cuadreActualCounts.clear();
+    };
 
     // Set of expanded employee card IDs for detailed math view
     let expandedEmpCards = new Set();
@@ -101,7 +116,7 @@ const app = (() => {
                 showCustomChoice,
                 showToast,
                 onImported: (info) => {
-                    cuadreCheckedDenoms.clear();
+                    clearCuadreState();
                     recordImport({ employees: info.employees, source: 'sa', context: info.exportContext, period: info.period, currency: info.currency });
                     try { sessionStorage.setItem('splitx_sa_received', '1'); } catch (e) { }
                     hideStaleBanner();
@@ -242,11 +257,12 @@ const app = (() => {
             if (!choice || choice === 'cancel') return;
         }
         lastImportAction = choice;
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         if (choice === 'replace') {
             state.employees = newEmps;
             state.payrollLoanFund = 0;
             state.bankLimits = {};
+            clearEmployeeFiltersQuiet();
         } else {
             state.employees = [...state.employees, ...newEmps];
         }
@@ -620,8 +636,22 @@ const app = (() => {
             if (!ok) return;
         }
         state.employees = state.employees.filter(e => e.id !== id);
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         saveData();
+    };
+
+    const undoAdvanceTransition = (id, expectedStatus, prevStatus, prevPaid, prevLocked) => {
+        const cur = state.employees.find(e => e.id === id);
+        if (!cur) return;
+        if (SplitXCore.getEmployeePayoutStatus(cur) !== expectedStatus) return;
+        state.employees = state.employees.map(e =>
+            e.id === id
+                ? { ...e, payoutStatus: prevStatus, paid: prevPaid, lockedDistribution: prevLocked }
+                : e
+        );
+        clearCuadreState();
+        saveData();
+        showToast(`Cambio deshecho: ${empLabel(cur)}.`, 'info');
     };
 
     const advanceEmployeeStatus = (id) => {
@@ -635,6 +665,8 @@ const app = (() => {
         const coverage = calculateDistribution();
         const covEmp = coverage.results.find(e => e.id === id);
         if (!covEmp) return;
+        const prevPaid = !!emp.paid;
+        const prevLocked = SplitXCore.sanitizeLockedDistribution(emp.lockedDistribution);
 
         if (currentStatus === 'pending') {
             const totalBoxCents = state.denominations.reduce((s, d) => s + SplitXCore.toCents(d) * Math.max(0, Number(state.inventory[d]) || 0), 0);
@@ -643,9 +675,13 @@ const app = (() => {
                 state.employees = state.employees.map(e =>
                     e.id === id ? { ...e, payoutStatus: 'paid', paid: true, lockedDistribution: null } : e
                 );
-                cuadreCheckedDenoms.clear();
+                clearCuadreState();
                 saveData();
-                showToast(`${empLabel(emp)} marcado como Pagado (modo sin caja).`, 'success');
+                showToast(`${empLabel(emp)} marcado como Pagado (modo sin caja).`, 'success', {
+                    actionLabel: 'Deshacer',
+                    durationMs: 5000,
+                    onAction: () => undoAdvanceTransition(id, 'paid', 'pending', prevPaid, prevLocked)
+                });
                 return;
             }
             if (covEmp.status === 'error' || (covEmp._missingAmount || 0) > 0) {
@@ -656,9 +692,13 @@ const app = (() => {
             state.employees = state.employees.map(e =>
                 e.id === id ? { ...e, payoutStatus: 'packed', paid: false, lockedDistribution: locked } : e
             );
-            cuadreCheckedDenoms.clear();
+            clearCuadreState();
             saveData();
-            showToast(`Sobre apartado: ${empLabel(emp)} (desglose fijado).`, 'success');
+            showToast(`Sobre apartado: ${empLabel(emp)}.`, 'success', {
+                actionLabel: 'Deshacer',
+                durationMs: 5000,
+                onAction: () => undoAdvanceTransition(id, 'packed', 'pending', prevPaid, prevLocked)
+            });
             return;
         }
 
@@ -666,9 +706,13 @@ const app = (() => {
             state.employees = state.employees.map(e =>
                 e.id === id ? { ...e, payoutStatus: 'paid', paid: true } : e
             );
-            cuadreCheckedDenoms.clear();
+            clearCuadreState();
             saveData();
-            showToast(`Pagado ✓✓: ${empLabel(emp)}.`, 'success');
+            showToast(`Pagado ✓✓: ${empLabel(emp)}.`, 'success', {
+                actionLabel: 'Deshacer',
+                durationMs: 5000,
+                onAction: () => undoAdvanceTransition(id, 'paid', 'packed', prevPaid, prevLocked)
+            });
         }
     };
 
@@ -682,7 +726,7 @@ const app = (() => {
             state.employees = state.employees.map(e =>
                 e.id === id ? { ...e, payoutStatus: 'pending', paid: false, lockedDistribution: null } : e
             );
-            cuadreCheckedDenoms.clear();
+            clearCuadreState();
             saveData();
             showToast(`Sobre desarmado: billetes de ${empLabel(emp)} devueltos a caja disponible.`, 'info');
             return;
@@ -705,7 +749,7 @@ const app = (() => {
                     ? { ...e, payoutStatus: hasLocked ? 'packed' : 'pending', paid: false, lockedDistribution: hasLocked ? e.lockedDistribution : null }
                     : e
             );
-            cuadreCheckedDenoms.clear();
+            clearCuadreState();
             saveData();
             showToast(`${empLabel(emp)} devuelto a ${targetLabel}.`, 'info');
         }
@@ -715,7 +759,7 @@ const app = (() => {
 
     const updateInventory = (denom, val) => {
         state.inventory[denom] = SplitXCore.sanitizeInventoryQty(val);
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         saveData();
     };
 
@@ -737,7 +781,7 @@ const app = (() => {
             showToast('No hay dinero pendiente para retirar del banco.', 'info');
             return;
         }
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         state.mode = 'inventory';
         switchTab('inventory');
         saveData();
@@ -805,7 +849,7 @@ const app = (() => {
                 if (state.inventory[d] === undefined) state.inventory[d] = 0;
             });
         }
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
 
         saveData();
         renderAppearanceConfig();
@@ -871,7 +915,7 @@ const app = (() => {
         }
         state.denominations = state.denominations.filter(d => Number(d) !== Number(denom));
         delete state.inventory[denom];
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         saveData();
         renderAppearanceConfig();
         renderCustomBillsConfig();
@@ -1020,7 +1064,7 @@ const app = (() => {
             nextInv[d] = state.inventory[d] !== undefined ? state.inventory[d] : 0;
         });
         state.inventory = nextInv;
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         saveData();
         renderAppearanceConfig();
         renderCustomBillsConfig();
@@ -1210,6 +1254,7 @@ const app = (() => {
                         state.employees = newEmps;
                         state.payrollLoanFund = 0;
                         state.bankLimits = {};
+                        clearEmployeeFiltersQuiet();
                     } else if (choice === 'append') {
                         lastImportAction = 'append';
                         state.employees = [...state.employees, ...newEmps];
@@ -1219,8 +1264,9 @@ const app = (() => {
                     state.employees = newEmps;
                     state.payrollLoanFund = 0;
                     state.bankLimits = {};
+                    clearEmployeeFiltersQuiet();
                 }
-                cuadreCheckedDenoms.clear();
+                clearCuadreState();
 
                 const canSwitchGlobals = importChoice === 'replace' || !hadCommitted;
                 if (canSwitchGlobals && newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
@@ -1269,7 +1315,7 @@ const app = (() => {
             });
             const totalAdded = SplitXCore.fromCents(totalAddedCents);
 
-            cuadreCheckedDenoms.clear();
+            clearCuadreState();
             state.mode = 'inventory';
             switchTab('inventory');
             saveData();
@@ -1484,7 +1530,7 @@ const app = (() => {
             state.employees = state.employees.map(e =>
                 affectedIds.has(e.id) ? { ...e, payoutStatus: 'pending', paid: false, lockedDistribution: null } : e
             );
-            cuadreCheckedDenoms.clear();
+            clearCuadreState();
         }
         state.payrollMode = nextMode;
         saveData();
@@ -1516,7 +1562,7 @@ const app = (() => {
             delete cleanEmployee._missingAmount;
             return cleanEmployee;
         });
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         state.mode = 'inventory';
         switchTab('inventory');
         saveData();
@@ -1545,7 +1591,7 @@ const app = (() => {
             payoutStatus: 'pending',
             lockedDistribution: null
         }));
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         state.denominations.forEach(denom => state.inventory[denom] = 0);
         state.bankLimits = {};
         state.payrollLoanFund = 0;
@@ -1634,7 +1680,7 @@ const app = (() => {
         if (!ok) return;
         const applied = SplitXCore.roundEmployeeAmounts(state.employees, state.payrollMode);
         state.employees = applied.employees;
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         saveData();
         showToast(`Centavos eliminados en ${applied.count} colaborador(es).`, 'success');
     };
@@ -1669,7 +1715,7 @@ const app = (() => {
             }
             return e;
         });
-        if (changedAmount) cuadreCheckedDenoms.clear();
+        if (changedAmount) clearCuadreState();
         saveData();
     };
 
@@ -1834,7 +1880,31 @@ const app = (() => {
             if (icon && mode) icon.className = `fa-solid ${mode.icon} text-xs`;
         }
 
-        if (!data || data.length === 0) {
+        // Sync view-only search & status filter UI (never mutates allocation or state.employees)
+        const allList = Array.isArray(data) ? data : [];
+        const counts = { all: allList.length, pending: 0, packed: 0, paid: 0 };
+        allList.forEach(e => {
+            const st = SplitXCore.getEmployeePayoutStatus(e);
+            if (counts[st] !== undefined) counts[st] += 1;
+        });
+        const filterButtons = [
+            { id: 'empFilterAll', key: 'all', label: 'Todos', active: 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 font-bold' },
+            { id: 'empFilterPending', key: 'pending', label: `Pend.${counts.pending ? ` (${counts.pending})` : ''}`, active: 'bg-amber-600 text-white font-bold' },
+            { id: 'empFilterPacked', key: 'packed', label: `Sobre${counts.packed ? ` (${counts.packed})` : ''}`, active: 'bg-blue-600 text-white font-bold' },
+            { id: 'empFilterPaid', key: 'paid', label: `Pag.${counts.paid ? ` (${counts.paid})` : ''}`, active: 'bg-emerald-600 text-white font-bold' }
+        ];
+        filterButtons.forEach(cfg => {
+            const btn = document.getElementById(cfg.id);
+            if (!btn) return;
+            btn.textContent = cfg.label;
+            const isActive = empStatusFilter === cfg.key;
+            btn.className = `px-2.5 py-1 rounded-full text-[11px] transition-colors ${isActive ? cfg.active : 'font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`;
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        const clearSearchBtn = document.getElementById('empSearchClearBtn');
+        if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !empSearchQuery);
+
+        if (allList.length === 0) {
             container.innerHTML = `<div class="text-center py-10 text-slate-400 dark:text-slate-500 flex flex-col items-center">
                 <i class="fa-solid fa-users-viewfinder text-4xl mb-3 opacity-30"></i>
                 <p>No hay empleados en la lista.</p>
@@ -1843,13 +1913,74 @@ const app = (() => {
             return;
         }
 
-        document.getElementById('employeeCountBadge').innerText = data.length;
+        const normQuery = normalizeSearchText(empSearchQuery);
+        const visibleList = allList.filter((emp, idx) => {
+            if (empStatusFilter !== 'all' && SplitXCore.getEmployeePayoutStatus(emp) !== empStatusFilter) return false;
+            if (!normQuery) return true;
+            const hay = normalizeSearchText([
+                emp.name,
+                emp.employeeName,
+                emp.employeeNumber,
+                String((typeof emp._originalIndex === 'number' ? emp._originalIndex : idx) + 1)
+            ].filter(Boolean).join(' '));
+            return hay.includes(normQuery);
+        });
+
+        const countBadge = document.getElementById('employeeCountBadge');
+        if (countBadge) {
+            countBadge.innerText = visibleList.length === allList.length
+                ? String(allList.length)
+                : `${visibleList.length} / ${allList.length}`;
+        }
+
+        if (visibleList.length === 0) {
+            container.innerHTML = `<div class="text-center py-10 text-slate-400 dark:text-slate-500 flex flex-col items-center gap-2">
+                <i class="fa-solid fa-filter-circle-xmark text-3xl opacity-40"></i>
+                <p class="text-sm font-medium text-slate-600 dark:text-slate-300">Ningún colaborador coincide con el filtro actual.</p>
+                <button type="button" data-sx-click="clearEmployeeFilters" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    Limpiar filtros
+                </button>
+            </div>`;
+            return;
+        }
+
         container.innerHTML = '';
 
-        data.forEach((emp, index) => {
+        visibleList.forEach((emp, index) => {
             const card = createCardEl(emp, index, false);
             container.appendChild(card);
         });
+    };
+
+    const normalizeSearchText = (str) => String(str || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    const setEmployeeSearch = (val) => {
+        empSearchQuery = String(val || '');
+        renderAll();
+    };
+
+    const clearEmployeeSearch = () => {
+        empSearchQuery = '';
+        const input = document.getElementById('empSearchInput');
+        if (input) input.value = '';
+        renderAll();
+    };
+
+    const setEmployeeStatusFilter = (filter) => {
+        empStatusFilter = (filter === 'pending' || filter === 'packed' || filter === 'paid') ? filter : 'all';
+        renderAll();
+    };
+
+    const clearEmployeeFilters = () => {
+        empSearchQuery = '';
+        empStatusFilter = 'all';
+        const input = document.getElementById('empSearchInput');
+        if (input) input.value = '';
+        renderAll();
     };
 
     const createCardEl = (emp, index, isPreview = false) => SplitXEmployeeCard.createEmployeeCardElement({
@@ -1915,6 +2046,45 @@ const app = (() => {
         if (applyButton) applyButton.disabled = totalBankMoney <= 0;
     };
 
+    const updateCuadreVarianceBanner = (ledger) => {
+        const banner = document.getElementById('cuadreVarianceBanner');
+        if (!banner) return;
+        if (!ledger || cuadreActualCounts.size === 0) {
+            banner.classList.add('hidden');
+            banner.innerHTML = '';
+            return;
+        }
+        let expectedCents = 0;
+        let actualCents = 0;
+        let hasSwapDiff = false;
+        state.denominations.forEach((denom) => {
+            const dCents = SplitXCore.toCents(denom);
+            const expQty = ledger.physicalLooseOnTable[denom] || 0;
+            const hasEntered = cuadreActualCounts.has(denom);
+            const actQty = hasEntered ? cuadreActualCounts.get(denom) : expQty;
+            expectedCents += expQty * dCents;
+            actualCents += actQty * dCents;
+            if (hasEntered && actQty !== expQty) hasSwapDiff = true;
+        });
+        const deltaCents = actualCents - expectedCents;
+        const partialNote = cuadreActualCounts.size < state.denominations.length
+            ? ` <span class="font-normal opacity-80">(${cuadreActualCounts.size}/${state.denominations.length} denom. contadas)</span>`
+            : '';
+        banner.classList.remove('hidden');
+        if (deltaCents === 0) {
+            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200';
+            banner.innerHTML = hasSwapDiff
+                ? `<i class="fa-solid fa-scale-balanced mr-1.5"></i>Diferencia neta: ${escapeHTML(fmt(0))} — cuadra por intercambio de billetes.${partialNote}`
+                : `<i class="fa-solid fa-circle-check mr-1.5"></i>Conteo real coincide exactamente con el esperado (${escapeHTML(fmt(SplitXCore.fromCents(actualCents)))}).${partialNote}`;
+        } else if (deltaCents < 0) {
+            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300';
+            banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Faltan ${escapeHTML(fmt(SplitXCore.fromCents(-deltaCents)))} en mesa (esperado ${escapeHTML(fmt(SplitXCore.fromCents(expectedCents)))} vs real ${escapeHTML(fmt(SplitXCore.fromCents(actualCents)))}).${partialNote}`;
+        } else {
+            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200';
+            banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>Sobran ${escapeHTML(fmt(SplitXCore.fromCents(deltaCents)))} en mesa (esperado ${escapeHTML(fmt(SplitXCore.fromCents(expectedCents)))} vs real ${escapeHTML(fmt(SplitXCore.fromCents(actualCents)))}).${partialNote}`;
+        }
+    };
+
     const renderCuadre = (ledger) => {
         const tbody = document.getElementById('cuadreTableBody');
         const totalDisplay = document.getElementById('cuadreLooseTotalDisplay');
@@ -1922,6 +2092,7 @@ const app = (() => {
         const warnEl = document.getElementById('cuadreOvercommitWarning');
         const statusEl = document.getElementById('cuadreChecklistStatus');
         if (!tbody || !ledger) return;
+        _lastRenderedLedger = ledger;
 
         if (totalDisplay) totalDisplay.textContent = fmt(ledger.looseTotal);
         if (warnEl) {
@@ -1943,24 +2114,41 @@ const app = (() => {
             const paidQty = ledger.paidBills[denom] || 0;
             const looseQty = ledger.physicalLooseOnTable[denom] || 0;
             const isChecked = cuadreCheckedDenoms.has(denom);
+            const hasActual = cuadreActualCounts.has(denom);
+            const actualVal = hasActual ? cuadreActualCounts.get(denom) : '';
+            const actualDiff = hasActual ? (Number(actualVal) - looseQty) : 0;
+            const inputTone = !hasActual
+                ? 'border-slate-200 dark:border-slate-700'
+                : actualDiff === 0
+                    ? 'border-emerald-400 text-emerald-700 dark:text-emerald-300 font-bold'
+                    : actualDiff < 0
+                        ? 'border-rose-400 text-rose-700 dark:text-rose-300 font-bold'
+                        : 'border-amber-400 text-amber-700 dark:text-amber-300 font-bold';
             if (isChecked) checkedCount += 1;
 
             const tr = document.createElement('tr');
             tr.className = `bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-opacity ${isChecked ? 'opacity-50' : ''}`;
             tr.innerHTML = `
-                <td class="px-2.5 py-2 text-center">
+                <td class="px-2 py-2 text-center">
                     <input type="checkbox" data-cuadre-denom="${denom}" ${isChecked ? 'checked' : ''}
                         aria-label="Verificar denominación ${denom}"
                         class="w-4 h-4 rounded accent-blue-600 cursor-pointer">
                 </td>
-                <td class="px-2 py-2 font-mono font-bold text-slate-800 dark:text-slate-100">${denom}</td>
-                <td class="px-1.5 py-2 text-center font-mono text-slate-500 dark:text-slate-400">${initQty}</td>
-                <td class="px-1.5 py-2 text-center font-mono font-bold text-blue-600 dark:text-blue-400">${packedQty > 0 ? `-${packedQty}` : '0'}</td>
-                <td class="px-1.5 py-2 text-center font-mono text-slate-500 dark:text-slate-400">${paidQty > 0 ? `-${paidQty}` : '0'}</td>
-                <td class="px-3 py-2 text-right font-mono font-extrabold text-sm text-indigo-700 dark:text-indigo-300">${looseQty}</td>
+                <td class="px-1.5 py-2 font-mono font-bold text-slate-800 dark:text-slate-100">${denom}</td>
+                <td class="px-1 py-2 text-center font-mono text-slate-500 dark:text-slate-400">${initQty}</td>
+                <td class="px-1 py-2 text-center font-mono font-bold text-blue-600 dark:text-blue-400">${packedQty > 0 ? `-${packedQty}` : '0'}</td>
+                <td class="px-1 py-2 text-center font-mono text-slate-500 dark:text-slate-400">${paidQty > 0 ? `-${paidQty}` : '0'}</td>
+                <td class="px-1.5 py-2 text-right font-mono font-extrabold text-sm text-indigo-700 dark:text-indigo-300">${looseQty}</td>
+                <td class="px-2 py-1.5 text-center">
+                    <input type="number" min="0" step="1" placeholder="${looseQty}" value="${actualVal}"
+                        data-cuadre-actual="${denom}" aria-label="Conteo real de denominación ${denom}"
+                        class="w-12 px-1.5 py-0.5 text-center font-mono text-xs rounded border bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-blue-500 ${inputTone}">
+                </td>
             `;
             tbody.appendChild(tr);
         });
+
+        updateCuadreVarianceBanner(ledger);
 
         if (footer) {
             const overRow = ledger.overcommitTotal > 0
@@ -1993,7 +2181,7 @@ const app = (() => {
     };
 
     const clearCuadreChecks = () => {
-        cuadreCheckedDenoms.clear();
+        clearCuadreState();
         renderAll();
     };
 
@@ -2377,7 +2565,7 @@ const app = (() => {
             });
         }
 
-        // Physical-count checklist in Cuadre tab
+        // Physical-count checklist & optional actual counts in Cuadre tab
         const cuadreBody = document.getElementById('cuadreTableBody');
         if (cuadreBody) {
             cuadreBody.addEventListener('change', (e) => {
@@ -2388,7 +2576,36 @@ const app = (() => {
                 if (input.checked) cuadreCheckedDenoms.add(d);
                 else cuadreCheckedDenoms.delete(d);
                 const coverage = calculateDistribution();
-                renderCuadre(SplitXCore.computeLedgerSummary(state.denominations, state.inventory, coverage.results));
+                renderCuadre(SplitXCore.computeLedgerSummary(state.denominations, state.inventory, coverage.results, coverage.loanFundResult));
+            });
+            cuadreBody.addEventListener('input', (e) => {
+                const input = e.target.closest('[data-cuadre-actual]');
+                if (!input) return;
+                const d = Number(input.dataset.cuadreActual);
+                if (!Number.isFinite(d)) return;
+                const raw = String(input.value || '').trim();
+                if (raw === '') {
+                    cuadreActualCounts.delete(d);
+                } else {
+                    const qty = Math.max(0, Math.floor(Number(raw) || 0));
+                    cuadreActualCounts.set(d, qty);
+                }
+                const ledger = _lastRenderedLedger;
+                if (ledger) {
+                    const expQty = ledger.physicalLooseOnTable[d] || 0;
+                    const hasAct = cuadreActualCounts.has(d);
+                    const diff = hasAct ? (cuadreActualCounts.get(d) - expQty) : 0;
+                    input.className = `w-12 px-1.5 py-0.5 text-center font-mono text-xs rounded border bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-blue-500 ${
+                        !hasAct
+                            ? 'border-slate-200 dark:border-slate-700'
+                            : diff === 0
+                                ? 'border-emerald-400 text-emerald-700 dark:text-emerald-300 font-bold'
+                                : diff < 0
+                                    ? 'border-rose-400 text-rose-700 dark:text-rose-300 font-bold'
+                                    : 'border-amber-400 text-amber-700 dark:text-amber-300 font-bold'
+                    }`;
+                    updateCuadreVarianceBanner(ledger);
+                }
             });
         }
 
@@ -2458,6 +2675,10 @@ const app = (() => {
                 roundAllAmounts: () => roundAllAmounts(),
                 cycleSortMode: () => cycleSortMode(),
                 toggleCardNumberMode: () => toggleCardNumberMode(),
+                setEmployeeSearch: (el) => setEmployeeSearch(el.value),
+                clearEmployeeSearch: () => clearEmployeeSearch(),
+                setEmployeeStatusFilter: (_el, _e, filter) => setEmployeeStatusFilter(filter),
+                clearEmployeeFilters: () => clearEmployeeFilters(),
                 setPayrollMode: (_el, _e, mode) => setPayrollMode(mode),
                 openAddDrawer: () => openAddDrawer(),
                 closeAddDrawer: () => closeAddDrawer(),
@@ -2549,6 +2770,10 @@ const app = (() => {
         switchImportTab,
         roundAllAmounts,
         cycleSortMode,
+        setEmployeeSearch,
+        clearEmployeeSearch,
+        setEmployeeStatusFilter,
+        clearEmployeeFilters,
         togglePayrollMode,
         setPayrollMode,
         toggleCardDetails,

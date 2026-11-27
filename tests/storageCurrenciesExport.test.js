@@ -209,6 +209,46 @@ describe('SplitXExport CSV injection protection & currency formatting (Issues #2
         assert.match(csv, /Marta,1000,Pendiente,/);
     });
 
+    test('buildExportData and buildCSVContent avoid IEEE-754 float drift on decimal coins and include Cuadre & missing cash summary (Sprint F)', () => {
+        const data = SplitXExport.buildExportData({
+            state: {
+                payrollMode: 'normal',
+                denominations: [0.25, 0.10, 0.05],
+                inventory: { 0.25: 1, 0.10: 1, 0.05: 0 }
+            },
+            calculateDistribution: () => ({
+                results: [
+                    { id: 1, name: 'Ana', amount: 0.10, paid: false, payoutStatus: 'packed', status: 'ok', distribution: { 0.10: 1 }, lockedDistribution: { 0.10: 1 }, _missingAmount: 0 },
+                    { id: 2, name: 'Luis', amount: 0.20, paid: false, payoutStatus: 'pending', status: 'error', distribution: {}, _missingAmount: 0.20 }
+                ],
+                loanFundResult: { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }
+            }),
+            calculateBankNeeds: () => ({
+                breakdown: { 0.25: { final: 0 }, 0.10: { final: 3 }, 0.05: { final: 0 } },
+                remainder: 0
+            }),
+            getPayrollSummary: () => ({ count: 0, gross: 0, bonuses: 0, discounts: 0, loans: 0, net: 0 }),
+            getEffectiveEmployeeAmount: (e) => e.amount
+        });
+
+        // 3 * 0.10 in float is 0.30000000000000004; integer-cent arithmetic must yield exact 0.3
+        assert.equal(data.totalToWithdraw, 0.3);
+        assert.ok(data.ledgerSummary, 'buildExportData must include ledgerSummary');
+        assert.equal(data.ledgerSummary.totalBox, 0.35);
+        assert.equal(data.ledgerSummary.packedTotal, 0.1);
+        assert.equal(data.ledgerSummary.pendingTotal, 0.2);
+        assert.equal(data.ledgerSummary.totalMissing, 0.2);
+
+        const csv = SplitXExport.buildCSVContent({ data, currencySymbol: 'US$' });
+        assert.equal(csv.includes('0.30000000000000004'), false, 'CSV must never emit IEEE-754 drift artifacts');
+        assert.match(csv, /Total Nómina,0\.3\b/);
+        assert.match(csv, /TOTAL A RETIRAR DEL BANCO.*,0\.3\b/);
+        assert.match(csv, /Caja inicial,0\.35\b/);
+        assert.match(csv, /En sobre,0\.1\b/);
+        assert.match(csv, /Suelto en mesa,0\.25\b/);
+        assert.match(csv, /FALTANTE EN CAJA,0\.2\b/);
+    });
+
     test('loadScriptOnce removes failed <script> tag so retry after transient network error succeeds (Sprint C)', async () => {
         const scripts = [];
         const prevDoc = globalThis.document;
