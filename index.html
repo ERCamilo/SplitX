@@ -221,7 +221,7 @@
         <div class="mobile-panel w-full lg:w-[21.5rem] xl:w-96 shrink-0 flex flex-col gap-3" id="panel-caja">
 
             <!-- Panel tab switcher (desktop inline, mobile visible) -->
-            <div class="flex gap-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1">
+            <div class="shrink-0 flex gap-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1">
                 <button data-sx-click="switchTab" data-sx-arg="inventory" id="tab-inventory" class="panel-tab active flex-1 text-center">
                     <i class="fa-solid fa-wallet mr-1"></i>Mi Caja
                 </button>
@@ -235,7 +235,7 @@
 
             <!-- Inventory Panel -->
             <div id="view-inventory" class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-                <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <div class="shrink-0 px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                     <span class="text-sm font-semibold text-slate-700">Inventario de Billetes</span>
                     <span id="totalInventoryDisplay" class="font-mono font-bold text-sm text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-100">RD$ 0</span>
                 </div>
@@ -244,17 +244,17 @@
                     <!-- injected -->
                 </div>
 
-                <div id="inventoryAdvisor" class="advisor-box hidden"></div>
+                <div id="inventoryAdvisor" class="advisor-box shrink-0 hidden"></div>
             </div>
 
             <!-- Bank Panel -->
             <div id="view-bank" class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-                <div class="px-4 py-3 bg-blue-50 border-b border-blue-100">
+                <div class="shrink-0 px-4 py-3 bg-blue-50 border-b border-blue-100">
                     <div class="text-sm font-semibold text-blue-900">Plan de Retiro Bancario</div>
                     <div class="text-xs text-blue-500 mt-0.5">Solo para empleados <strong>pendientes de pago</strong></div>
                 </div>
 
-                <div class="overflow-y-auto">
+                <div class="caja-scroll-body overflow-y-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0">
                             <tr>
@@ -268,7 +268,7 @@
                     </table>
                 </div>
 
-                <div class="p-4 border-t border-slate-100 bg-slate-50">
+                <div class="shrink-0 p-4 border-t border-slate-100 bg-slate-50">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-sm font-medium text-slate-600">Total a Retirar:</span>
                         <span id="bankTotalDisplay" class="font-bold text-lg text-slate-800 font-mono">RD$ 0</span>
@@ -285,7 +285,7 @@
 
             <!-- Cuadre de Mesa Panel (Live Non-Destructive Ledger Reconciliation) -->
             <div id="view-cuadre" class="hidden bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
-                <div class="px-4 py-3 bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-2">
+                <div class="shrink-0 px-4 py-3 bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-2">
                     <div>
                         <div class="text-sm font-bold text-indigo-950 dark:text-indigo-100">Cuadre de Mesa (En mano)</div>
                         <div class="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">Tilda cada denominación al contar tus billetes sueltos</div>
@@ -293,9 +293,9 @@
                     <span id="cuadreLooseTotalDisplay" class="font-mono font-extrabold text-xs text-indigo-700 dark:text-indigo-200 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800 shrink-0">RD$ 0</span>
                 </div>
 
-                <div id="cuadreOvercommitWarning" class="hidden mx-3 mt-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-semibold"></div>
+                <div id="cuadreOvercommitWarning" class="hidden shrink-0 mx-3 mt-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-semibold"></div>
 
-                <div class="overflow-x-auto">
+                <div class="caja-scroll-body overflow-x-auto">
                     <table class="w-full text-xs text-left">
                         <thead class="text-[11px] text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-950 sticky top-0">
                             <tr>
@@ -312,7 +312,7 @@
                     </table>
                 </div>
 
-                <div class="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs">
+                <div class="shrink-0 p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs">
                     <div id="cuadreVarianceBanner" class="hidden p-2.5 rounded-lg border text-xs font-semibold"></div>
                     <div id="cuadreBalanceFooter" class="space-y-1 font-mono"></div>
                     <div class="pt-2 flex items-center justify-between gap-2 border-t border-slate-200/80 dark:border-slate-800">

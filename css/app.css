@@ -13,6 +13,7 @@
 }
 
 * { box-sizing: border-box; }
+html { scroll-padding-top: 4.5rem; }
 
 @keyframes popIn {
     0% { transform: scale(0.92) translateY(8px); opacity: 0; }
@@ -484,6 +485,26 @@ html.dark .bill-badge {
 .mobile-panel.active { display: flex; flex-direction: column; }
 @media (min-width: 1024px) {
     .mobile-panel { display: flex !important; flex-direction: column; }
+    #panel-caja {
+        position: sticky;
+        top: 4.25rem;
+        align-self: flex-start;
+        max-height: calc(100vh - 5rem);
+        max-height: calc(100dvh - 5rem);
+    }
+    #panel-caja > #view-inventory,
+    #panel-caja > #view-bank,
+    #panel-caja > #view-cuadre {
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+    #panel-caja #inventoryList,
+    #panel-caja .caja-scroll-body {
+        min-height: 0;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
 }
 
 /* Action toolbar */
