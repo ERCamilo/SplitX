@@ -153,10 +153,11 @@
      *   calculateDistribution: () => any,
      *   calculateBankNeeds: (coverage?: any) => any,
      *   getPayrollSummary: () => any,
-     *   getEffectiveEmployeeAmount: (emp: any) => number
+     *   getEffectiveEmployeeAmount: (emp: any) => number,
+     *   computeLedgerSummary?: (denoms: number[], inventory: Record<number, number>, results: any[], loanFundResult?: any) => any
      * }} deps
      */
-    const buildExportData = ({ state, calculateDistribution, calculateBankNeeds, getPayrollSummary, getEffectiveEmployeeAmount }) => {
+    const buildExportData = ({ state, calculateDistribution, calculateBankNeeds, getPayrollSummary, getEffectiveEmployeeAmount, computeLedgerSummary }) => {
         const coverage = calculateDistribution();
         const { results, loanFundResult } = coverage;
         /** @type {number[]} */
@@ -215,74 +216,125 @@
             return row;
         });
 
-        // Compute exact integer-cent Ledger/Cuadre summary for export reconciliation
-        const inv = state.inventory || {};
-        /** @type {Record<number, number>} */
-        const packedBills = {};
-        /** @type {Record<number, number>} */
-        const paidBills = {};
-        denoms.forEach(d => { packedBills[d] = 0; paidBills[d] = 0; });
+        // Single source of truth for Ledger/Cuadre reconciliation: delegate to SplitXCore.computeLedgerSummary when available
+        const g = /** @type {any} */ (typeof globalThis !== 'undefined' ? globalThis : null);
+        const ledgerFn = typeof computeLedgerSummary === 'function'
+            ? computeLedgerSummary
+            : (g && g.SplitXCore && typeof g.SplitXCore.computeLedgerSummary === 'function' ? g.SplitXCore.computeLedgerSummary : null);
 
-        let totalBoxCents = 0;
-        denoms.forEach(d => {
-            totalBoxCents += Math.max(0, Number(inv[d]) || 0) * toCents(d);
-        });
-
-        let paidCents = 0;
-        let packedCents = 0;
-        let pendingCents = 0;
         let missingCents = toCents(loanFundMissing);
-        let paidCount = 0;
-        let packedCount = 0;
-        let pendingCount = 0;
-
         results.forEach((/** @type {any} */ emp) => {
             const st = (emp.payoutStatus === 'paid' || emp.payoutStatus === 'packed' || emp.payoutStatus === 'pending')
                 ? emp.payoutStatus
                 : (emp.paid ? 'paid' : 'pending');
-            const amtCents = toCents(getEffectiveEmployeeAmount(emp));
-            const locked = emp.lockedDistribution && typeof emp.lockedDistribution === 'object' ? emp.lockedDistribution : null;
-            if (st === 'paid') {
-                paidCount += 1;
-                paidCents += amtCents;
-                if (locked) {
-                    denoms.forEach(d => { paidBills[d] += Math.max(0, Number(locked[d]) || 0); });
-                }
-            } else if (st === 'packed') {
-                packedCount += 1;
-                packedCents += amtCents;
-                if (locked) {
-                    denoms.forEach(d => { packedBills[d] += Math.max(0, Number(locked[d]) || 0); });
-                }
-            } else {
-                pendingCount += 1;
-                pendingCents += amtCents;
-                missingCents += toCents(emp._missingAmount || 0);
-            }
+            if (st === 'pending') missingCents += toCents(emp._missingAmount || 0);
         });
 
-        let looseCents = 0;
-        let overcommitCents = 0;
-        denoms.forEach(d => {
-            const avail = Math.max(0, Number(inv[d]) || 0);
-            const committed = (packedBills[d] || 0) + (paidBills[d] || 0);
-            const diff = avail - committed;
-            if (diff >= 0) looseCents += diff * toCents(d);
-            else overcommitCents += (-diff) * toCents(d);
-        });
+        let ledgerSummary;
+        if (ledgerFn) {
+            const coreLedger = ledgerFn(denoms, state.inventory || {}, results, loanFundResult);
+            ledgerSummary = {
+                ...coreLedger,
+                totalMissing: fromCents(missingCents)
+            };
+        } else {
+            const inv = state.inventory || {};
+            /** @type {Record<number, number>} */
+            const packedBills = {};
+            /** @type {Record<number, number>} */
+            const paidBills = {};
+            denoms.forEach(d => { packedBills[d] = 0; paidBills[d] = 0; });
 
-        const ledgerSummary = {
-            totalBox: fromCents(totalBoxCents),
-            paidTotal: fromCents(paidCents),
-            packedTotal: fromCents(packedCents),
-            pendingTotal: fromCents(pendingCents + toCents(loanFundAmount)),
-            looseTotal: fromCents(looseCents),
-            overcommitTotal: fromCents(overcommitCents),
-            totalMissing: fromCents(missingCents),
-            paidCount,
-            packedCount,
-            pendingCount
-        };
+            let totalBoxCents = 0;
+            denoms.forEach(d => {
+                totalBoxCents += Math.max(0, Number(inv[d]) || 0) * toCents(d);
+            });
+
+            let paidCents = 0;
+            let paidFromBoxCents = 0;
+            let paidExternalCents = 0;
+            let packedCents = 0;
+            let packedBillsCents = 0;
+            let pendingCents = 0;
+            let paidCount = 0;
+            let paidFromBoxCount = 0;
+            let paidExternalCount = 0;
+            let packedCount = 0;
+            let pendingCount = 0;
+
+            results.forEach((/** @type {any} */ emp) => {
+                const st = (emp.payoutStatus === 'paid' || emp.payoutStatus === 'packed' || emp.payoutStatus === 'pending')
+                    ? emp.payoutStatus
+                    : (emp.paid ? 'paid' : 'pending');
+                const amtCents = toCents(getEffectiveEmployeeAmount(emp));
+                const locked = emp.lockedDistribution && typeof emp.lockedDistribution === 'object' ? emp.lockedDistribution : null;
+                const lockedEntries = locked ? Object.entries(locked).filter(([, q]) => Number(q) > 0) : [];
+                if (st === 'paid') {
+                    paidCount += 1;
+                    paidCents += amtCents;
+                    if (lockedEntries.length > 0) {
+                        paidFromBoxCount += 1;
+                        denoms.forEach(d => {
+                            const q = Math.max(0, Number(locked[d]) || 0);
+                            if (q > 0) {
+                                paidBills[d] += q;
+                                paidFromBoxCents += q * toCents(d);
+                            }
+                        });
+                    } else {
+                        paidExternalCount += 1;
+                        paidExternalCents += amtCents;
+                    }
+                } else if (st === 'packed') {
+                    packedCount += 1;
+                    packedCents += amtCents;
+                    if (lockedEntries.length > 0) {
+                        denoms.forEach(d => {
+                            const q = Math.max(0, Number(locked[d]) || 0);
+                            if (q > 0) {
+                                packedBills[d] += q;
+                                packedBillsCents += q * toCents(d);
+                            }
+                        });
+                    }
+                } else {
+                    pendingCount += 1;
+                    pendingCents += amtCents;
+                }
+            });
+
+            let looseCents = 0;
+            let overcommitCents = 0;
+            denoms.forEach(d => {
+                const avail = Math.max(0, Number(inv[d]) || 0);
+                const committed = (packedBills[d] || 0) + (paidBills[d] || 0);
+                const diff = avail - committed;
+                if (diff >= 0) looseCents += diff * toCents(d);
+                else overcommitCents += (-diff) * toCents(d);
+            });
+
+            ledgerSummary = {
+                totalBox: fromCents(totalBoxCents),
+                paidTotal: fromCents(paidCents),
+                paidFromBoxTotal: fromCents(paidFromBoxCents),
+                paidFromBoxCount,
+                paidExternalTotal: fromCents(paidExternalCents),
+                paidExternalCount,
+                packedTotal: fromCents(packedCents),
+                packedBillsTotal: fromCents(packedBillsCents),
+                pendingTotal: fromCents(pendingCents),
+                loanFundAmount,
+                looseTotal: fromCents(looseCents),
+                overcommitTotal: fromCents(overcommitCents),
+                orphanedLockedTotal: 0,
+                totalMissing: fromCents(missingCents),
+                paidCount,
+                packedCount,
+                pendingCount,
+                paidBills,
+                packedBills
+            };
+        }
 
         return {
             payrollMode: state.payrollMode || 'deductions',
@@ -380,15 +432,20 @@
 
         const ls = data.ledgerSummary;
         if (ls && (ls.totalBox > 0 || ls.packedCount > 0 || ls.paidCount > 0 || ls.totalMissing > 0 || ls.overcommitTotal > 0)) {
+            const paidFromBox = ls.paidFromBoxTotal !== undefined ? ls.paidFromBoxTotal : ls.paidTotal;
+            const packedBillsAmt = ls.packedBillsTotal !== undefined ? ls.packedBillsTotal : ls.packedTotal;
             lines.push('');
             lines.push(csvRow(['--- CUADRE DE CAJA Y ESTADO DE ENTREGA ---']));
             lines.push(csvRow(['Concepto', `Monto (${currencySymbol})`]));
             lines.push(csvRow(['Caja inicial', ls.totalBox]));
-            lines.push(csvRow(['Pagado', ls.paidTotal]));
-            lines.push(csvRow(['En sobre', ls.packedTotal]));
+            lines.push(csvRow(['Pagado de caja', paidFromBox]));
+            if ((ls.paidExternalTotal || 0) > 0) lines.push(csvRow(['Pagado sin caja (externo)', ls.paidExternalTotal]));
+            lines.push(csvRow(['En sobre', packedBillsAmt]));
             lines.push(csvRow(['Pendiente', ls.pendingTotal]));
+            if ((ls.loanFundAmount || 0) > 0) lines.push(csvRow(['Reserva préstamos incluida en mesa', ls.loanFundAmount]));
             lines.push(csvRow(['Suelto en mesa', ls.looseTotal]));
             if (ls.overcommitTotal > 0) lines.push(csvRow(['SOBRECOMPROMISO EN CAJA', ls.overcommitTotal]));
+            if ((ls.orphanedLockedTotal || 0) > 0) lines.push(csvRow(['DENOMINACIONES RETIRADAS EN SOBRES', ls.orphanedLockedTotal]));
             if (ls.totalMissing > 0) lines.push(csvRow(['FALTANTE EN CAJA', ls.totalMissing]));
         }
         return lines.join('\n') + '\n';
@@ -402,6 +459,7 @@
      *   calculateBankNeeds: (coverage?: any) => any,
      *   getPayrollSummary: () => any,
      *   getEffectiveEmployeeAmount: (emp: any) => number,
+     *   computeLedgerSummary?: (denoms: number[], inventory: Record<number, number>, results: any[], loanFundResult?: any) => any,
      *   showCustomAlert: (opts: any) => any
      * }} deps
      */
@@ -411,7 +469,8 @@
             calculateDistribution: deps.calculateDistribution,
             calculateBankNeeds: deps.calculateBankNeeds,
             getPayrollSummary: deps.getPayrollSummary,
-            getEffectiveEmployeeAmount: deps.getEffectiveEmployeeAmount
+            getEffectiveEmployeeAmount: deps.getEffectiveEmployeeAmount,
+            computeLedgerSummary: deps.computeLedgerSummary
         });
 
         const exportToCSV = () => {
@@ -453,22 +512,28 @@
             const today = new Date().toLocaleDateString('es-DO');
             const sym = deps.getCurrencySymbol();
 
+            const allPaidComplete = !!(ledgerSummary && ledgerSummary.paidCount > 0 && ledgerSummary.pendingCount === 0 && ledgerSummary.packedCount === 0 && loanFundAmount === 0);
+            const section1Title = allPaidComplete
+                ? '1. RESUMEN DE BILLETES ENTREGADOS EN CAJA (NÓMINA COMPLETA)'
+                : '1. RESUMEN DE BILLETES Y MONEDAS PARA PAGO EN CAJA';
+            const section1Source = allPaidComplete && ledgerSummary.paidBills ? ledgerSummary.paidBills : summary;
+
             /** @type {any[][]} */
             const s1Data = [
                 ['DISTRIBUCIÓN DE NÓMINA Y PEDIDO AL BANCO - SPLIT X'],
                 [`Fecha: ${today}`],
                 [],
-                ['1. RESUMEN DE BILLETES Y MONEDAS PARA PAGO EN CAJA'],
+                [section1Title],
                 [`Denominación (${sym})`, 'Cantidad de Billetes', `Valor Total (${sym})`]
             ];
             let grandTotalCents = 0;
             denoms.forEach(d => {
-                const qty = summary[d] || 0;
+                const qty = section1Source[d] || 0;
                 const valCents = qty * toCents(d);
                 grandTotalCents += valCents;
                 s1Data.push([d, qty, fromCents(valCents)]);
             });
-            s1Data.push(['TOTAL NÓMINA EN CAJA', '', fromCents(grandTotalCents)]);
+            s1Data.push([allPaidComplete ? 'TOTAL ENTREGADO EN CAJA' : 'TOTAL NÓMINA EN CAJA', '', fromCents(grandTotalCents)]);
             s1Data.push([]);
 
             s1Data.push(['2. SOLICITUD DE RETIRO AL BANCO (VENTANILLA)']);
@@ -495,14 +560,19 @@
             }
 
             if (ledgerSummary && (ledgerSummary.totalBox > 0 || ledgerSummary.packedCount > 0 || ledgerSummary.paidCount > 0 || ledgerSummary.totalMissing > 0 || ledgerSummary.overcommitTotal > 0)) {
+                const paidFromBox = ledgerSummary.paidFromBoxTotal !== undefined ? ledgerSummary.paidFromBoxTotal : ledgerSummary.paidTotal;
+                const packedBillsAmt = ledgerSummary.packedBillsTotal !== undefined ? ledgerSummary.packedBillsTotal : ledgerSummary.packedTotal;
                 s1Data.push(['CUADRE DE CAJA Y ESTADO DE ENTREGA']);
                 s1Data.push(['Concepto', '', `Monto (${sym})`]);
                 s1Data.push(['Caja inicial', '', ledgerSummary.totalBox]);
-                s1Data.push([`Pagado (${ledgerSummary.paidCount})`, '', ledgerSummary.paidTotal]);
-                s1Data.push([`En sobre (${ledgerSummary.packedCount})`, '', ledgerSummary.packedTotal]);
+                s1Data.push([`Pagado de caja (${ledgerSummary.paidFromBoxCount ?? ledgerSummary.paidCount})`, '', paidFromBox]);
+                if ((ledgerSummary.paidExternalTotal || 0) > 0) s1Data.push([`Pagado sin caja (${ledgerSummary.paidExternalCount})`, '', ledgerSummary.paidExternalTotal]);
+                s1Data.push([`En sobre (${ledgerSummary.packedCount})`, '', packedBillsAmt]);
                 s1Data.push([`Pendiente (${ledgerSummary.pendingCount})`, '', ledgerSummary.pendingTotal]);
+                if ((ledgerSummary.loanFundAmount || 0) > 0) s1Data.push(['Reserva préstamos incluida en mesa', '', ledgerSummary.loanFundAmount]);
                 s1Data.push(['Suelto en mesa', '', ledgerSummary.looseTotal]);
                 if (ledgerSummary.overcommitTotal > 0) s1Data.push(['SOBRECOMPROMISO EN CAJA', '', ledgerSummary.overcommitTotal]);
+                if ((ledgerSummary.orphanedLockedTotal || 0) > 0) s1Data.push(['DENOMINACIONES RETIRADAS EN SOBRES', '', ledgerSummary.orphanedLockedTotal]);
                 if (ledgerSummary.totalMissing > 0) s1Data.push(['FALTANTE EN CAJA', '', ledgerSummary.totalMissing]);
             }
 
@@ -527,7 +597,7 @@
                         emp.payroll?.bonuses ?? '',
                         emp.payroll?.discounts ?? '',
                         emp.payroll?.afterDiscounts ?? '',
-                        emp.payroll?.loans ?? '',
+                        isNormalMode ? 0 : (emp.payroll?.loans ?? ''),
                         emp.amount
                     ]
                     : [emp.amount];
@@ -642,16 +712,24 @@
             doc.setTextColor(100, 116, 139);
             doc.text(`Fecha: ${today}`, pageW / 2, 26, { align: 'center' });
 
+            const pdfAllPaid = !!(ledgerSummary && ledgerSummary.paidCount > 0 && ledgerSummary.pendingCount === 0 && ledgerSummary.packedCount === 0 && loanFundAmount === 0);
+            const pdfPage1Source = pdfAllPaid && ledgerSummary.paidBills ? ledgerSummary.paidBills : summary;
+
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
             doc.setTextColor(30, 41, 59);
-            doc.text('BILLETES Y MONEDAS EN CAJA (PAGOS + RESERVA DE PRÉSTAMOS)', pageW / 2, 36, { align: 'center' });
+            doc.text(
+                pdfAllPaid
+                    ? 'BILLETES ENTREGADOS EN CAJA (NÓMINA COMPLETA)'
+                    : 'BILLETES Y MONEDAS EN CAJA (PAGOS + RESERVA DE PRÉSTAMOS)',
+                pageW / 2, 36, { align: 'center' }
+            );
 
             /** @type {any[]} */
             const summaryBody = [];
             let grandTotalCashCents = 0;
             denoms.forEach(d => {
-                const qty = summary[d] || 0;
+                const qty = pdfPage1Source[d] || 0;
                 const valCents = qty * toCents(d);
                 grandTotalCashCents += valCents;
                 if (qty > 0) {
@@ -679,14 +757,24 @@
             });
 
             if (ledgerSummary && (ledgerSummary.totalBox > 0 || ledgerSummary.packedCount > 0 || ledgerSummary.paidCount > 0 || ledgerSummary.totalMissing > 0 || ledgerSummary.overcommitTotal > 0)) {
+                const paidFromBox = ledgerSummary.paidFromBoxTotal !== undefined ? ledgerSummary.paidFromBoxTotal : ledgerSummary.paidTotal;
+                const packedBillsAmt = ledgerSummary.packedBillsTotal !== undefined ? ledgerSummary.packedBillsTotal : ledgerSummary.packedTotal;
                 /** @type {any[]} */
                 const cuadreRows = [
                     ['Caja inicial', money(ledgerSummary.totalBox)],
-                    [`Pagado (${ledgerSummary.paidCount})`, money(ledgerSummary.paidTotal)],
-                    [`En sobre (${ledgerSummary.packedCount})`, money(ledgerSummary.packedTotal)],
-                    [`Pendiente (${ledgerSummary.pendingCount})`, money(ledgerSummary.pendingTotal)],
-                    [{ content: 'Suelto en mesa', styles: { fontStyle: 'bold' } }, { content: money(ledgerSummary.looseTotal), styles: { fontStyle: 'bold' } }]
+                    [`Pagado de caja (${ledgerSummary.paidFromBoxCount ?? ledgerSummary.paidCount})`, money(paidFromBox)]
                 ];
+                if ((ledgerSummary.paidExternalTotal || 0) > 0) {
+                    cuadreRows.push([`Pagado sin caja (${ledgerSummary.paidExternalCount})`, money(ledgerSummary.paidExternalTotal)]);
+                }
+                cuadreRows.push(
+                    [`En sobre (${ledgerSummary.packedCount})`, money(packedBillsAmt)],
+                    [`Pendiente (${ledgerSummary.pendingCount})`, money(ledgerSummary.pendingTotal)]
+                );
+                if ((ledgerSummary.loanFundAmount || 0) > 0) {
+                    cuadreRows.push(['Reserva préstamos incluida en mesa', money(ledgerSummary.loanFundAmount)]);
+                }
+                cuadreRows.push([{ content: 'Suelto en mesa', styles: { fontStyle: 'bold' } }, { content: money(ledgerSummary.looseTotal), styles: { fontStyle: 'bold' } }]);
                 if (ledgerSummary.overcommitTotal > 0) {
                     cuadreRows.push([
                         { content: 'SOBRECOMPROMISO EN CAJA', styles: { fontStyle: 'bold', textColor: [225, 29, 72] } },

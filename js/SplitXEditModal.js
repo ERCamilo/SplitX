@@ -103,6 +103,7 @@
      *   isCoin: (d: number) => boolean,
      *   getBillStyle: (d: number) => string,
      *   getBillImage: (d: number) => string | null,
+     *   onLedgerMutated?: () => void,
      *   getIdealBreakdown: (amount: number) => { distribution: Record<number, number> },
      *   showToast: (msg: string, type?: string) => void,
      *   showCustomConfirm: (opts: any) => Promise<boolean>
@@ -435,6 +436,9 @@
                     return nextEmp;
                 });
 
+                if ((resetEnvelope || amountChanged) && typeof deps.onLedgerMutated === 'function') {
+                    deps.onLedgerMutated();
+                }
                 deps.saveData();
                 closeEditModal();
                 deps.showToast(customToast || `Empleado ${name} actualizado correctamente.`, customToast ? 'warning' : 'success');
@@ -500,6 +504,7 @@
                 };
             });
 
+            if (typeof deps.onLedgerMutated === 'function') deps.onLedgerMutated();
             deps.saveData();
             const modal = byId('editEmployeeModal');
             if (modal && !modal.classList.contains('hidden')) {

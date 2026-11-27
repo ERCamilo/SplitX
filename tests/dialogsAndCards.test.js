@@ -296,5 +296,17 @@ describe('SplitXEmployeeCard & Smart Advisor (Issue #28 extraction)', () => {
         assert.match(qtyFmtHtml, /style="opacity:0\.25;filter:grayscale\(100%\);"/);
         assert.equal(/class="[^"]*opacity:0\.25/.test(qtyFmtHtml), false, 'CSS opacity must not be injected into class attribute');
         assert.match(qtyFmtHtml, />Juan Pérez<\/h3>/, 'editing only bonus/loan must preserve clean employeeName');
+
+        // Sprint G (EGM Round 3 Blocker #2): defense-in-depth against malicious breakdownColumns & prototype breakdownSize
+        const xssCardHtml = render({
+            id: 6, _originalIndex: 5, name: 'Test', amount: 1000, paid: false, payoutStatus: 'pending',
+            status: 'ok', distribution: { 1000: 1 }
+        }, {
+            breakdownColumns: '"><img src=x onerror=alert(1)><div style="',
+            breakdownSize: 'constructor'
+        });
+        assert.equal(xssCardHtml.includes('<img'), false, 'breakdownColumns must never allow HTML injection');
+        assert.match(xssCardHtml, /repeat\(5,\s*max-content\)/);
+        assert.match(xssCardHtml, /chip-size-normal/);
     });
 });

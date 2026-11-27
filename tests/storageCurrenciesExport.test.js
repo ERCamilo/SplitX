@@ -247,6 +247,29 @@ describe('SplitXExport CSV injection protection & currency formatting (Issues #2
         assert.match(csv, /En sobre,0\.1\b/);
         assert.match(csv, /Suelto en mesa,0\.25\b/);
         assert.match(csv, /FALTANTE EN CAJA,0\.2\b/);
+
+        // Sprint G (EGM Round 3 High #3 / #6): externally-paid employees must separate Pagados de caja vs Pagados sin caja
+        const extData = SplitXExport.buildExportData({
+            state: {
+                payrollMode: 'normal',
+                denominations: [1000],
+                inventory: { 1000: 5 }
+            },
+            calculateDistribution: () => ({
+                results: [
+                    { id: 1, name: 'ExtPaid', amount: 2000, paid: true, payoutStatus: 'paid', status: 'ok', distribution: {}, lockedDistribution: null, _missingAmount: 0 }
+                ],
+                loanFundResult: { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 }
+            }),
+            calculateBankNeeds: () => ({ breakdown: { 1000: { final: 0 } }, remainder: 0 }),
+            getPayrollSummary: () => ({ count: 0, gross: 0, bonuses: 0, discounts: 0, loans: 0, net: 0 }),
+            getEffectiveEmployeeAmount: (e) => e.amount
+        });
+        assert.equal(extData.ledgerSummary.paidFromBoxTotal, 0);
+        assert.equal(extData.ledgerSummary.paidExternalTotal, 2000);
+        const extCsv = SplitXExport.buildCSVContent({ data: extData, currencySymbol: 'RD$' });
+        assert.match(extCsv, /Pagado de caja,0\b/);
+        assert.match(extCsv, /Pagado sin caja.*,2000\b/);
     });
 
     test('loadScriptOnce removes failed <script> tag so retry after transient network error succeeds (Sprint C)', async () => {

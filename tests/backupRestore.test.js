@@ -50,7 +50,11 @@ describe('SplitXBackup: full versioned backup & validated restore (Issue #11)', 
 
         const restored = SplitXBackup.restoreBackup(storage, json);
         assert.equal(restored.ok, true);
-        assert.deepEqual(JSON.parse(storage.get(SplitXStorage.KEYS.DATA)), data);
+        const restoredData = JSON.parse(storage.get(SplitXStorage.KEYS.DATA));
+        assert.ok(Number.isInteger(restoredData._rev) && restoredData._rev >= 1, 'restoreBackup must stamp monotonic _rev for multi-tab CAS');
+        assert.ok(typeof restoredData._epoch === 'string' && restoredData._epoch.length > 0, 'restoreBackup must stamp fresh _epoch');
+        const { _rev: _r, _epoch: _e, ...restoredFields } = restoredData;
+        assert.deepEqual(restoredFields, data);
         assert.deepEqual(JSON.parse(storage.get(SplitXStorage.KEYS.HISTORY)), history);
         assert.deepEqual(JSON.parse(storage.get(SplitXStorage.KEYS.SHEETS)), sheets);
         assert.deepEqual(JSON.parse(storage.get(SplitXStorage.KEYS.DOCUMENTS)), documents);
@@ -207,6 +211,42 @@ describe('SplitXBackup: full versioned backup & validated restore (Issue #11)', 
         assert.equal(cleanCross.payload.data.employees[0].payoutStatus, 'pending');
         assert.equal(cleanCross.payload.data.employees[0].lockedDistribution, null);
         assert.equal(cleanCross.payload.data.employees[1].lockedDistribution, null);
+
+        // Sprint G (EGM Round 3 Blockers #1-#2 & Medium #6):
+        // - XSS payloads in bankLimits and breakdownColumns must be sanitized
+        // - short-changed packed envelope after stripping inactive denom must downgrade to pending
+        // - decimal inventory keys normalized ("0.10" -> 0.1)
+        const xssBackup = {
+            schema: 'splitx-backup/v1',
+            version: 1,
+            exportedAt: '2026-11-27T00:00:00Z',
+            payload: {
+                data: {
+                    currency: 'USD',
+                    denominations: [1000, 0.1],
+                    inventory: { '0.10': 5 },
+                    bankLimits: { 1000: '"><img src=x onerror=alert(1)>', '0.1': 3 },
+                    breakdownColumns: '"><img src=x onerror=alert(1)><div style="',
+                    breakdownSize: 'constructor',
+                    breakdownFormat: 'evil',
+                    chipTextColor: 'evil',
+                    employees: [
+                        { id: 1, name: 'ShortPacked', amount: 1999, payoutStatus: 'packed', paid: false, lockedDistribution: { 1000: 1, 999: 1 } }
+                    ]
+                },
+                history: null, sheets: null, documents: null
+            }
+        };
+        const cleanXss = SplitXBackup.validateBackup(xssBackup);
+        assert.equal(cleanXss.payload.data.bankLimits[1000], undefined, 'malicious bankLimits value must be dropped');
+        assert.equal(cleanXss.payload.data.bankLimits[0.1], 3);
+        assert.equal(cleanXss.payload.data.breakdownColumns, 5, 'malicious breakdownColumns must fall back to 5');
+        assert.equal(cleanXss.payload.data.breakdownSize, 'normal');
+        assert.equal(cleanXss.payload.data.breakdownFormat, 'badge');
+        assert.equal(cleanXss.payload.data.chipTextColor, 'dark_tone');
+        assert.equal(cleanXss.payload.data.inventory[0.1], 5, 'decimal inventory keys must normalize via numeric key');
+        assert.equal(cleanXss.payload.data.employees[0].payoutStatus, 'pending', 'short-changed packed envelope after stripping inactive denom must downgrade to pending');
+        assert.equal(cleanXss.payload.data.employees[0].lockedDistribution, null);
     });
 
     test('restoreBackup rolls back all keys atomically if a write fails mid-restore and clears legacy/corrupt keys on success (Sprint B)', () => {

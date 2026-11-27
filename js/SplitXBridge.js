@@ -200,9 +200,11 @@
                 let importMode = 'replace';
 
                 if (state.employees && state.employees.length > 0) {
+                    const hadCommitted = state.employees.some((/** @type {any} */ e) => e && (e.payoutStatus === 'packed' || e.payoutStatus === 'paid' || e.paid === true));
+                    const committedNote = hadCommitted ? ' Atención: reemplazar descartará los sobres armados o pagados actuales.' : '';
                     const choice = await showCustomChoice({
                         title: 'Nómina recibida',
-                        message: `Se recibieron ${newEmps.length} colaboradores desde Sistema de Asistencia${period && period.start ? ' (' + period.start + ' al ' + period.end + ')' : ''}. Ya tienes ${state.employees.length} en la lista actual. ¿Cómo deseas proceder?`,
+                        message: `Se recibieron ${newEmps.length} colaboradores desde Sistema de Asistencia${period && period.start ? ' (' + period.start + ' al ' + period.end + ')' : ''}. Ya tienes ${state.employees.length} en la lista actual.${committedNote} ¿Cómo deseas proceder?`,
                         icon: 'fa-users-gear',
                         type: 'question',
                         choices: [

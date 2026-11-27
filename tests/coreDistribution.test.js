@@ -489,6 +489,32 @@ describe('Sprint A financial hardening: integer cents, invariants & bank limits'
         assert.equal(parseQuickAddLine('Solo Nombre'), null);
     });
 
+    test('getEffectiveEmployeeAmount and getPayrollSummary clamp negative afterDiscounts to 0 in normal mode (Sprint G)', () => {
+        const { core } = make({
+            denominations: DOP,
+            payrollMode: 'normal',
+            employees: [
+                {
+                    id: 1,
+                    name: 'OverDiscounted',
+                    amount: 0,
+                    paid: false,
+                    payroll: { gross: 1000, bonuses: 0, discounts: 1500, afterDiscounts: -500, loans: 0, net: 0 }
+                },
+                {
+                    id: 2,
+                    name: 'NormalEmp',
+                    amount: 2000,
+                    paid: false,
+                    payroll: { gross: 2000, bonuses: 0, discounts: 0, afterDiscounts: 2000, loans: 0, net: 2000 }
+                }
+            ]
+        });
+        assert.equal(core.getEffectiveEmployeeAmount(core.calculateDistribution().results[0]), 0);
+        const summary = core.getPayrollSummary();
+        assert.equal(summary.net, 2000, 'negative afterDiscounts must not subtract from normal-mode payroll net');
+    });
+
     test('500-case deterministic fuzz invariant: assigned + missing === effectiveAmount to the exact cent', () => {
         let seed = 1337;
         const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };

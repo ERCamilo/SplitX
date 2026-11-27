@@ -14,6 +14,10 @@
 
     let _importIdSeq = 0;
     const nextImportId = () => {
+        const g = /** @type {any} */ (typeof globalThis !== 'undefined' ? globalThis : null);
+        if (g && g.SplitXCore && typeof g.SplitXCore.nextEmployeeId === 'function') {
+            return g.SplitXCore.nextEmployeeId();
+        }
         const now = Date.now();
         _importIdSeq = now > _importIdSeq ? now : _importIdSeq + 1;
         return _importIdSeq;
@@ -127,6 +131,7 @@
 
             employee.originalData = JSON.parse(JSON.stringify({
                 name: employee.name,
+                ...(employee.employeeName !== undefined ? { employeeName: employee.employeeName } : {}),
                 amount: employee.amount,
                 payroll: employee.payroll ? { ...employee.payroll } : null
             }));

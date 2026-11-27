@@ -154,10 +154,40 @@
                     const d = Number(k);
                     const q = Number.parseInt(String(v ?? ''), 10);
                     if (Number.isFinite(d) && d > 0) {
-                        safeInv[k] = Number.isFinite(q) && q > 0 ? q : 0;
+                        safeInv[String(d)] = Number.isFinite(q) && q > 0 ? q : 0;
                     }
                 }
                 cleanPayload.data.inventory = safeInv;
+            }
+            if (isPlainObj(cleanPayload.data.bankLimits)) {
+                /** @type {Record<string, number>} */
+                const safeLimits = {};
+                for (const [k, v] of Object.entries(cleanPayload.data.bankLimits)) {
+                    const d = Number(k);
+                    if (!Number.isFinite(d) || d <= 0) continue;
+                    if (v === null || v === undefined || String(v).trim() === '') continue;
+                    const text = String(v).trim();
+                    if (!/^-?\d+$/.test(text)) continue;
+                    const q = Number.parseInt(text, 10);
+                    if (Number.isFinite(q)) safeLimits[String(d)] = q < 0 ? 0 : q;
+                }
+                cleanPayload.data.bankLimits = safeLimits;
+            }
+            if (cleanPayload.data.breakdownColumns !== undefined) {
+                const rawCols = cleanPayload.data.breakdownColumns;
+                cleanPayload.data.breakdownColumns = (rawCols === 'auto' || rawCols === 3 || rawCols === 4 || rawCols === 5 || rawCols === 6) ? rawCols : 5;
+            }
+            if (cleanPayload.data.breakdownSize !== undefined) {
+                const rawSz = cleanPayload.data.breakdownSize;
+                cleanPayload.data.breakdownSize = (rawSz === 'compact' || rawSz === 'normal' || rawSz === 'large') ? rawSz : 'normal';
+            }
+            if (cleanPayload.data.breakdownFormat !== undefined) {
+                const rawFmt = cleanPayload.data.breakdownFormat;
+                cleanPayload.data.breakdownFormat = (rawFmt === 'badge' || rawFmt === 'qty_x_denom' || rawFmt === 'denom_x_qty') ? rawFmt : 'badge';
+            }
+            if (cleanPayload.data.chipTextColor !== undefined) {
+                const rawTxt = cleanPayload.data.chipTextColor;
+                cleanPayload.data.chipTextColor = (rawTxt === 'dark_tone' || rawTxt === 'black' || rawTxt === 'white') ? rawTxt : 'dark_tone';
             }
             if (cleanPayload.data.payrollLoanFund !== undefined) {
                 const lf = Number(cleanPayload.data.payrollLoanFund);
@@ -171,6 +201,7 @@
                     .filter((/** @type {unknown} */ e) => isPlainObj(e))
                     .map((/** @type {any} */ e) => {
                         let cleanDist = null;
+                        let droppedInvalidEntry = false;
                         if (e.lockedDistribution !== undefined) {
                             if (isPlainObj(e.lockedDistribution)) {
                                 /** @type {Record<number, number>} */
@@ -179,9 +210,13 @@
                                 for (const [k, v] of Object.entries(e.lockedDistribution)) {
                                     const d = Number(k);
                                     const q = Number.parseInt(String(v ?? ''), 10);
-                                    if (Number.isFinite(d) && d > 0 && Number.isFinite(q) && q > 0 && (!activeDenomSet || activeDenomSet.has(d))) {
-                                        mapDist[d] = q;
-                                        countEntries += 1;
+                                    if (Number.isFinite(d) && d > 0 && Number.isFinite(q) && q > 0) {
+                                        if (!activeDenomSet || activeDenomSet.has(d)) {
+                                            mapDist[d] = q;
+                                            countEntries += 1;
+                                        } else {
+                                            droppedInvalidEntry = true;
+                                        }
                                     }
                                 }
                                 cleanDist = countEntries > 0 ? mapDist : null;
@@ -192,10 +227,10 @@
                             let validStatus = (e.payoutStatus === 'pending' || e.payoutStatus === 'packed' || e.payoutStatus === 'paid')
                                 ? e.payoutStatus
                                 : (e.paid === true ? 'paid' : 'pending');
-                            // Enforce cross-invariants: pending cannot hold locked bills; packed with amount > 0 requires locked bills
+                            // Enforce cross-invariants: pending cannot hold locked bills; packed with amount > 0 requires valid complete locked bills
                             if (validStatus === 'pending') {
                                 if (e.lockedDistribution !== undefined) e.lockedDistribution = null;
-                            } else if (validStatus === 'packed' && (Number(e.amount) || 0) > 0 && !cleanDist) {
+                            } else if (validStatus === 'packed' && ((Number(e.amount) || 0) > 0 && (!cleanDist || droppedInvalidEntry))) {
                                 validStatus = 'pending';
                                 e.lockedDistribution = null;
                             }
@@ -289,11 +324,11 @@
         /** @type {Array<[string, string | null]>} */
         const snapshot = ALL_KEYS.map((/** @type {string} */ k) => [k, typeof storage.get === 'function' ? storage.get(k) : null]);
         const prevDataObj = safeJsonParse(typeof storage.get === 'function' ? storage.get(KEYS.DATA) : null);
-        if (clean.payload.data && (isPlainObj(prevDataObj) && Number.isFinite(Number(prevDataObj._rev)) || Number.isFinite(Number(clean.payload.data._rev)))) {
-            const prevRev = Number(prevDataObj?._rev) || 0;
-            const restoredRev = Number(clean.payload.data._rev) || 0;
+        if (clean.payload.data) {
+            const prevRev = (isPlainObj(prevDataObj) && Number.isFinite(Number(prevDataObj._rev))) ? Number(prevDataObj._rev) : 0;
+            const restoredRev = Number.isFinite(Number(clean.payload.data._rev)) ? Number(clean.payload.data._rev) : 0;
             clean.payload.data._rev = Math.max(prevRev, restoredRev) + 1;
-            clean.payload.data._epoch = Date.now().toString(36);
+            clean.payload.data._epoch = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
         }
 
         const rollback = () => {

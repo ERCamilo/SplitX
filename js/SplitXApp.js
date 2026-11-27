@@ -117,6 +117,7 @@ const app = (() => {
                 showToast,
                 onImported: (info) => {
                     clearCuadreState();
+                    if (info.mode === 'replace') clearEmployeeFiltersQuiet();
                     recordImport({ employees: info.employees, source: 'sa', context: info.exportContext, period: info.period, currency: info.currency });
                     try { sessionStorage.setItem('splitx_sa_received', '1'); } catch (e) { }
                     hideStaleBanner();
@@ -358,14 +359,52 @@ const app = (() => {
             state.coinDenoms = cleanCoins.length ? cleanCoins : [25, 10, 5, 1];
             if (state.useDefaultImages === undefined) state.useDefaultImages = true;
             if (state.roundCoins === undefined) state.roundCoins = true;
-            if (state.breakdownColumns === undefined) state.breakdownColumns = 5;
+            const validCols = state.breakdownColumns;
+            state.breakdownColumns = (validCols === 'auto' || validCols === 3 || validCols === 4 || validCols === 5 || validCols === 6) ? validCols : 5;
             if (state.breakdownGroupByType === undefined) state.breakdownGroupByType = false;
             if (state.breakdownShowZeros === undefined) state.breakdownShowZeros = false;
-            if (state.breakdownSize === undefined) state.breakdownSize = 'normal';
-            if (state.breakdownFormat === undefined) state.breakdownFormat = 'badge';
-            if (!state.chipTextColor) state.chipTextColor = 'dark_tone';
+            state.breakdownSize = (state.breakdownSize === 'compact' || state.breakdownSize === 'normal' || state.breakdownSize === 'large') ? state.breakdownSize : 'normal';
+            state.breakdownFormat = (state.breakdownFormat === 'badge' || state.breakdownFormat === 'qty_x_denom' || state.breakdownFormat === 'denom_x_qty') ? state.breakdownFormat : 'badge';
+            state.chipTextColor = (state.chipTextColor === 'dark_tone' || state.chipTextColor === 'black' || state.chipTextColor === 'white') ? state.chipTextColor : 'dark_tone';
             if (state.statusColorScheme !== 'classic' && state.statusColorScheme !== 'traffic') state.statusColorScheme = 'traffic';
             if (state.cardNumberMode !== 'order' && state.cardNumberMode !== 'ref') state.cardNumberMode = 'ref';
+            // Sanitize stored bankLimits, inventory, billColors and billImages on load (defense-in-depth against stored XSS)
+            const cleanInv = {};
+            if (state.inventory && typeof state.inventory === 'object') {
+                Object.entries(state.inventory).forEach(([k, v]) => {
+                    const d = Number(k);
+                    if (Number.isFinite(d) && d > 0) cleanInv[d] = SplitXCore.sanitizeInventoryQty(v);
+                });
+            }
+            state.inventory = cleanInv;
+            const cleanLimits = {};
+            if (state.bankLimits && typeof state.bankLimits === 'object') {
+                Object.entries(state.bankLimits).forEach(([k, v]) => {
+                    const d = Number(k);
+                    const lim = SplitXCore.sanitizeBankLimit(v);
+                    if (Number.isFinite(d) && d > 0 && lim !== null) cleanLimits[d] = lim;
+                });
+            }
+            state.bankLimits = cleanLimits;
+            if (state.billColors && typeof state.billColors === 'object') {
+                const cleanColors = {};
+                Object.entries(state.billColors).forEach(([k, v]) => {
+                    const hex = sanitizeHexColor(v);
+                    if (hex) cleanColors[k] = hex;
+                });
+                state.billColors = cleanColors;
+            } else {
+                state.billColors = {};
+            }
+            if (state.billImages && typeof state.billImages === 'object') {
+                const cleanImgs = {};
+                Object.entries(state.billImages).forEach(([k, v]) => {
+                    if (SplitXCurrencies.isSafeBillImage(v)) cleanImgs[k] = String(v);
+                });
+                state.billImages = cleanImgs;
+            } else {
+                state.billImages = {};
+            }
             if (parsed.theme !== 'dark' && parsed.theme !== 'light') {
                 state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
@@ -398,11 +437,13 @@ const app = (() => {
     let _externalTabConflictNotified = false;
     let _casConflictModalOpen = false;
 
+    const mintEpoch = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
     const commitStateToStorage = (forceRevBase = 0) => {
         state.schemaVersion = SplitXState.SCHEMA_VERSION;
         const nextRev = Math.max(Number(state._rev) || 0, _lastKnownRev, forceRevBase) + 1;
         state._rev = nextRev;
-        if (!state._epoch) state._epoch = _lastKnownEpoch || Date.now().toString(36);
+        if (!state._epoch) state._epoch = _lastKnownEpoch || mintEpoch();
         _lastKnownRev = nextRev;
         _lastKnownEpoch = state._epoch;
         storageSet('Split_data', JSON.stringify(state));
@@ -421,33 +462,66 @@ const app = (() => {
                     const localRev = Number(state._rev) || 0;
                     const revDiverged = storedRev > Math.max(localRev, _lastKnownRev);
                     const epochDiverged = storedEpoch && _lastKnownEpoch && storedEpoch !== _lastKnownEpoch;
-                    if ((revDiverged || epochDiverged) && !_casConflictModalOpen) {
-                        _casConflictModalOpen = true;
-                        showCustomConfirm({
-                            title: 'Cambios detectados en otra pestaña',
-                            message: 'Otra pestaña modificó la nómina o restauró un respaldo. Si guardas desde aquí podrías sobrescribir pagos recientes. ¿Deseas sobrescribir con esta pestaña o recargar los datos más recientes?',
-                            icon: 'fa-triangle-exclamation',
-                            type: 'warning',
-                            confirmText: 'Recargar datos recientes',
-                            cancelText: 'Sobrescribir con esta pestaña'
-                        }).then((shouldReload) => {
-                            _casConflictModalOpen = false;
-                            if (shouldReload) {
-                                location.reload();
-                            } else {
-                                _lastKnownEpoch = storedEpoch || _lastKnownEpoch;
-                                state._epoch = _lastKnownEpoch;
-                                commitStateToStorage(storedRev);
-                            }
-                        });
+                    if (revDiverged || epochDiverged) {
+                        // ALWAYS block write on divergence (even on re-entrant saveData while modal is open!)
+                        if (!_casConflictModalOpen) {
+                            _casConflictModalOpen = true;
+                            showCustomChoice({
+                                title: 'Cambios detectados en otra pestaña',
+                                message: 'Otra pestaña modificó la nómina o restauró un respaldo. Si guardas desde aquí podrías sobrescribir pagos recientes. ¿Cómo deseas proceder?',
+                                icon: 'fa-triangle-exclamation',
+                                type: 'warning',
+                                choices: [
+                                    {
+                                        label: 'Cancelar (no guardar)',
+                                        value: 'cancel',
+                                        isPrimary: false
+                                    },
+                                    {
+                                        label: 'Sobrescribir con esta pestaña',
+                                        value: 'overwrite',
+                                        icon: 'fa-triangle-exclamation',
+                                        class: 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                    },
+                                    {
+                                        label: 'Recargar datos recientes',
+                                        value: 'reload',
+                                        icon: 'fa-rotate',
+                                        isPrimary: true,
+                                        class: 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    }
+                                ]
+                            }).then((action) => {
+                                _casConflictModalOpen = false;
+                                if (action === 'reload') {
+                                    location.reload();
+                                } else if (action === 'overwrite') {
+                                    // Re-read latest revision (eliminates TOCTOU) and mint a brand-new epoch
+                                    let latestRev = storedRev;
+                                    try {
+                                        const latestRaw = localStorage.getItem(SplitXStorage.KEYS.DATA);
+                                        const latestParsed = latestRaw ? SplitXState.parseSavedState(latestRaw) : null;
+                                        if (latestParsed?.ok && latestParsed.data) {
+                                            latestRev = Math.max(latestRev, Number(latestParsed.data._rev) || 0);
+                                        }
+                                    } catch (_) { /* keep storedRev */ }
+                                    const freshEpoch = mintEpoch();
+                                    _lastKnownEpoch = freshEpoch;
+                                    state._epoch = freshEpoch;
+                                    commitStateToStorage(latestRev);
+                                }
+                                // Escape / 'cancel' / falsy -> safe no-op, localStorage remains untouched
+                            });
+                        }
                         renderAll();
-                        return;
+                        return false;
                     }
                 }
             }
         } catch (_) { /* storage unavailable -> fallback to normal write */ }
 
         commitStateToStorage(0);
+        return true;
     };
 
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -676,7 +750,7 @@ const app = (() => {
                     e.id === id ? { ...e, payoutStatus: 'paid', paid: true, lockedDistribution: null } : e
                 );
                 clearCuadreState();
-                saveData();
+                if (!saveData()) return;
                 showToast(`${empLabel(emp)} marcado como Pagado (modo sin caja).`, 'success', {
                     actionLabel: 'Deshacer',
                     durationMs: 5000,
@@ -693,7 +767,7 @@ const app = (() => {
                 e.id === id ? { ...e, payoutStatus: 'packed', paid: false, lockedDistribution: locked } : e
             );
             clearCuadreState();
-            saveData();
+            if (!saveData()) return;
             showToast(`Sobre apartado: ${empLabel(emp)}.`, 'success', {
                 actionLabel: 'Deshacer',
                 durationMs: 5000,
@@ -707,7 +781,7 @@ const app = (() => {
                 e.id === id ? { ...e, payoutStatus: 'paid', paid: true } : e
             );
             clearCuadreState();
-            saveData();
+            if (!saveData()) return;
             showToast(`Pagado ✓✓: ${empLabel(emp)}.`, 'success', {
                 actionLabel: 'Deshacer',
                 durationMs: 5000,
@@ -805,26 +879,30 @@ const app = (() => {
         const preset = CURRENCY_PRESETS[key];
         if (!preset) return;
         const isSwitchingCurrency = state.currency !== preset.code;
-        const lockedEmps = state.employees.filter(e => {
+        const presetDenomSet = new Set(preset.denominations.map(Number));
+        const affectedLocked = state.employees.filter(e => {
             const st = SplitXCore.getEmployeePayoutStatus(e);
-            return (st === 'packed' || st === 'paid') && SplitXCore.sanitizeLockedDistribution(e.lockedDistribution);
+            const locked = SplitXCore.sanitizeLockedDistribution(e.lockedDistribution);
+            if ((st !== 'packed' && st !== 'paid') || !locked) return false;
+            if (isSwitchingCurrency) return true;
+            return Object.entries(locked).some(([d, qty]) => qty > 0 && !presetDenomSet.has(Number(d)));
         });
-        if (!silent && isSwitchingCurrency && lockedEmps.length > 0) {
+        if (!silent && affectedLocked.length > 0) {
             const ok = await showCustomConfirm({
-                title: '¿Cambiar de moneda con sobres fijados?',
-                message: `Hay ${lockedEmps.length} colaborador(es) con billetes fijados en ${state.currency}. Cambiar a ${preset.code} liberará esos desgloses y reiniciará los sobres a Pendiente para evitar mezclar monedas. ¿Continuar?`,
+                title: isSwitchingCurrency ? '¿Cambiar de moneda con sobres fijados?' : '¿Restaurar denominaciones con sobres fijados?',
+                message: isSwitchingCurrency
+                    ? `Hay ${affectedLocked.length} colaborador(es) con billetes fijados en ${state.currency}. Cambiar a ${preset.code} liberará esos desgloses y reiniciará los sobres a Pendiente para evitar mezclar monedas. ¿Continuar?`
+                    : `Hay ${affectedLocked.length} colaborador(es) con sobres fijados usando denominaciones personalizadas que desaparecerán al aplicar el preset ${preset.code}. Esos sobres volverán a Pendiente. ¿Continuar?`,
                 icon: 'fa-triangle-exclamation',
                 type: 'warning',
-                confirmText: 'Sí, cambiar moneda',
+                confirmText: isSwitchingCurrency ? 'Sí, cambiar moneda' : 'Sí, restaurar y reajustar',
                 cancelText: 'Cancelar'
             });
             if (!ok) return;
-            state.employees = state.employees.map(e => {
-                const st = SplitXCore.getEmployeePayoutStatus(e);
-                return (st === 'packed' || (st === 'paid' && e.lockedDistribution))
-                    ? { ...e, payoutStatus: 'pending', paid: false, lockedDistribution: null }
-                    : e;
-            });
+            const affectedIds = new Set(affectedLocked.map(e => e.id));
+            state.employees = state.employees.map(e =>
+                affectedIds.has(e.id) ? { ...e, payoutStatus: 'pending', paid: false, lockedDistribution: null } : e
+            );
         }
 
         state.currency = preset.code;
@@ -838,17 +916,17 @@ const app = (() => {
 
         state.billColors = preset.colors ? { ...preset.colors } : {};
 
-        // Prune stale inventory keys from previous currency when switching currencies
-        if (isSwitchingCurrency) {
-            const nextInv = {};
-            state.denominations.forEach(d => { nextInv[d] = 0; });
-            state.inventory = nextInv;
-            state.bankLimits = {};
-        } else {
-            state.denominations.forEach(d => {
-                if (state.inventory[d] === undefined) state.inventory[d] = 0;
-            });
-        }
+        // Prune stale inventory & bankLimits keys from removed denominations or previous currency
+        const nextInv = {};
+        const nextLimits = {};
+        state.denominations.forEach(d => {
+            nextInv[d] = isSwitchingCurrency ? 0 : (state.inventory[d] !== undefined ? state.inventory[d] : 0);
+            if (!isSwitchingCurrency && state.bankLimits && state.bankLimits[d] !== undefined) {
+                nextLimits[d] = state.bankLimits[d];
+            }
+        });
+        state.inventory = nextInv;
+        state.bankLimits = nextLimits;
         clearCuadreState();
 
         saveData();
@@ -915,6 +993,7 @@ const app = (() => {
         }
         state.denominations = state.denominations.filter(d => Number(d) !== Number(denom));
         delete state.inventory[denom];
+        if (state.bankLimits) delete state.bankLimits[denom];
         clearCuadreState();
         saveData();
         renderAppearanceConfig();
@@ -1060,10 +1139,13 @@ const app = (() => {
         state.denominations = [...preset.denominations];
         state.coinDenoms = [...preset.coinDenoms];
         const nextInv = {};
+        const nextLimits = {};
         state.denominations.forEach(d => {
             nextInv[d] = state.inventory[d] !== undefined ? state.inventory[d] : 0;
+            if (state.bankLimits && state.bankLimits[d] !== undefined) nextLimits[d] = state.bankLimits[d];
         });
         state.inventory = nextInv;
+        state.bankLimits = nextLimits;
         clearCuadreState();
         saveData();
         renderAppearanceConfig();
@@ -1078,6 +1160,7 @@ const app = (() => {
         calculateBankNeeds,
         getPayrollSummary,
         getEffectiveEmployeeAmount,
+        computeLedgerSummary: SplitXCore.computeLedgerSummary,
         showCustomAlert
     });
     const { buildExportData, exportToCSV, exportToExcel, exportToPDF } = exporter;
@@ -1334,12 +1417,15 @@ const app = (() => {
 
     // --- UI RENDERING ---
 
+    let _lastRenderCtx = null;
+
     const renderAll = () => {
         // Compute derived state ONCE per render cycle (avoids 4x-8x recalculation cascade)
         const coverage = calculateDistribution();
         const bankData = calculateBankNeeds(coverage);
         const payrollSummary = getPayrollSummary();
         const ledger = SplitXCore.computeLedgerSummary(state.denominations, state.inventory, coverage.results, coverage.loanFundResult);
+        _lastRenderCtx = { coverage, payrollSummary };
 
         renderInventory(coverage.leftoverInventory, coverage.results, coverage.loanFundResult, ledger);
         renderEmployees(coverage.results, coverage.loanFundResult, payrollSummary);
@@ -1349,6 +1435,14 @@ const app = (() => {
         updateTotals(coverage, bankData, payrollSummary, ledger);
         if (document.getElementById('appearanceLivePreviewCard')) {
             renderAppearancePreviewCard();
+        }
+    };
+
+    const renderFilteredEmployeesOnly = () => {
+        if (_lastRenderCtx) {
+            renderEmployees(_lastRenderCtx.coverage.results, _lastRenderCtx.coverage.loanFundResult, _lastRenderCtx.payrollSummary);
+        } else {
+            renderAll();
         }
     };
 
@@ -1563,6 +1657,7 @@ const app = (() => {
             return cleanEmployee;
         });
         clearCuadreState();
+        clearEmployeeFiltersQuiet();
         state.mode = 'inventory';
         switchTab('inventory');
         saveData();
@@ -1592,6 +1687,7 @@ const app = (() => {
             lockedDistribution: null
         }));
         clearCuadreState();
+        clearEmployeeFiltersQuiet();
         state.denominations.forEach(denom => state.inventory[denom] = 0);
         state.bankLimits = {};
         state.payrollLoanFund = 0;
@@ -1960,19 +2056,19 @@ const app = (() => {
 
     const setEmployeeSearch = (val) => {
         empSearchQuery = String(val || '');
-        renderAll();
+        renderFilteredEmployeesOnly();
     };
 
     const clearEmployeeSearch = () => {
         empSearchQuery = '';
         const input = document.getElementById('empSearchInput');
         if (input) input.value = '';
-        renderAll();
+        renderFilteredEmployeesOnly();
     };
 
     const setEmployeeStatusFilter = (filter) => {
         empStatusFilter = (filter === 'pending' || filter === 'packed' || filter === 'paid') ? filter : 'all';
-        renderAll();
+        renderFilteredEmployeesOnly();
     };
 
     const clearEmployeeFilters = () => {
@@ -1980,7 +2076,7 @@ const app = (() => {
         empStatusFilter = 'all';
         const input = document.getElementById('empSearchInput');
         if (input) input.value = '';
-        renderAll();
+        renderFilteredEmployeesOnly();
     };
 
     const createCardEl = (emp, index, isPreview = false) => SplitXEmployeeCard.createEmployeeCardElement({
@@ -2005,8 +2101,8 @@ const app = (() => {
         state.denominations.forEach(denom => {
             const rowData = bankData.breakdown[denom] || { ideal: 0, neededAfterCarry: 0, final: 0 };
 
-            const userLimit = state.bankLimits[denom];
-            const isLimited = (userLimit !== undefined && userLimit !== null && userLimit !== "") && rowData.neededAfterCarry > rowData.final;
+            const userLimit = SplitXCore.sanitizeBankLimit(state.bankLimits[denom]);
+            const isLimited = userLimit !== null && rowData.neededAfterCarry > rowData.final;
 
             const row = document.createElement('tr');
             row.className = "bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60";
@@ -2016,7 +2112,7 @@ const app = (() => {
                 <td class="px-2 py-3 text-center">
                     <input type="number" min="0" step="1"
                         placeholder="∞" 
-                        value="${userLimit === undefined || userLimit === null ? '' : userLimit}" 
+                        value="${userLimit === null ? '' : userLimit}" 
                         data-sx-change="updateBankLimit" data-sx-arg="${denom}"
                         class="w-16 px-2 py-1 text-center text-sm border rounded bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue-500 outline-none ${isLimited ? 'border-orange-400 text-orange-600 dark:text-orange-400 font-bold' : 'border-slate-200 dark:border-slate-700'}">
                 </td>
@@ -2046,42 +2142,111 @@ const app = (() => {
         if (applyButton) applyButton.disabled = totalBankMoney <= 0;
     };
 
+    const computeCuadreSwapDeltas = (ledger) => {
+        if (!ledger || cuadreActualCounts.size === 0) return null;
+        let expectedEnteredCents = 0;
+        let actualEnteredCents = 0;
+        let hasSwapDiff = false;
+        const deltas = [];
+        state.denominations.forEach((denom) => {
+            if (!cuadreActualCounts.has(denom)) return;
+            const dCents = SplitXCore.toCents(denom);
+            const expQty = ledger.physicalLooseOnTable[denom] || 0;
+            const actQty = cuadreActualCounts.get(denom);
+            expectedEnteredCents += expQty * dCents;
+            actualEnteredCents += actQty * dCents;
+            if (actQty !== expQty) {
+                hasSwapDiff = true;
+                deltas.push({ denom, diff: actQty - expQty, expQty, actQty });
+            }
+        });
+        return {
+            enteredCount: cuadreActualCounts.size,
+            totalDenoms: state.denominations.length,
+            isComplete: cuadreActualCounts.size >= state.denominations.length,
+            expectedCents: expectedEnteredCents,
+            actualCents: actualEnteredCents,
+            deltaCents: actualEnteredCents - expectedEnteredCents,
+            hasSwapDiff,
+            deltas
+        };
+    };
+
+    const applyCuadreSwapToBox = () => {
+        const coverage = calculateDistribution();
+        const ledger = SplitXCore.computeLedgerSummary(state.denominations, state.inventory, coverage.results, coverage.loanFundResult);
+        const stats = computeCuadreSwapDeltas(ledger);
+        if (!stats || !stats.hasSwapDiff || stats.deltaCents !== 0 || (ledger.overcommitTotal || 0) > 0) return;
+
+        const prevInventory = { ...state.inventory };
+        const summaryText = stats.deltas.map(x => `${x.diff > 0 ? '+' : '−'}${Math.abs(x.diff)}×${x.denom}`).join(', ');
+        stats.deltas.forEach(({ denom, actQty }) => {
+            const committed = (ledger.committedBills[denom] || 0);
+            state.inventory[denom] = committed + actQty;
+        });
+        clearCuadreState();
+        if (!saveData()) {
+            state.inventory = prevInventory;
+            return;
+        }
+        showToast(`Intercambio aplicado a Mi Caja (${summaryText}).`, 'success', {
+            actionLabel: 'Deshacer',
+            durationMs: 5000,
+            onAction: () => {
+                state.inventory = { ...prevInventory };
+                clearCuadreState();
+                saveData();
+                showToast('Intercambio en Mi Caja deshecho.', 'info');
+            }
+        });
+    };
+
     const updateCuadreVarianceBanner = (ledger) => {
         const banner = document.getElementById('cuadreVarianceBanner');
         if (!banner) return;
-        if (!ledger || cuadreActualCounts.size === 0) {
+        const stats = computeCuadreSwapDeltas(ledger);
+        if (!stats) {
             banner.classList.add('hidden');
             banner.innerHTML = '';
             return;
         }
-        let expectedCents = 0;
-        let actualCents = 0;
-        let hasSwapDiff = false;
-        state.denominations.forEach((denom) => {
-            const dCents = SplitXCore.toCents(denom);
-            const expQty = ledger.physicalLooseOnTable[denom] || 0;
-            const hasEntered = cuadreActualCounts.has(denom);
-            const actQty = hasEntered ? cuadreActualCounts.get(denom) : expQty;
-            expectedCents += expQty * dCents;
-            actualCents += actQty * dCents;
-            if (hasEntered && actQty !== expQty) hasSwapDiff = true;
-        });
-        const deltaCents = actualCents - expectedCents;
-        const partialNote = cuadreActualCounts.size < state.denominations.length
-            ? ` <span class="font-normal opacity-80">(${cuadreActualCounts.size}/${state.denominations.length} denom. contadas)</span>`
-            : '';
+        const hasOvercommit = (ledger.overcommitTotal || 0) > 0;
+        const expText = escapeHTML(fmt(SplitXCore.fromCents(stats.expectedCents)));
+        const actText = escapeHTML(fmt(SplitXCore.fromCents(stats.actualCents)));
+        const countScope = `${stats.enteredCount}/${stats.totalDenoms} denom. contadas`;
         banner.classList.remove('hidden');
-        if (deltaCents === 0) {
-            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200';
-            banner.innerHTML = hasSwapDiff
-                ? `<i class="fa-solid fa-scale-balanced mr-1.5"></i>Diferencia neta: ${escapeHTML(fmt(0))} — cuadra por intercambio de billetes.${partialNote}`
-                : `<i class="fa-solid fa-circle-check mr-1.5"></i>Conteo real coincide exactamente con el esperado (${escapeHTML(fmt(SplitXCore.fromCents(actualCents)))}).${partialNote}`;
-        } else if (deltaCents < 0) {
+
+        if (hasOvercommit) {
             banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300';
-            banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Faltan ${escapeHTML(fmt(SplitXCore.fromCents(-deltaCents)))} en mesa (esperado ${escapeHTML(fmt(SplitXCore.fromCents(expectedCents)))} vs real ${escapeHTML(fmt(SplitXCore.fromCents(actualCents)))}).${partialNote}`;
+            banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Resuelve primero el sobrecompromiso de caja (−${escapeHTML(fmt(ledger.overcommitTotal))}) antes de conciliar (${countScope}: contado ${actText}).`;
+            return;
+        }
+
+        if (stats.deltaCents === 0) {
+            if (stats.hasSwapDiff) {
+                const deltaSummary = stats.deltas.map(x => `${x.diff > 0 ? '+' : '−'}${Math.abs(x.diff)}×${x.denom}`).join(', ');
+                banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 space-y-2';
+                banner.innerHTML = `
+                    <div><i class="fa-solid fa-scale-balanced mr-1.5"></i>Diferencia neta: ${escapeHTML(fmt(0))} — cuadra por intercambio (${escapeHTML(deltaSummary)}). <span class="font-normal opacity-80">(${countScope})</span></div>
+                    <button type="button" data-sx-click="applyCuadreSwapToBox" class="w-full py-1.5 px-2.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-arrows-rotate"></i> Aplicar intercambio a Mi Caja
+                    </button>
+                `;
+            } else if (stats.isComplete) {
+                banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200';
+                banner.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i>Conteo real completo coincide exactamente con la mesa (${actText}).`;
+            } else {
+                banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200';
+                banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>Parcial (${countScope}): las contadas coinciden (${actText} de ${expText} esperado en esas denominaciones).`;
+            }
+        } else if (stats.deltaCents < 0) {
+            const prefix = stats.isComplete ? '' : `Parcial (${countScope}): `;
+            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300';
+            banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>${prefix}Faltan ${escapeHTML(fmt(SplitXCore.fromCents(-stats.deltaCents)))} (esperado ${expText} vs real ${actText}).`;
         } else {
+            const prefix = stats.isComplete ? '' : `Parcial (${countScope}): `;
             banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200';
-            banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>Sobran ${escapeHTML(fmt(SplitXCore.fromCents(deltaCents)))} en mesa (esperado ${escapeHTML(fmt(SplitXCore.fromCents(expectedCents)))} vs real ${escapeHTML(fmt(SplitXCore.fromCents(actualCents)))}).${partialNote}`;
+            banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>${prefix}Sobran ${escapeHTML(fmt(SplitXCore.fromCents(stats.deltaCents)))} (esperado ${expText} vs real ${actText}).`;
         }
     };
 
@@ -2212,24 +2377,22 @@ const app = (() => {
     } = configUI;
 
     const updateTotals = (precomputedCoverage = null, precomputedBankData = null, precomputedSummary = null, precomputedLedger = null) => {
-        // Cash in Box
-        let totalBox = 0;
-        state.denominations.forEach(d => totalBox += d * (state.inventory[d] || 0));
-        document.getElementById('totalInventoryDisplay').innerText = fmt(totalBox);
-
-        // Payroll totals
+        // Payroll & Box totals using integer-cent math (zero float drift)
         const isNormal = state.payrollMode === 'normal';
         const coverage = precomputedCoverage || calculateDistribution();
         const ledger = precomputedLedger || SplitXCore.computeLedgerSummary(state.denominations, state.inventory, coverage.results, coverage.loanFundResult);
+        const totalBox = ledger.totalBox;
+        document.getElementById('totalInventoryDisplay').innerText = fmt(totalBox);
+
         const paidEmps = coverage.results.filter(e => e.payoutStatus === 'paid');
         const packedEmps = coverage.results.filter(e => e.payoutStatus === 'packed');
         const pendingEmps = coverage.results.filter(e => e.payoutStatus === 'pending');
-        let totalPending = pendingEmps.reduce((s, e) => s + getEffectiveEmployeeAmount(e), 0);
         const payrollSummary = precomputedSummary || getPayrollSummary();
         const loanFund = isNormal ? 0 : Math.min(Math.max(0, Number(state.payrollLoanFund) || 0), payrollSummary.loans);
-        totalPending += loanFund;
-        const employeeMissing = coverage.results.reduce((sum, emp) => sum + (emp.payoutStatus === 'pending' ? (emp._missingAmount || 0) : 0), 0);
-        const totalMissing = employeeMissing + (coverage.loanFundResult.missingAmount || 0);
+        const totalPendingCents = pendingEmps.reduce((s, e) => s + SplitXCore.toCents(getEffectiveEmployeeAmount(e)), 0) + SplitXCore.toCents(loanFund);
+        const totalPending = SplitXCore.fromCents(totalPendingCents);
+        const employeeMissingCents = coverage.results.reduce((sum, emp) => sum + (emp.payoutStatus === 'pending' ? SplitXCore.toCents(emp._missingAmount || 0) : 0), 0);
+        const totalMissing = SplitXCore.fromCents(employeeMissingCents + SplitXCore.toCents(coverage.loanFundResult.missingAmount || 0));
         const hasOvercommit = (ledger.overcommitTotal || 0) > 0;
 
         // ── KPI Cards ──────────────────────────────
@@ -2301,10 +2464,11 @@ const app = (() => {
 
         // KPI 4: Retirar banco
         const bankData = precomputedBankData || calculateBankNeeds(coverage);
-        let toWithdraw = 0;
+        let toWithdrawCents = 0;
         state.denominations.forEach(d => {
-            if (bankData.breakdown[d]) toWithdraw += bankData.breakdown[d].final * d;
+            if (bankData.breakdown[d]) toWithdrawCents += bankData.breakdown[d].final * SplitXCore.toCents(d);
         });
+        const toWithdraw = SplitXCore.fromCents(toWithdrawCents);
         const kpiRet = document.getElementById('kpiRetirar');
         if (kpiRet) {
             kpiRet.innerText = fmt(toWithdraw);
@@ -2489,6 +2653,7 @@ const app = (() => {
         getBillStyle,
         getBillImage,
         getIdealBreakdown,
+        onLedgerMutated: clearCuadreState,
         showToast,
         showCustomConfirm
     });
@@ -2588,6 +2753,7 @@ const app = (() => {
                     cuadreActualCounts.delete(d);
                 } else {
                     const qty = Math.max(0, Math.floor(Number(raw) || 0));
+                    if (String(qty) !== raw) input.value = String(qty);
                     cuadreActualCounts.set(d, qty);
                 }
                 const ledger = _lastRenderedLedger;
@@ -2669,6 +2835,7 @@ const app = (() => {
                 openBankMobile: () => openBankMobile(),
                 openCuadreView: () => openCuadreView(),
                 clearCuadreChecks: () => clearCuadreChecks(),
+                applyCuadreSwapToBox: () => applyCuadreSwapToBox(),
                 applyBankToInventory: () => applyBankToInventory(),
                 clearBankLimits: () => clearBankLimits(),
                 addEmployee: () => addEmployee(),
@@ -2729,6 +2896,7 @@ const app = (() => {
         openCajaMobile,
         openCuadreView,
         clearCuadreChecks,
+        applyCuadreSwapToBox,
         setStatusColorScheme,
         setCardNumberMode,
         updateInventory,

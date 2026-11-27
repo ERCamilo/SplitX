@@ -117,9 +117,11 @@
             return [25, 10, 5, 1].includes(d);
         };
 
-        const sizeKey = /** @type {'compact' | 'normal' | 'large'} */ (state.breakdownSize in SIZE_CONFIGS ? state.breakdownSize : 'normal');
+        const sizeKey = /** @type {'compact' | 'normal' | 'large'} */ (
+            Object.prototype.hasOwnProperty.call(SIZE_CONFIGS, state.breakdownSize) ? state.breakdownSize : 'normal'
+        );
         const currentSize = SIZE_CONFIGS[sizeKey];
-        const currentFormat = state.breakdownFormat || 'badge';
+        const currentFormat = (state.breakdownFormat === 'qty_x_denom' || state.breakdownFormat === 'denom_x_qty') ? state.breakdownFormat : 'badge';
         const safeSym = escapeHTML(getCurrencySymbol());
         const safeEmpId = escapeHTML(String(emp.id ?? ''));
 
@@ -168,7 +170,8 @@
             `;
         };
 
-        const colCount = state.breakdownColumns || 5;
+        const rawCols = state.breakdownColumns;
+        const colCount = (rawCols === 'auto' || rawCols === 3 || rawCols === 4 || rawCols === 5 || rawCols === 6) ? rawCols : 5;
         const autoMin = currentFormat === 'badge'
             ? (sizeKey === 'compact' ? '42px' : sizeKey === 'large' ? '68px' : '54px')
             : (sizeKey === 'compact' ? '65px' : sizeKey === 'large' ? '95px' : '80px');

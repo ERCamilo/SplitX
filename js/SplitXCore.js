@@ -218,11 +218,11 @@
         /** @param {any} emp @returns {number} */
         const getEffectiveEmployeeAmount = (emp) => {
             const state = getState();
-            // When in 'normal' mode and employee has payroll breakdown, ignore loan deductions:
+            // When in 'normal' mode and employee has payroll breakdown, ignore loan deductions (clamped >= 0):
             if (state.payrollMode === 'normal' && emp.payroll && emp.payroll.afterDiscounts !== undefined && emp.payroll.afterDiscounts !== null) {
-                return emp.payroll.afterDiscounts;
+                return Math.max(0, Number(emp.payroll.afterDiscounts) || 0);
             }
-            return emp.amount;
+            return Math.max(0, Number(emp.amount) || 0);
         };
 
         const getPayrollSummary = () => {
@@ -230,7 +230,7 @@
             const isNormal = state.payrollMode === 'normal';
             return state.employees.reduce((/** @type {any} */ summary, /** @type {any} */ emp) => {
                 if (!emp.payroll) {
-                    summary.net = fromCents(toCents(summary.net) + toCents(emp.amount));
+                    summary.net = fromCents(toCents(summary.net) + toCents(Math.max(0, Number(emp.amount) || 0)));
                     return summary;
                 }
                 summary.count += 1;
@@ -243,15 +243,16 @@
                 const afterDiscounts = (emp.payroll.afterDiscounts !== undefined && emp.payroll.afterDiscounts !== null)
                     ? emp.payroll.afterDiscounts
                     : fromCents(toCents(gross) + toCents(bonuses) - toCents(discounts));
+                const payableAfterDiscounts = Math.max(0, Number(afterDiscounts) || 0);
                 const loans = emp.payroll.loans || 0;
-                const netWithLoans = emp.amount !== undefined ? emp.amount : fromCents(toCents(afterDiscounts) - toCents(loans));
+                const netWithLoans = Math.max(0, emp.amount !== undefined ? (Number(emp.amount) || 0) : fromCents(toCents(afterDiscounts) - toCents(loans)));
 
                 summary.gross = fromCents(toCents(summary.gross) + toCents(gross));
                 summary.bonuses = fromCents(toCents(summary.bonuses) + toCents(bonuses));
                 summary.discounts = fromCents(toCents(summary.discounts) + toCents(discounts));
                 summary.afterDiscounts = fromCents(toCents(summary.afterDiscounts) + toCents(afterDiscounts));
                 summary.loans = fromCents(toCents(summary.loans) + toCents(loans));
-                summary.net = fromCents(toCents(summary.net) + toCents(isNormal ? afterDiscounts : netWithLoans));
+                summary.net = fromCents(toCents(summary.net) + toCents(isNormal ? payableAfterDiscounts : netWithLoans));
 
                 // Scheduled loans from original imported data vs actual:
                 const origLoans = emp.originalData?.payroll?.loans !== undefined

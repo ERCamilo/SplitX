@@ -109,13 +109,59 @@ describe('mobile payroll workflow at 390x844', () => {
             await page.locator('#employeeList button:has-text("Limpiar filtros")').click();
             assert.match(await page.textContent('#employeeList'), /María Móvil/);
 
-            // Cuadre physical count net variance (bill swap nets to 0)
+            // Cuadre physical count: partial honesty + true bill-swap net-0 + 1-click Apply Swap to Box
             await page.locator('#bnav-cuadre').click();
             await page.waitForSelector('#cuadreTableBody input[data-cuadre-actual="1000"]');
             await page.fill('#cuadreTableBody input[data-cuadre-actual="1000"]', '1');
             await page.waitForSelector('#cuadreVarianceBanner:not(.hidden)');
-            assert.match(await page.textContent('#cuadreVarianceBanner'), /Sobran/);
+            assert.match(await page.textContent('#cuadreVarianceBanner'), /Parcial \(1\/10.*Sobran/);
+
+            // Revert paid employee back to pending (so 1x2000 + 1x500 are loose on table) and verify true bill swap (0x2000 + 2x1000 nets to 0)
             await page.locator('#bnav-nomina').click();
+            await page.locator('#employeeList button[data-card-action="revert-status"]').first().click();
+            await page.waitForSelector('#customDialogModal:not(.hidden)');
+            await page.locator('#dialogActions button').last().click();
+            await page.waitForSelector('#customDialogModal.hidden', { state: 'attached' });
+            await page.locator('#employeeList button[data-card-action="revert-status"]').first().click();
+            await page.waitForSelector('#employeeList button[data-card-action="revert-status"][disabled]');
+
+            await page.locator('#bnav-cuadre').click();
+            await page.fill('#cuadreTableBody input[data-cuadre-actual="2000"]', '0');
+            await page.fill('#cuadreTableBody input[data-cuadre-actual="1000"]', '2');
+            await page.waitForSelector('#cuadreVarianceBanner button[data-sx-click="applyCuadreSwapToBox"]');
+            assert.match(await page.textContent('#cuadreVarianceBanner'), /cuadra por intercambio/);
+            await page.locator('#cuadreVarianceBanner button[data-sx-click="applyCuadreSwapToBox"]').click();
+            await page.waitForSelector('#cuadreVarianceBanner.hidden', { state: 'attached' });
+            const afterSwapInv = await page.evaluate(() => JSON.parse(localStorage.getItem('Split_data')).inventory);
+            assert.equal(afterSwapInv[2000], 0);
+            assert.equal(afterSwapInv[1000], 2);
+            assert.equal(afterSwapInv[500], 1);
+
+            // Multi-tab CAS safety (EGM Round 3 Blockers #1 & #2):
+            // Simulate another tab advancing _rev in localStorage; Escape AND re-entrant saveData() MUST NOT overwrite localStorage
+            const otherTabRev = await page.evaluate(() => {
+                const d = JSON.parse(localStorage.getItem('Split_data'));
+                d._rev = (Number(d._rev) || 0) + 5;
+                d.employees.push({ id: 999999, name: 'Otro Tab', amount: 100, paid: true, payoutStatus: 'paid' });
+                localStorage.setItem('Split_data', JSON.stringify(d));
+                return d._rev;
+            });
+            await page.locator('#bnav-nomina').click();
+            await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
+            await page.waitForSelector('#customDialogModal:not(.hidden)');
+            assert.match(await page.textContent('#dialogTitle'), /otra pestaña/i);
+
+            // Re-entrant write while modal is open must NOT clobber localStorage
+            await page.evaluate(() => { window.app.adjustInv(500, 1); });
+            let storedAfterReentrant = await page.evaluate(() => JSON.parse(localStorage.getItem('Split_data')));
+            assert.equal(storedAfterReentrant._rev, otherTabRev, 're-entrant saveData while CAS modal is open must not overwrite localStorage');
+
+            // Pressing Escape must act as safe cancel and NOT overwrite localStorage
+            await page.keyboard.press('Escape');
+            await page.waitForSelector('#customDialogModal.hidden', { state: 'attached' });
+            const storedAfterEscape = await page.evaluate(() => JSON.parse(localStorage.getItem('Split_data')));
+            assert.equal(storedAfterEscape._rev, otherTabRev, 'pressing Escape on CAS modal must never overwrite localStorage');
+            assert.equal(storedAfterEscape.employees.some(e => e.id === 999999), true, 'other tab payout must survive Escape');
 
             // 4. Open & close Operations / Backup modal via accessible aria-label buttons
             await page.locator('nav button[aria-label="Operaciones de nómina"]').click();
