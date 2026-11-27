@@ -157,15 +157,22 @@
         };
 
         // 1. Calculate Distribution and Return LEFTOVER Inventory (Practical Approach)
-        /** @param {boolean} [optimize] */
-        const calculateDistributionPass = (optimize = false) => {
+        /** @param {boolean} [optimize] @param {number[] | null} [orderIndices] */
+        const calculateDistributionPass = (optimize = false, orderIndices = null) => {
             const state = getState();
             // We create a deep copy of inventory to simulate payments
             /** @type {Record<number | string, number>} */
             let currentInventory = { ...state.inventory };
             const isNormal = state.payrollMode === 'normal';
+            const totalEmps = state.employees.length;
+            /** @type {any[]} */
+            const results = new Array(totalEmps);
+            const indices = Array.isArray(orderIndices) && orderIndices.length === totalEmps
+                ? orderIndices
+                : Array.from({ length: totalEmps }, (_, idx) => idx);
 
-            const results = state.employees.map((/** @type {any} */ emp) => {
+            for (const idx of indices) {
+                const emp = state.employees[idx];
                 /** @type {Record<number, number>} */
                 let distribution = {};
                 let status = 'ok';
@@ -195,8 +202,8 @@
                     }
                 }
 
-                return { ...emp, _missingAmount: missingAmount, effectiveAmount: targetAmount, distribution, status, notes };
-            });
+                results[idx] = { ...emp, _missingAmount: missingAmount, effectiveAmount: targetAmount, distribution, status, notes };
+            }
 
             // Treat the new-loan reserve as one more pending cash assignment (only in deductions / Nómina mode).
             const payrollSummary = getPayrollSummary();
@@ -220,17 +227,89 @@
         const calculateDistribution = () => {
             const baseline = calculateDistributionPass(false);
             if (!CashOptimizer || typeof CashOptimizer.solveCash !== 'function') return baseline;
-            const baselineMissing = baseline.results.reduce((/** @type {number} */ n, /** @type {any} */ e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
-                + baseline.loanFundResult.missingAmount;
+
+            /** @param {any} pass */
+            const calcMissing = (pass) => pass.results.reduce((/** @type {number} */ n, /** @type {any} */ e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
+                + pass.loanFundResult.missingAmount;
+            /** @param {any} pass */
+            const countShort = (pass) => pass.results.reduce((/** @type {number} */ n, /** @type {any} */ e) => n + (!e.paid && (e._missingAmount || 0) > 0 ? 1 : 0), 0)
+                + (pass.loanFundResult.missingAmount > 0 ? 1 : 0);
+
+            const baselineMissing = calcMissing(baseline);
             if (baselineMissing <= 0) return baseline;
-            const candidate = calculateDistributionPass(true);
-            const newlyShort = candidate.results.some((/** @type {any} */ e, /** @type {number} */ i) => !e.paid &&
-                (baseline.results[i]._missingAmount || 0) === 0 && (e._missingAmount || 0) > 0);
-            if (newlyShort || (baseline.loanFundResult.missingAmount === 0 && candidate.loanFundResult.missingAmount > 0))
-                return baseline;
-            const candidateMissing = candidate.results.reduce((/** @type {number} */ n, /** @type {any} */ e) => n + (!e.paid ? (e._missingAmount || 0) : 0), 0)
-                + candidate.loanFundResult.missingAmount;
-            return candidateMissing < baselineMissing - 0.001 ? candidate : baseline;
+
+            let best = baseline;
+            let bestMissing = baselineMissing;
+            let bestShort = countShort(baseline);
+
+            /** @param {any} candidate */
+            const considerCandidate = (candidate) => {
+                const newlyShort = candidate.results.some((/** @type {any} */ e, /** @type {number} */ i) => !e.paid &&
+                    (baseline.results[i]._missingAmount || 0) === 0 && (e._missingAmount || 0) > 0);
+                if (newlyShort || (baseline.loanFundResult.missingAmount === 0 && candidate.loanFundResult.missingAmount > 0)) {
+                    return;
+                }
+                const candMissing = calcMissing(candidate);
+                const candShort = countShort(candidate);
+                if (candMissing < bestMissing - 0.001 || (Math.abs(candMissing - bestMissing) <= 0.001 && candShort < bestShort)) {
+                    best = candidate;
+                    bestMissing = candMissing;
+                    bestShort = candShort;
+                }
+            };
+
+            considerCandidate(calculateDistributionPass(true));
+            if (bestMissing <= 0) return best;
+
+            // Multi-order bounded search: resolves false shortages caused solely by list order
+            // (e.g. Emp1=1000 taking both 500s before Emp2=700 & Emp3=700). UI order is preserved.
+            const state = getState();
+            const unpaid = [];
+            const paid = [];
+            for (let i = 0; i < state.employees.length; i++) {
+                const emp = state.employees[i];
+                if (emp.paid) paid.push(i);
+                else unpaid.push({ idx: i, cents: Math.max(0, toCents(getEffectiveEmployeeAmount(emp))) });
+            }
+            if (unpaid.length < 2) return best;
+
+            let maxAvailDenomCents = 0;
+            for (const d of state.denominations) {
+                if ((Number(state.inventory?.[d]) || 0) > 0) {
+                    const dc = toCents(d);
+                    if (dc > maxAvailDenomCents) maxAvailDenomCents = dc;
+                }
+            }
+            if (maxAvailDenomCents <= 0 && state.denominations.length > 0) {
+                maxAvailDenomCents = toCents(state.denominations[0]);
+            }
+
+            /** @type {number[][]} */
+            const candidateOrders = [
+                // 1. Constrained / non-divisible amounts first (protects exact-change bills like 500 for 700)
+                [...unpaid].sort((a, b) => {
+                    const aDiv = maxAvailDenomCents > 0 && a.cents % maxAvailDenomCents === 0 ? 1 : 0;
+                    const bDiv = maxAvailDenomCents > 0 && b.cents % maxAvailDenomCents === 0 ? 1 : 0;
+                    if (aDiv !== bDiv) return aDiv - bDiv;
+                    if (a.cents !== b.cents) return a.cents - b.cents;
+                    return a.idx - b.idx;
+                }).map(x => x.idx).concat(paid),
+                // 2. Smallest unpaid first
+                [...unpaid].sort((a, b) => (a.cents - b.cents) || (a.idx - b.idx)).map(x => x.idx).concat(paid),
+                // 3. Largest unpaid first
+                [...unpaid].sort((a, b) => (b.cents - a.cents) || (a.idx - b.idx)).map(x => x.idx).concat(paid)
+            ];
+
+            const seenOrders = new Set([unpaid.map(x => x.idx).concat(paid).join(',')]);
+            for (const order of candidateOrders) {
+                const key = order.join(',');
+                if (seenOrders.has(key)) continue;
+                seenOrders.add(key);
+                considerCandidate(calculateDistributionPass(true, order));
+                if (bestMissing <= 0) break;
+            }
+
+            return best;
         };
 
         // 2. Bank Planner (Calculates needs ONLY for Unpaid employees)

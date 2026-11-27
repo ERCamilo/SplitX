@@ -91,7 +91,8 @@ describe('SplitXEditModal pure payroll & loan calculations (#28)', () => {
             'editEmpNet', 'editEmpLoanPrincipal', 'editEmpLoanInterestRate', 'editEmpLoanInterestAmount',
             'editEmpLoanRemainingBalance', 'loanDetailsExpanded', 'toggleLoanDetailsText',
             'bonusTypeFixed', 'bonusTypePercent', 'bonusSymbol', 'discountTypeFixed', 'discountTypePercent',
-            'discountSymbol', 'bonusCalcDisplay', 'discountCalcDisplay', 'calcFormulaNet',
+            'discountSymbol', 'editGrossSymbol', 'editLoansSymbol', 'editNetSymbol',
+            'bonusCalcDisplay', 'discountCalcDisplay', 'calcFormulaNet',
             'editModalReconciledStatus', 'editModalBreakdownTotal', 'editModalBreakdownChips', 'editEmployeeModal'
         ].forEach(mk);
 
@@ -112,8 +113,8 @@ describe('SplitXEditModal pure payroll & loan calculations (#28)', () => {
             const modal = SplitXEditModal.createEditModal({
                 getState: () => state,
                 saveData: () => { saved++; },
-                fmt: (n) => `RD$ ${Number(n).toFixed(2)}`,
-                getCurrencySymbol: () => 'RD$',
+                fmt: (n) => `€ ${Number(n).toFixed(2)}`,
+                getCurrencySymbol: () => '€',
                 escapeHTML: (s) => String(s),
                 isCoin: () => false,
                 getBillStyle: () => '',
@@ -125,6 +126,9 @@ describe('SplitXEditModal pure payroll & loan calculations (#28)', () => {
 
             modal.openEditModal(10);
             assert.equal(String(elements.get('editEmpNet').value), '8500', 'openEditModal must not overwrite manual net 8500 with calculatedNet 9000');
+            assert.equal(elements.get('editGrossSymbol').textContent, '€', 'editGrossSymbol must reflect active currency symbol');
+            assert.equal(elements.get('editLoansSymbol').textContent, '€', 'editLoansSymbol must reflect active currency symbol');
+            assert.equal(elements.get('editNetSymbol').textContent, '€', 'editNetSymbol must reflect active currency symbol');
 
             // Negative net must be rejected
             elements.get('editEmpNet').value = '-100';

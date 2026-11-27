@@ -179,4 +179,25 @@ describe('index.html structural & script integrity', () => {
         }
         assert.deepEqual(missing, [], `icon-only buttons missing aria-label:\n${missing.join('\n')}`);
     });
+
+    test('all 8 modals declare role="dialog" aria-modal="true" and Edit Modal exposes dynamic currency symbols (Sprint D)', () => {
+        const modalIds = [
+            'configModal', 'operationsModal', 'exportModal', 'importModal',
+            'historyModal', 'postImportModal', 'customDialogModal', 'editEmployeeModal'
+        ];
+        for (const id of modalIds) {
+            const m = html.match(new RegExp(`<div\\b[^>]*id="${id}"[^>]*>`, 'i'));
+            assert.ok(m, `missing modal container #${id}`);
+            assert.match(m[0], /\brole="dialog"/, `#${id} must declare role="dialog"`);
+            assert.match(m[0], /\baria-modal="true"/, `#${id} must declare aria-modal="true"`);
+        }
+        for (const symId of ['editGrossSymbol', 'editLoansSymbol', 'editNetSymbol']) {
+            assert.match(html, new RegExp(`id="${symId}"`), `Edit Modal must declare #${symId} for dynamic currency`);
+        }
+        const appJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXApp.js'), 'utf8');
+        assert.match(appJs, /e\.key\s*[!=]==\s*'Escape'/, 'SplitXApp.js must support Escape key to close active modals');
+        assert.equal(/state\.billColors\s*=\s*\{\s*\.\.\.preset\.colors,\s*\.\.\.state\.billColors\s*\}/.test(appJs), false,
+            'setCurrencyPreset must not keep stale colors from previous currencies overriding new preset');
+        assert.match(appJs, /lastImportAction/, 'closePostImportModal must preserve inventory on append imports');
+    });
 });

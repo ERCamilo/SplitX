@@ -230,6 +230,27 @@ describe('bounded optimizer integration: protect payroll regressions', () => {
         assert.deepEqual(loanFundResult.distribution, { 10: 3 });
         assert.equal(leftoverInventory[25], 1);
     });
+    test('resolves sequential false shortage via multi-order allocation while preserving UI order (Sprint D)', () => {
+        const { core } = make({
+            denominations: DOP,
+            inventory: { 500: 2, 200: 7 }, // Exact RD$ 2,400 total
+            employees: [
+                { id: 1, name: 'Emp 1', amount: 1000, paid: false },
+                { id: 2, name: 'Emp 2', amount: 700, paid: false },
+                { id: 3, name: 'Emp 3', amount: 700, paid: false }
+            ]
+        });
+        const { results, leftoverInventory } = core.calculateDistribution();
+        assert.deepEqual(results.map(r => r.id), [1, 2, 3], 'must preserve original UI employee order');
+        assert.equal(results[0]._missingAmount, 0);
+        assert.equal(results[1]._missingAmount, 0);
+        assert.equal(results[2]._missingAmount, 0);
+        assert.deepEqual(results[0].distribution, { 200: 5 });
+        assert.deepEqual(results[1].distribution, { 500: 1, 200: 1 });
+        assert.deepEqual(results[2].distribution, { 500: 1, 200: 1 });
+        assert.equal(leftoverInventory[500], 0);
+        assert.equal(leftoverInventory[200], 0);
+    });
 });
 
 describe('domain validations and rounding helpers (Issue #25)', () => {

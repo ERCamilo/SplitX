@@ -35,30 +35,40 @@
     };
 
     /**
-     * Compara sobrantes de caja vs desglose ideal de montos faltantes para empleados pendientes.
+     * Compara sobrantes de caja vs desglose ideal de montos faltantes para empleados pendientes y fondo de préstamos.
      * @param {number[]} denominations
      * @param {Record<number, number>} leftoverInventory
      * @param {Array<any>} processedEmployees
+     * @param {{ missingAmount?: number } | null} [loanFundResult]
      */
-    const generateSmartAdvisorData = (denominations, leftoverInventory, processedEmployees) => {
+    const generateSmartAdvisorData = (denominations, leftoverInventory, processedEmployees, loanFundResult = null) => {
         /** @type {Record<number, number>} */
         const idealMissingBreakdown = {};
         denominations.forEach(d => { idealMissingBreakdown[d] = 0; });
 
+        /** @param {number} amount */
+        const addMissingToBreakdown = (amount) => {
+            let remCents = Math.round((Number(amount) || 0) * 100);
+            if (remCents <= 0) return;
+            denominations.forEach(d => {
+                const dCents = Math.round((Number(d) || 0) * 100);
+                if (dCents <= 0 || remCents <= 0) return;
+                const count = Math.floor(remCents / dCents);
+                if (count > 0) {
+                    idealMissingBreakdown[d] += count;
+                    remCents -= count * dCents;
+                }
+            });
+        };
+
         processedEmployees.forEach(emp => {
             if (!emp.paid && emp._missingAmount > 0) {
-                let remCents = Math.round((Number(emp._missingAmount) || 0) * 100);
-                denominations.forEach(d => {
-                    const dCents = Math.round((Number(d) || 0) * 100);
-                    if (dCents <= 0 || remCents <= 0) return;
-                    const count = Math.floor(remCents / dCents);
-                    if (count > 0) {
-                        idealMissingBreakdown[d] += count;
-                        remCents -= count * dCents;
-                    }
-                });
+                addMissingToBreakdown(emp._missingAmount);
             }
         });
+        if (loanFundResult && (loanFundResult.missingAmount || 0) > 0) {
+            addMissingToBreakdown(loanFundResult.missingAmount || 0);
+        }
 
         /** @type {Array<{ denom: number, count: number }>} */
         const surplus = [];

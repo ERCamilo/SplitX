@@ -264,6 +264,12 @@
                 }
             }
 
+            const activeSymbol = deps.getCurrencySymbol();
+            ['editGrossSymbol', 'editLoansSymbol', 'editNetSymbol'].forEach((symId) => {
+                const el = byId(symId);
+                if (el) el.textContent = activeSymbol;
+            });
+
             setModalAdjustmentType('bonus', currentAdjustmentTypes.bonus, false);
             setModalAdjustmentType('discount', currentAdjustmentTypes.discount, false);
 

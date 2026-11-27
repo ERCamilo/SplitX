@@ -124,6 +124,17 @@ describe('SplitXEmployeeCard & Smart Advisor (Issue #28 extraction)', () => {
         assert.equal(byDenom[0.01], 4);
     });
 
+    test('generateSmartAdvisorData includes loanFundResult deficits when employees are covered (Sprint D)', () => {
+        const res = SplitXEmployeeCard.generateSmartAdvisorData(
+            [1000, 500, 200, 100],
+            { 1000: 1, 500: 0, 200: 0, 100: 0 },
+            [{ id: 1, paid: false, _missingAmount: 0 }],
+            { amount: 700, status: 'error', missingAmount: 700 }
+        );
+        assert.deepEqual(res.surplus, [{ denom: 1000, count: 1 }]);
+        assert.deepEqual(res.deficit, [{ denom: 500, count: 1 }, { denom: 200, count: 1 }]);
+    });
+
     test('buildEmployeeCardHTML escapes employee name, uses dynamic currency symbol, and emits data-card-action hooks', () => {
         const state = {
             currency: 'EUR',

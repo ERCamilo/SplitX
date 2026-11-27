@@ -312,6 +312,13 @@
             rootEl.addEventListener('paste',paste);
             rootEl.addEventListener('mouseup',e=>{if(/** @type {HTMLElement | null} */ (e.target)?.closest('#sxdocEditor'))saveRange();});
             rootEl.addEventListener('keyup',e=>{if(/** @type {HTMLElement | null} */ (e.target)?.closest('#sxdocEditor'))saveRange();});
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && !rootEl.hidden) {
+                    snapshot();
+                    try { save(); } catch (/** @type {any} */ err) { status(err.message, true); }
+                    api.close();
+                }
+            });
         };
         const api={
             open:async()=>{

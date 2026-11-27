@@ -476,8 +476,8 @@ const app = (() => {
     };
 
     // 3. Smart Advisor: extracted to SplitXEmployeeCard.generateSmartAdvisorData
-    const getSmartAdvisorData = (leftoverInventory, processedEmployees) =>
-        SplitXEmployeeCard.generateSmartAdvisorData(state.denominations, leftoverInventory, processedEmployees);
+    const getSmartAdvisorData = (leftoverInventory, processedEmployees, loanFundResult = null) =>
+        SplitXEmployeeCard.generateSmartAdvisorData(state.denominations, leftoverInventory, processedEmployees, loanFundResult);
 
     // --- ACTIONS ---
 
@@ -583,10 +583,8 @@ const app = (() => {
             state.useDefaultImages = true;
         }
         
-        // Merge preset colors into state.billColors if defined
-        if (preset.colors) {
-            state.billColors = { ...preset.colors, ...state.billColors };
-        }
+        // Apply preset colors cleanly so previous currency colors do not stick on overlapping denominations
+        state.billColors = preset.colors ? { ...preset.colors } : {};
 
         // Ensure inventory keys exist
         state.denominations.forEach(d => {
@@ -781,6 +779,7 @@ const app = (() => {
     const { buildExportData, exportToCSV, exportToExcel, exportToPDF } = exporter;
 
     let importMode = 'excel'; // 'excel' | 'json'
+    let lastImportAction = 'replace'; // 'replace' | 'append'
 
     const switchImportTab = (mode) => {
         importMode = mode;
@@ -825,7 +824,12 @@ const app = (() => {
         const previewCount = document.getElementById('importPreviewCount');
         const errEl = document.getElementById('importErrorMsg');
 
-        if (!rawText) { previewEl.classList.add('hidden'); return; }
+        if (!rawText) {
+            previewEl.classList.add('hidden');
+            errEl.classList.add('hidden');
+            document.getElementById('importValidation')?.classList.add('hidden');
+            return;
+        }
 
         try {
             let employees = [];
@@ -935,11 +939,14 @@ const app = (() => {
                     if (!choice || choice === 'cancel') return;
 
                     if (choice === 'replace') {
+                        lastImportAction = 'replace';
                         state.employees = newEmps;
                     } else if (choice === 'append') {
+                        lastImportAction = 'append';
                         state.employees = [...state.employees, ...newEmps];
                     }
                 } else {
+                    lastImportAction = 'replace';
                     state.employees = newEmps;
                 }
 
@@ -967,25 +974,33 @@ const app = (() => {
     const closePostImportModal = (autoDistribute) => {
         document.getElementById('postImportModal').classList.add('hidden');
         if (autoDistribute) {
-            // Clear existing inventory and auto-fill from bank needs
-            state.inventory = {};
-            state.denominations.forEach(d => state.inventory[d] = 0);
-            
-            // Calculate what's needed and fill directly
+            // Only clear existing inventory when replacing the payroll; preserve box cash on append imports
+            if (lastImportAction !== 'append') {
+                state.inventory = {};
+                state.denominations.forEach(d => state.inventory[d] = 0);
+            } else {
+                state.denominations.forEach(d => {
+                    if (state.inventory[d] === undefined) state.inventory[d] = 0;
+                });
+            }
+
+            // Calculate what's still needed and add to inventory
             const bankData = calculateBankNeeds();
-            let totalAdded = 0;
+            let totalAddedCents = 0;
             state.denominations.forEach(d => {
                 const quantity = bankData.breakdown[d]?.final || 0;
                 state.inventory[d] = (state.inventory[d] || 0) + quantity;
-                totalAdded += quantity * d;
+                totalAddedCents += quantity * SplitXCore.toCents(d);
             });
-            
+            const totalAdded = SplitXCore.fromCents(totalAddedCents);
+
             state.mode = 'inventory';
             switchTab('inventory');
             saveData();
-            
+
             if (totalAdded > 0) {
-                showToast(`Reparto automático: ${fmt(totalAdded)} distribuidos a ${state.employees.length} empleados.`, 'success');
+                const suffix = lastImportAction === 'append' ? ' (conservando el efectivo existente en caja)' : '';
+                showToast(`Reparto automático: ${fmt(totalAdded)} distribuidos a ${state.employees.length} empleados${suffix}.`, 'success');
             } else {
                 showToast('Empleados importados. No se necesitan billetes adicionales.', 'info');
             }
@@ -1003,7 +1018,7 @@ const app = (() => {
         const bankData = calculateBankNeeds(coverage);
         const payrollSummary = getPayrollSummary();
 
-        renderInventory(coverage.leftoverInventory, coverage.results);
+        renderInventory(coverage.leftoverInventory, coverage.results, coverage.loanFundResult);
         renderEmployees(coverage.results, coverage.loanFundResult, payrollSummary);
         renderBank(bankData);
         renderConfigModal();
@@ -1013,7 +1028,7 @@ const app = (() => {
         }
     };
 
-    const renderInventory = (leftoverInventory, processedEmployees) => {
+    const renderInventory = (leftoverInventory, processedEmployees, loanFundResult = null) => {
         const container = document.getElementById('inventoryList');
         container.innerHTML = '';
         
@@ -1052,7 +1067,7 @@ const app = (() => {
 
         // Render Smart Advisor
         if (processedEmployees) {
-            const advisorData = getSmartAdvisorData(leftoverInventory, processedEmployees);
+            const advisorData = getSmartAdvisorData(leftoverInventory, processedEmployees, loanFundResult);
             const advisorEl = document.getElementById('inventoryAdvisor');
             
             if (advisorData.deficit.length > 0) {
@@ -1796,7 +1811,13 @@ const app = (() => {
             if (e.key === 'Enter') addEmployee();
         });
         document.getElementById('empName').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') document.getElementById('empAmount').focus();
+            if (e.key !== 'Enter') return;
+            const amtInput = document.getElementById('empAmount');
+            if (!amtInput.value.trim() && SplitXCore.parseQuickAddLine(e.currentTarget.value)) {
+                addEmployee();
+            } else {
+                amtInput.focus();
+            }
         });
         const mobileAmt = document.getElementById('empAmountMobile');
         if (mobileAmt) mobileAmt.addEventListener('keypress', (e) => {
@@ -1804,7 +1825,31 @@ const app = (() => {
         });
         const mobileNm = document.getElementById('empNameMobile');
         if (mobileNm) mobileNm.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') document.getElementById('empAmountMobile').focus();
+            if (e.key !== 'Enter') return;
+            if ((!mobileAmt || !mobileAmt.value.trim()) && SplitXCore.parseQuickAddLine(e.currentTarget.value)) {
+                addEmployeeMobile();
+            } else if (mobileAmt) {
+                mobileAmt.focus();
+            }
+        });
+
+        // Global Escape key handler for all visible modals and mobile drawer (topmost first)
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const isOpen = (id) => {
+                const el = document.getElementById(id);
+                return !!(el && !el.classList.contains('hidden'));
+            };
+            if (isOpen('customDialogModal')) { closeCustomDialog(false); return; }
+            if (isOpen('editEmployeeModal')) { closeEditModal(); return; }
+            if (isOpen('postImportModal')) { closePostImportModal(false); return; }
+            if (isOpen('configModal')) { document.getElementById('configModal')?.classList.add('hidden'); return; }
+            if (isOpen('operationsModal')) { closeOperationsModal(); return; }
+            if (isOpen('importModal')) { closeImportModal(); return; }
+            if (isOpen('exportModal')) { closeExportModal(); return; }
+            if (isOpen('historyModal')) { closeHistoryModal(); return; }
+            const drawer = document.getElementById('addDrawer');
+            if (drawer && drawer.classList.contains('open')) { closeAddDrawer(); }
         });
 
         // Delegated events for employee cards (no inline onclick string interpolation)

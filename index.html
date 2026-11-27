@@ -372,7 +372,7 @@
     <!-- ═══════════════════════════════════════════
          CONFIG MODAL
     ═══════════════════════════════════════════ -->
-    <div id="configModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div id="configModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -640,7 +640,7 @@
     <!-- ═══════════════════════════════════════════
          OPERATIONS MODAL (REINICIAR / RESTAURAR / BORRAR TODO)
     ═══════════════════════════════════════════ -->
-    <div id="operationsModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div id="operationsModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col anim-pop border border-slate-200 dark:border-slate-800">
             <!-- Header -->
             <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
@@ -741,7 +741,7 @@
     <!-- ═══════════════════════════════════════════
          EXPORT MODAL (EXCEL / PDF / CSV)
     ═══════════════════════════════════════════ -->
-    <div id="exportModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div id="exportModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col anim-pop border border-slate-200 dark:border-slate-800">
             <!-- Header -->
             <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
@@ -794,7 +794,7 @@
     <!-- ═══════════════════════════════════════════
          IMPORT MODAL
     ═══════════════════════════════════════════ -->
-    <div id="importModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div id="importModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <h3 class="font-bold text-slate-800 dark:text-slate-100">Importar Empleados</h3>
@@ -858,7 +858,7 @@
     <!-- ═══════════════════════════════════════════
          IMPORT HISTORY MODAL
     ═══════════════════════════════════════════ -->
-    <div id="historyModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div id="historyModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col max-h-[85vh]">
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
                 <div>
@@ -876,7 +876,7 @@
     <!-- ═══════════════════════════════════════════
          POST-IMPORT: AUTO-DISTRIBUTE MODAL
     ═══════════════════════════════════════════ -->
-    <div id="postImportModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div id="postImportModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800">
             <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
                 <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
@@ -916,7 +916,7 @@
     <!-- ═══════════════════════════════════════════
          GENERIC CUSTOM DIALOG / ALERT / CONFIRM MODAL
     ═══════════════════════════════════════════ -->
-    <div id="customDialogModal" class="hidden fixed inset-0 modal-backdrop z-[110] flex items-center justify-center p-4">
+    <div id="customDialogModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-[110] flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden anim-pop border border-slate-100 dark:border-slate-800 flex flex-col">
             <div class="p-5 flex items-start gap-4">
                 <div id="dialogIconContainer" class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-xl shadow-xs">
@@ -936,7 +936,7 @@
     <!-- ═══════════════════════════════════════════
          EDIT EMPLOYEE MODAL
     ═══════════════════════════════════════════ -->
-    <div id="editEmployeeModal" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div id="editEmployeeModal" role="dialog" aria-modal="true" class="hidden fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh] anim-pop border border-slate-100 dark:border-slate-800">
             <!-- Header -->
             <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 bg-slate-50/80 dark:bg-slate-900/90">
@@ -971,8 +971,8 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1">Sueldo Bruto</label>
                     <div class="relative">
-                        <input type="number" min="0" step="0.01" id="editEmpGross" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-8 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
-                        <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                        <input type="number" min="0" step="0.01" id="editEmpGross" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-12 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
+                        <span id="editGrossSymbol" class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">RD$</span>
                     </div>
                 </div>
 
@@ -988,8 +988,8 @@
                             </div>
                         </div>
                         <div class="relative">
-                            <input type="number" min="0" step="0.01" id="editEmpBonus" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-7" placeholder="0">
-                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="bonusSymbol">$</span>
+                            <input type="number" min="0" step="0.01" id="editEmpBonus" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-12" placeholder="0">
+                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="bonusSymbol">RD$</span>
                         </div>
                         <div class="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-1.5 font-semibold text-right" id="bonusCalcDisplay">+0.00</div>
                     </div>
@@ -1004,8 +1004,8 @@
                             </div>
                         </div>
                         <div class="relative">
-                            <input type="number" min="0" step="0.01" id="editEmpDiscount" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-7" placeholder="0">
-                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="discountSymbol">$</span>
+                            <input type="number" min="0" step="0.01" id="editEmpDiscount" data-sx-input="updateModalCalculations" class="ring-input font-mono text-sm pl-12" placeholder="0">
+                            <span class="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold" id="discountSymbol">RD$</span>
                         </div>
                         <div class="text-[10px] text-rose-600 dark:text-rose-400 font-mono mt-1.5 font-semibold text-right" id="discountCalcDisplay">-0.00</div>
                     </div>
@@ -1020,8 +1020,8 @@
                         </button>
                     </div>
                     <div class="relative">
-                        <input type="number" min="0" step="0.01" id="editEmpLoans" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-8 bg-white dark:bg-slate-950 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
-                        <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                        <input type="number" min="0" step="0.01" id="editEmpLoans" data-sx-input="updateModalCalculations" class="ring-input font-mono pl-12 bg-white dark:bg-slate-950 font-semibold text-slate-800 dark:text-slate-100" placeholder="0.00">
+                        <span id="editLoansSymbol" class="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">RD$</span>
                     </div>
 
                     <!-- Expanded Loan Details (Optional) -->
@@ -1061,8 +1061,8 @@
                         </button>
                     </div>
                     <div class="relative">
-                        <input type="number" min="0" step="0.01" id="editEmpNet" data-sx-input="updateModalCalculations" data-sx-arg="true" class="ring-input font-mono font-bold text-base text-slate-900 dark:text-slate-50 pl-8 bg-white dark:bg-slate-950" placeholder="0.00">
-                        <span class="absolute left-3 top-2.5 text-sm text-slate-400 font-bold">$</span>
+                        <input type="number" min="0" step="0.01" id="editEmpNet" data-sx-input="updateModalCalculations" data-sx-arg="true" class="ring-input font-mono font-bold text-base text-slate-900 dark:text-slate-50 pl-12 bg-white dark:bg-slate-950" placeholder="0.00">
+                        <span id="editNetSymbol" class="absolute left-3 top-2.5 text-sm text-slate-400 font-bold">RD$</span>
                     </div>
                     <!-- Status message -->
                     <div id="editModalReconciledStatus" class="text-xs flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
