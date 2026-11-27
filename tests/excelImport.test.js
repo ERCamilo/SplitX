@@ -196,4 +196,33 @@ describe('pasted Excel: payroll breakdown & exported sheet round-trip', () => {
         assert.equal(result.employees[0].name, 'Juan Pérez');
         assert.equal(result.employees[0].employeeNumber, undefined);
     });
+
+    test('re-importing 3-state SplitX exports (Pagado / En sobre / Pendiente) works with and without headers', () => {
+        const headerless = [
+            '1\tAna Pérez\t5000\t2\t1\t0\t0\t0\t0\t0\tOK\tPendiente',
+            '2\tLuis Gómez\t3500\t1\t1\t1\t0\t0\t0\t0\tOK\tEn sobre',
+            '3\tMarta Díaz\t2000\t1\t0\t0\t0\t0\t0\t0\tOK\tPagado'
+        ].join('\n');
+        const r1 = parseExcelText(headerless);
+        assert.equal(r1.detectedFormat, 'simple');
+        assert.equal(r1.errors.length, 0);
+        assert.equal(r1.employees[0].amount, 5000);
+        assert.equal(r1.employees[0].paid, false);
+        assert.equal(r1.employees[1].amount, 3500);
+        assert.equal(r1.employees[1].paid, false);
+        assert.equal(r1.employees[2].amount, 2000);
+        assert.equal(r1.employees[2].paid, true);
+
+        const headered = [
+            '#\tNombre\tMonto (RD$)\tRD$1000\tEstado\tPagado',
+            '1\tAna\t2000\t2\tOK\tPagado',
+            '2\tLuis\t1000\t1\tOK\tEn sobre',
+            '3\tMarta\t1000\t1\tOK\tPendiente'
+        ].join('\n');
+        const r2 = parseExcelText(headered);
+        assert.equal(r2.errors.length, 0);
+        assert.equal(r2.employees[0].paid, true);
+        assert.equal(r2.employees[1].paid, false);
+        assert.equal(r2.employees[2].paid, false);
+    });
 });

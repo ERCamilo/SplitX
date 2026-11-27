@@ -157,7 +157,8 @@
             if (cols.length < 10) return false;
             const last = normalizeHeader(cols[cols.length - 1] || '');
             const prev = normalizeHeader(cols[cols.length - 2] || '');
-            return (last === 'si' || last === 'no') && (prev === 'ok' || prev === 'incompleto');
+            const validPaidTail = last === 'si' || last === 'no' || last === 'pagado' || last === 'en sobre' || last === 'pendiente';
+            return validPaidTail && (prev === 'ok' || prev === 'incompleto');
         };
 
         /**
@@ -235,7 +236,7 @@
         /** @param {string | undefined} raw */
         const parsePaidFlag = (raw) => {
             const n = normalizeHeader(raw || '');
-            return n === 'si' || n === 'yes' || n === 'true' || n === '1';
+            return n === 'si' || n === 'yes' || n === 'true' || n === '1' || n === 'pagado';
         };
 
         /**

@@ -24,8 +24,8 @@ const app = (() => {
         currencySymbol: 'RD$',
         coinDenoms: [25, 10, 5, 1],
         denominations: [2000, 1000, 500, 200, 100, 50, 25, 10, 5, 1],
-        inventory: {}, 
-        employees: [], 
+        inventory: {},
+        employees: [],
         bankLimits: {},
         billColors: {},   // { 1000: '#c0392b' } — overrides default
         billImages: {},   // { 1000: 'data:image/...' } — custom base64 images
@@ -102,7 +102,7 @@ const app = (() => {
                 showToast,
                 onImported: (info) => {
                     recordImport({ employees: info.employees, source: 'sa', context: info.exportContext, period: info.period, currency: info.currency });
-                    try { sessionStorage.setItem('splitx_sa_received', '1'); } catch (e) {}
+                    try { sessionStorage.setItem('splitx_sa_received', '1'); } catch (e) { }
                     hideStaleBanner();
                 },
                 windowRef: window
@@ -113,7 +113,7 @@ const app = (() => {
             if (bridge.openedFromSA()) {
                 setTimeout(() => {
                     let receivedBefore = false;
-                    try { receivedBefore = sessionStorage.getItem('splitx_sa_received') === '1'; } catch (e) {}
+                    try { receivedBefore = sessionStorage.getItem('splitx_sa_received') === '1'; } catch (e) { }
                     if (!bridge.receivedPayload() && !receivedBefore) showStaleBanner();
                 }, 5000);
             }
@@ -235,6 +235,8 @@ const app = (() => {
             });
             if (!choice || choice === 'cancel') return;
         }
+        lastImportAction = choice;
+        cuadreCheckedDenoms.clear();
         state.employees = choice === 'append' ? [...state.employees, ...newEmps] : newEmps;
         if (newEmps.some(e => e.payroll)) state.payrollMode = 'deductions';
         const code = String(entry.currency || '').toUpperCase();
@@ -351,7 +353,7 @@ const app = (() => {
                 });
             }
         } else {
-            state.denominations.sort((a,b) => b-a).forEach(d => state.inventory[d] = 0);
+            state.denominations.sort((a, b) => b - a).forEach(d => state.inventory[d] = 0);
             state.theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         }
         applyTheme();
@@ -497,7 +499,7 @@ const app = (() => {
     const addEmployee = () => {
         const nameInput = document.getElementById('empName');
         const amtInput = document.getElementById('empAmount');
-        
+
         let name = nameInput.value.trim();
         let valStr = amtInput.value.trim();
 
@@ -533,7 +535,7 @@ const app = (() => {
         state.employees = state.employees.filter(e => e.id !== id);
         saveData();
     };
-    
+
     const advanceEmployeeStatus = (id) => {
         const emp = state.employees.find(e => e.id === id);
         if (!emp) return;
@@ -672,12 +674,12 @@ const app = (() => {
         state.currencySymbol = sanitizeCurrencySymbol(preset.symbol);
         state.denominations = [...preset.denominations];
         state.coinDenoms = [...preset.coinDenoms];
-        
+
         // If DOP, default to photo images; for others default to vector chips unless customized
         if (key === 'DOP') {
             state.useDefaultImages = true;
         }
-        
+
         // Apply preset colors cleanly so previous currency colors do not stick on overlapping denominations
         state.billColors = preset.colors ? { ...preset.colors } : {};
 
@@ -952,7 +954,7 @@ const app = (() => {
             } else {
                 previewEl.classList.add('hidden');
             }
-        } catch(e) {
+        } catch (e) {
             previewEl.classList.add('hidden');
             document.getElementById('importValidation').classList.add('hidden');
             if (rawText.length > 10) {
@@ -984,7 +986,7 @@ const app = (() => {
     const processImport = async () => {
         const rawText = document.getElementById('jsonImportInput').value.trim();
         const errEl = document.getElementById('importErrorMsg');
-        
+
         try {
             let newEmps = [];
             let importContext = null;
@@ -1128,7 +1130,7 @@ const app = (() => {
     const renderInventory = (leftoverInventory, processedEmployees, loanFundResult = null, ledger = null) => {
         const container = document.getElementById('inventoryList');
         container.innerHTML = '';
-        
+
         state.denominations.forEach(denom => {
             const div = document.createElement('div');
             div.className = "inv-row";
@@ -1171,29 +1173,29 @@ const app = (() => {
         if (processedEmployees) {
             const advisorData = getSmartAdvisorData(leftoverInventory, processedEmployees, loanFundResult);
             const advisorEl = document.getElementById('inventoryAdvisor');
-            
+
             if (advisorData.deficit.length > 0) {
                 advisorEl.classList.remove('hidden');
 
                 // Determine Logic for Yellow vs Red
                 // Rule: If missing denomination < smallest available surplus denomination -> Yellow (Just change)
                 // Rule: Else -> Red (Real money missing)
-                
-                let minSurplus = advisorData.surplus.length > 0 
-                    ? Math.min(...advisorData.surplus.map(s => s.denom)) 
+
+                let minSurplus = advisorData.surplus.length > 0
+                    ? Math.min(...advisorData.surplus.map(s => s.denom))
                     : Infinity;
-                
+
                 // We check each deficit line
                 let deficitHTML = `<div class="font-semibold flex flex-col gap-1 mt-2">`;
-                
+
                 advisorData.deficit.forEach(d => {
                     let colorClass = "text-red-600";
                     let icon = "fa-arrow-trend-down";
-                    
+
                     // Yellow Condition: I'm missing a bill SMALLER than the smallest bill I have extra.
                     // OR I have enough surplus value in general but just wrong bills (simplified check)
                     if (d.denom < minSurplus && minSurplus !== Infinity) {
-                        colorClass = "text-yellow-600"; 
+                        colorClass = "text-yellow-600";
                         icon = "fa-rotate"; // Icon indicating "Change/Swap"
                     }
 
@@ -1201,10 +1203,10 @@ const app = (() => {
                 });
                 deficitHTML += `</div>`;
 
-                let surplusHTML = advisorData.surplus.length > 0 
+                let surplusHTML = advisorData.surplus.length > 0
                     ? `<div class="mb-1 text-green-700 font-semibold"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Sobran: ` + advisorData.surplus.map(s => `${s.count}x${escapeHTML(getCurrencySymbol())}${s.denom}`).join(', ') + `</div>`
                     : `<div class="mb-1 text-slate-500 italic text-[10px]">No hay sobrantes útiles.</div>`;
-                
+
                 advisorEl.innerHTML = `
                     <p class="font-bold text-orange-800 mb-2 border-b border-orange-200 pb-1">Asesor de Cambio</p>
                     ${surplusHTML}
@@ -1259,15 +1261,15 @@ const app = (() => {
     };
 
     const cycleSortMode = () => {
-        const idx   = SORT_MODES.findIndex(m => m.key === sortMode);
-        const next  = SORT_MODES[(idx + 1) % SORT_MODES.length];
+        const idx = SORT_MODES.findIndex(m => m.key === sortMode);
+        const next = SORT_MODES[(idx + 1) % SORT_MODES.length];
         sortMode = next.key;
-        const btn   = document.getElementById('sortBtn');
+        const btn = document.getElementById('sortBtn');
         const label = document.getElementById('sortBtnLabel');
         if (btn) {
             btn.style.borderColor = '';
-            btn.style.color       = '';
-            btn.style.background  = '';
+            btn.style.color = '';
+            btn.style.background = '';
             const icon = btn.querySelector('i');
             if (icon) { icon.className = `fa-solid ${next.icon} text-xs`; }
         }
@@ -1600,10 +1602,10 @@ const app = (() => {
                                 ${fundBillsHTML || `<span class="text-[11px] ${loanFundResult.status === 'error' ? 'text-rose-500 dark:text-rose-400' : 'text-slate-400 dark:text-slate-500 italic'}">${loanFund > 0 ? 'Sin billetes asignados en caja.' : 'Indica un monto para reservar.'}</span>`}
                             </div>
                             ${loanFundResult.status === 'error'
-                                ? `<div class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Faltan ${safeSym} ${fmtNum(loanFundResult.missingAmount)} · retirar del banco</div>`
-                                : loanFund > 0
-                                    ? '<div class="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-[11px]"></i> Fondo cubierto en caja</div>'
-                                    : ''}
+                    ? `<div class="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Faltan ${safeSym} ${fmtNum(loanFundResult.missingAmount)} · retirar del banco</div>`
+                    : loanFund > 0
+                        ? '<div class="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-circle-check text-[11px]"></i> Fondo cubierto en caja</div>'
+                        : ''}
                         </div>
                         <div class="flex flex-col items-end gap-1 shrink-0">
                             <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Fondo para nuevos préstamos</span>
@@ -1628,11 +1630,11 @@ const app = (() => {
             if (mode) data = [...data].sort(mode.fn);
             // Sync button label on initial render
             const label = document.getElementById('sortBtnLabel');
-            const icon  = document.getElementById('sortBtn')?.querySelector('i');
+            const icon = document.getElementById('sortBtn')?.querySelector('i');
             if (label) label.textContent = mode ? mode.label : 'Orden';
             if (icon && mode) icon.className = `fa-solid ${mode.icon} text-xs`;
         }
-        
+
         if (!data || data.length === 0) {
             container.innerHTML = `<div class="text-center py-10 text-slate-400 dark:text-slate-500 flex flex-col items-center">
                 <i class="fa-solid fa-users-viewfinder text-4xl mb-3 opacity-30"></i>
@@ -1672,10 +1674,10 @@ const app = (() => {
 
         state.denominations.forEach(denom => {
             const rowData = bankData.breakdown[denom] || { ideal: 0, neededAfterCarry: 0, final: 0 };
-            
+
             const userLimit = state.bankLimits[denom];
             const isLimited = (userLimit !== undefined && userLimit !== null && userLimit !== "") && rowData.neededAfterCarry > rowData.final;
-            
+
             const row = document.createElement('tr');
             row.className = "bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60";
             row.innerHTML = `
@@ -1990,22 +1992,22 @@ const app = (() => {
 
     // Mobile view switcher (bottom nav + segmented control)
     const switchMobileView = (view) => {
-        const nomPanel  = document.getElementById('panel-nomina');
+        const nomPanel = document.getElementById('panel-nomina');
         const cajaPanel = document.getElementById('panel-caja');
-        const segNom    = document.getElementById('seg-nomina');
-        const segCaja   = document.getElementById('seg-caja');
-        const bnavNom   = document.getElementById('bnav-nomina');
-        const bnavCaja  = document.getElementById('bnav-caja');
+        const segNom = document.getElementById('seg-nomina');
+        const segCaja = document.getElementById('seg-caja');
+        const bnavNom = document.getElementById('bnav-nomina');
+        const bnavCaja = document.getElementById('bnav-caja');
         const bnavBanco = document.getElementById('bnav-banco');
         const bnavCuadre = document.getElementById('bnav-cuadre');
 
         if (view === 'nomina') {
-            nomPanel.classList.add('active');    cajaPanel.classList.remove('active');
-            if (segNom)  { segNom.classList.add('active');    segCaja.classList.remove('active'); }
+            nomPanel.classList.add('active'); cajaPanel.classList.remove('active');
+            if (segNom) { segNom.classList.add('active'); segCaja.classList.remove('active'); }
             if (bnavNom) { bnavNom.classList.add('active'); bnavCaja?.classList.remove('active'); bnavBanco?.classList.remove('active'); bnavCuadre?.classList.remove('active'); }
         } else {
-            cajaPanel.classList.add('active');   nomPanel.classList.remove('active');
-            if (segCaja) { segCaja.classList.add('active');   segNom.classList.remove('active'); }
+            cajaPanel.classList.add('active'); nomPanel.classList.remove('active');
+            if (segCaja) { segCaja.classList.add('active'); segNom.classList.remove('active'); }
             if (bnavCaja) { bnavCaja.classList.add('active'); bnavNom?.classList.remove('active'); bnavBanco?.classList.remove('active'); bnavCuadre?.classList.remove('active'); }
         }
     };
@@ -2022,8 +2024,8 @@ const app = (() => {
     };
     const addEmployeeMobile = () => {
         const nameInput = document.getElementById('empNameMobile');
-        const amtInput  = document.getElementById('empAmountMobile');
-        let name   = nameInput.value.trim();
+        const amtInput = document.getElementById('empAmountMobile');
+        let name = nameInput.value.trim();
         let valStr = amtInput.value.trim();
         if (!name && !valStr) return;
         if (name && !valStr) {

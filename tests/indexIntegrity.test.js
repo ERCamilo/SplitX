@@ -205,5 +205,8 @@ describe('index.html structural & script integrity', () => {
         for (const id of ['tab-cuadre', 'view-cuadre', 'cuadreTableBody', 'ledgerProgressCard', 'cardNumToggleBtn', 'statusScheme-traffic', 'statusScheme-classic']) {
             assert.match(html, new RegExp(`id="${id}"`), `missing 3-state Ledger element #${id}`);
         }
+        const appJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXApp.js'), 'utf8');
+        const histBlock = appJs.slice(appJs.indexOf('const loadHistoryEntry ='), appJs.indexOf('const deleteHistoryEntry ='));
+        assert.match(histBlock, /lastImportAction\s*=\s*choice/, 'loadHistoryEntry must sync lastImportAction before opening postImportModal');
     });
 });
