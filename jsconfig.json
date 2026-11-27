@@ -35,6 +35,8 @@
     "js/SplitXEmployeeCard.js",
     "js/SplitXConfigUI.js",
     "js/SplitXEditModal.js",
+    "js/SplitXSync.js",
+    "js/SplitXCuadre.js",
     "types/*.d.ts"
   ]
 }

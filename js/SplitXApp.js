@@ -345,8 +345,7 @@ const app = (() => {
             const parsed = loaded.data;
             state = { ...state, ...parsed };
             state.schemaVersion = Number(state.schemaVersion) || SplitXState.SCHEMA_VERSION;
-            _lastKnownRev = Number(state._rev) || 0;
-            _lastKnownEpoch = typeof state._epoch === 'string' ? state._epoch : '';
+            syncController.syncFromLoaded(state);
             if (!state.currency) state.currency = 'DOP';
             state.currencySymbol = sanitizeCurrencySymbol(state.currencySymbol || 'RD$');
             const cleanDenoms = Array.isArray(state.denominations)
@@ -500,109 +499,28 @@ const app = (() => {
         showToast('Cambio rehecho (Ctrl+Y).', 'info');
     };
 
-    let _lastKnownRev = 0;
-    let _lastKnownEpoch = '';
     let _externalTabConflictNotified = false;
-    let _casConflictModalOpen = false;
+    const syncController = SplitXSync.createSyncController({
+        getState: () => state,
+        readRaw: () => (typeof localStorage !== 'undefined' ? localStorage.getItem(SplitXStorage.KEYS.DATA) : null),
+        writeRaw: (serialized) => storageSet('Split_data', serialized),
+        parseSavedState: SplitXState.parseSavedState,
+        schemaVersion: SplitXState.SCHEMA_VERSION,
+        showCustomChoice: (opts) => showCustomChoice(opts),
+        onReload: () => location.reload(),
+        onBeforeCommit: ({ fromHistory = false } = {}) => {
+            if (!fromHistory) undoStack.push(captureUndoSnapshot());
+        },
+        onAfterCommit: () => renderAll(),
+        onConflictBlocked: () => renderAll()
+    });
 
-    const mintEpoch = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-
-    const commitStateToStorage = (forceRevBase = 0, { fromHistory = false } = {}) => {
-        state.schemaVersion = SplitXState.SCHEMA_VERSION;
-        const nextRev = Math.max(Number(state._rev) || 0, _lastKnownRev, forceRevBase) + 1;
-        state._rev = nextRev;
-        if (!state._epoch) state._epoch = _lastKnownEpoch || mintEpoch();
-        _lastKnownRev = nextRev;
-        _lastKnownEpoch = state._epoch;
-        if (!fromHistory) {
-            undoStack.push(captureUndoSnapshot());
-        }
-        storageSet('Split_data', JSON.stringify(state));
-        renderAll();
-    };
-
-    const saveData = (opts = {}) => {
-        // Compare-And-Swap (CAS): prevent a stale tab from silently erasing another tab's payouts or restored backup
-        try {
-            const rawStored = typeof localStorage !== 'undefined' ? localStorage.getItem(SplitXStorage.KEYS.DATA) : null;
-            if (rawStored) {
-                const parsedStored = SplitXState.parseSavedState(rawStored);
-                if (parsedStored.ok && parsedStored.data) {
-                    const storedRev = Number(parsedStored.data._rev) || 0;
-                    const storedEpoch = typeof parsedStored.data._epoch === 'string' ? parsedStored.data._epoch : '';
-                    const localRev = Number(state._rev) || 0;
-                    const revDiverged = storedRev > Math.max(localRev, _lastKnownRev);
-                    const epochDiverged = storedEpoch && _lastKnownEpoch && storedEpoch !== _lastKnownEpoch;
-                    if (revDiverged || epochDiverged) {
-                        // ALWAYS block write on divergence (even on re-entrant saveData while modal is open!)
-                        if (!_casConflictModalOpen) {
-                            _casConflictModalOpen = true;
-                            showCustomChoice({
-                                title: 'Cambios detectados en otra pestaña',
-                                message: 'Otra pestaña modificó la nómina o restauró un respaldo. Si guardas desde aquí podrías sobrescribir pagos recientes. ¿Cómo deseas proceder?',
-                                icon: 'fa-triangle-exclamation',
-                                type: 'warning',
-                                choices: [
-                                    {
-                                        label: 'Cancelar (no guardar)',
-                                        value: 'cancel',
-                                        isPrimary: false
-                                    },
-                                    {
-                                        label: 'Sobrescribir con esta pestaña',
-                                        value: 'overwrite',
-                                        icon: 'fa-triangle-exclamation',
-                                        class: 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                                    },
-                                    {
-                                        label: 'Recargar datos recientes',
-                                        value: 'reload',
-                                        icon: 'fa-rotate',
-                                        isPrimary: true,
-                                        class: 'bg-blue-600 hover:bg-blue-700 text-white'
-                                    }
-                                ]
-                            }).then((action) => {
-                                _casConflictModalOpen = false;
-                                if (action === 'reload') {
-                                    location.reload();
-                                } else if (action === 'overwrite') {
-                                    // Re-read latest revision (eliminates TOCTOU) and mint a brand-new epoch
-                                    let latestRev = storedRev;
-                                    try {
-                                        const latestRaw = localStorage.getItem(SplitXStorage.KEYS.DATA);
-                                        const latestParsed = latestRaw ? SplitXState.parseSavedState(latestRaw) : null;
-                                        if (latestParsed?.ok && latestParsed.data) {
-                                            latestRev = Math.max(latestRev, Number(latestParsed.data._rev) || 0);
-                                        }
-                                    } catch (_) { /* keep storedRev */ }
-                                    const freshEpoch = mintEpoch();
-                                    _lastKnownEpoch = freshEpoch;
-                                    state._epoch = freshEpoch;
-                                    commitStateToStorage(latestRev);
-                                }
-                                // Escape / 'cancel' / falsy -> safe no-op, localStorage remains untouched
-                            });
-                        }
-                        renderAll();
-                        return false;
-                    }
-                }
-            }
-        } catch (_) { /* storage unavailable -> fallback to normal write */ }
-
-        commitStateToStorage(0, opts);
-        return true;
-    };
+    const saveData = (opts = {}) => syncController.save(opts);
 
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('storage', (event) => {
             if (event.key !== SplitXStorage.KEYS.DATA || !event.newValue) return;
-            const incoming = SplitXState.parseSavedState(event.newValue);
-            if (!incoming.ok || !incoming.data) return;
-            const incomingRev = Number(incoming.data._rev) || 0;
-            const incomingEpoch = typeof incoming.data._epoch === 'string' ? incoming.data._epoch : '';
-            if (incomingRev > _lastKnownRev || (incomingEpoch && incomingEpoch !== _lastKnownEpoch)) {
+            if (syncController.handleExternalStorage(event.newValue)) {
                 if (!_externalTabConflictNotified) {
                     _externalTabConflictNotified = true;
                     showToast('Otra pestaña modificó la nómina. Recarga esta pestaña para evitar sobrescribir cambios.', 'info');
@@ -1548,8 +1466,8 @@ const app = (() => {
                             × <span class="font-bold font-mono text-sm sm:text-base ${qty > 0 ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}">${qty}</span>
                         </span>
                         ${overQty > 0
-                            ? `<span class="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400">faltan ${overQty} (apart.: ${committed})</span>`
-                            : (committed > 0 ? `<span class="text-[10px] font-mono font-semibold text-blue-600 dark:text-sky-400">en mano: ${freeInHand}</span>` : '')}
+                    ? `<span class="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400">faltan ${overQty} (apart.: ${committed})</span>`
+                    : (committed > 0 ? `<span class="text-[10px] font-mono font-semibold text-blue-600 dark:text-sky-400">en mano: ${freeInHand}</span>` : '')}
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5">
@@ -2214,54 +2132,25 @@ const app = (() => {
         if (applyButton) applyButton.disabled = totalBankMoney <= 0;
     };
 
-    const computeCuadreSwapDeltas = (ledger) => {
-        if (!ledger || cuadreActualCounts.size === 0) return null;
-        let expectedEnteredCents = 0;
-        let actualEnteredCents = 0;
-        let hasSwapDiff = false;
-        const deltas = [];
-        state.denominations.forEach((denom) => {
-            if (!cuadreActualCounts.has(denom)) return;
-            const dCents = SplitXCore.toCents(denom);
-            const expQty = ledger.physicalLooseOnTable[denom] || 0;
-            const actQty = cuadreActualCounts.get(denom);
-            expectedEnteredCents += expQty * dCents;
-            actualEnteredCents += actQty * dCents;
-            if (actQty !== expQty) {
-                hasSwapDiff = true;
-                deltas.push({ denom, diff: actQty - expQty, expQty, actQty });
-            }
-        });
-        return {
-            enteredCount: cuadreActualCounts.size,
-            totalDenoms: state.denominations.length,
-            isComplete: cuadreActualCounts.size >= state.denominations.length,
-            expectedCents: expectedEnteredCents,
-            actualCents: actualEnteredCents,
-            deltaCents: actualEnteredCents - expectedEnteredCents,
-            hasSwapDiff,
-            deltas
-        };
-    };
-
     const applyCuadreSwapToBox = () => {
         const coverage = calculateDistribution();
         const ledger = SplitXCore.computeLedgerSummary(state.denominations, state.inventory, coverage.results, coverage.loanFundResult);
-        const stats = computeCuadreSwapDeltas(ledger);
-        if (!stats || !stats.hasSwapDiff || stats.deltaCents !== 0 || (ledger.overcommitTotal || 0) > 0) return;
+        const swapRes = SplitXCuadre.buildSwappedInventory({
+            inventory: state.inventory,
+            denominations: state.denominations,
+            ledger,
+            actualCounts: cuadreActualCounts
+        });
+        if (!swapRes.ok || !swapRes.nextInventory) return;
 
         const prevInventory = { ...state.inventory };
-        const summaryText = stats.deltas.map(x => `${x.diff > 0 ? '+' : '−'}${Math.abs(x.diff)}×${x.denom}`).join(', ');
-        stats.deltas.forEach(({ denom, actQty }) => {
-            const committed = (ledger.committedBills[denom] || 0);
-            state.inventory[denom] = committed + actQty;
-        });
+        state.inventory = swapRes.nextInventory;
         clearCuadreState();
         if (!saveData()) {
             state.inventory = prevInventory;
             return;
         }
-        showToast(`Intercambio aplicado a Mi Caja (${summaryText}).`, 'success', {
+        showToast(`Intercambio aplicado a Mi Caja (${swapRes.summaryText}).`, 'success', {
             actionLabel: 'Deshacer',
             durationMs: 5000,
             onAction: () => {
@@ -2276,49 +2165,46 @@ const app = (() => {
     const updateCuadreVarianceBanner = (ledger) => {
         const banner = document.getElementById('cuadreVarianceBanner');
         if (!banner) return;
-        const stats = computeCuadreSwapDeltas(ledger);
+        const stats = SplitXCuadre.computeVariance({
+            denominations: state.denominations,
+            ledger,
+            actualCounts: cuadreActualCounts
+        });
         if (!stats) {
             banner.classList.add('hidden');
             banner.innerHTML = '';
             return;
         }
-        const hasOvercommit = (ledger.overcommitTotal || 0) > 0;
-        const expText = escapeHTML(fmt(SplitXCore.fromCents(stats.expectedCents)));
-        const actText = escapeHTML(fmt(SplitXCore.fromCents(stats.actualCents)));
+        const expText = escapeHTML(fmt(SplitXCuadre.fromCents(stats.expectedCents)));
+        const actText = escapeHTML(fmt(SplitXCuadre.fromCents(stats.actualCents)));
         const countScope = `${stats.enteredCount}/${stats.totalDenoms} denom. contadas`;
         banner.classList.remove('hidden');
 
-        if (hasOvercommit) {
+        if (stats.status === 'overcommit') {
             banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300';
             banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Resuelve primero el sobrecompromiso de caja (−${escapeHTML(fmt(ledger.overcommitTotal))}) antes de conciliar (${countScope}: contado ${actText}).`;
-            return;
-        }
-
-        if (stats.deltaCents === 0) {
-            if (stats.hasSwapDiff) {
-                const deltaSummary = stats.deltas.map(x => `${x.diff > 0 ? '+' : '−'}${Math.abs(x.diff)}×${x.denom}`).join(', ');
-                banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 space-y-2';
-                banner.innerHTML = `
-                    <div><i class="fa-solid fa-scale-balanced mr-1.5"></i>Diferencia neta: ${escapeHTML(fmt(0))} — cuadra por intercambio (${escapeHTML(deltaSummary)}). <span class="font-normal opacity-80">(${countScope})</span></div>
-                    <button type="button" data-sx-click="applyCuadreSwapToBox" class="w-full py-1.5 px-2.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-arrows-rotate"></i> Aplicar intercambio a Mi Caja
-                    </button>
-                `;
-            } else if (stats.isComplete) {
-                banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200';
-                banner.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i>Conteo real completo coincide exactamente con la mesa (${actText}).`;
-            } else {
-                banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200';
-                banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>Parcial (${countScope}): las contadas coinciden (${actText} de ${expText} esperado en esas denominaciones).`;
-            }
-        } else if (stats.deltaCents < 0) {
+        } else if (stats.status === 'swap_balanced') {
+            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 space-y-2';
+            banner.innerHTML = `
+                <div><i class="fa-solid fa-scale-balanced mr-1.5"></i>Diferencia neta: ${escapeHTML(fmt(0))} — cuadra por intercambio (${escapeHTML(stats.deltaSummary)}). <span class="font-normal opacity-80">(${countScope})</span></div>
+                <button type="button" data-sx-click="applyCuadreSwapToBox" class="w-full py-1.5 px-2.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-arrows-rotate"></i> Aplicar intercambio a Mi Caja
+                </button>
+            `;
+        } else if (stats.status === 'exact_complete') {
+            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200';
+            banner.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i>Conteo real completo coincide exactamente con la mesa (${actText}).`;
+        } else if (stats.status === 'exact_partial') {
+            banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200';
+            banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>Parcial (${countScope}): las contadas coinciden (${actText} de ${expText} esperado en esas denominaciones).`;
+        } else if (stats.status === 'shortage') {
             const prefix = stats.isComplete ? '' : `Parcial (${countScope}): `;
             banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300';
-            banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>${prefix}Faltan ${escapeHTML(fmt(SplitXCore.fromCents(-stats.deltaCents)))} (esperado ${expText} vs real ${actText}).`;
+            banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1.5"></i>${prefix}Faltan ${escapeHTML(fmt(SplitXCuadre.fromCents(-stats.deltaCents)))} (esperado ${expText} vs real ${actText}).`;
         } else {
             const prefix = stats.isComplete ? '' : `Parcial (${countScope}): `;
             banner.className = 'p-2.5 rounded-lg border text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200';
-            banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>${prefix}Sobran ${escapeHTML(fmt(SplitXCore.fromCents(stats.deltaCents)))} (esperado ${expText} vs real ${actText}).`;
+            banner.innerHTML = `<i class="fa-solid fa-circle-info mr-1.5"></i>${prefix}Sobran ${escapeHTML(fmt(SplitXCuadre.fromCents(stats.deltaCents)))} (esperado ${expText} vs real ${actText}).`;
         }
     };
 
@@ -2852,28 +2738,28 @@ const app = (() => {
                 if (!input) return;
                 const d = Number(input.dataset.cuadreActual);
                 if (!Number.isFinite(d)) return;
-                const raw = String(input.value || '').trim();
-                if (raw === '') {
+                const sanitized = SplitXCuadre.sanitizeActualCountInput(input.value);
+                if (sanitized.empty) {
                     cuadreActualCounts.delete(d);
                 } else {
-                    const qty = Math.max(0, Math.floor(Number(raw) || 0));
-                    if (String(qty) !== raw) input.value = String(qty);
-                    cuadreActualCounts.set(d, qty);
+                    if (sanitized.normalizedText !== String(input.value || '').trim()) {
+                        input.value = sanitized.normalizedText;
+                    }
+                    cuadreActualCounts.set(d, sanitized.qty);
                 }
                 const ledger = _lastRenderedLedger;
                 if (ledger) {
                     const expQty = ledger.physicalLooseOnTable[d] || 0;
                     const hasAct = cuadreActualCounts.has(d);
                     const diff = hasAct ? (cuadreActualCounts.get(d) - expQty) : 0;
-                    input.className = `w-12 px-1.5 py-0.5 text-center font-mono text-xs rounded border bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-blue-500 ${
-                        !hasAct
-                            ? 'border-slate-200 dark:border-slate-700'
-                            : diff === 0
-                                ? 'border-emerald-400 text-emerald-700 dark:text-emerald-300 font-bold'
-                                : diff < 0
-                                    ? 'border-rose-400 text-rose-700 dark:text-rose-300 font-bold'
-                                    : 'border-amber-400 text-amber-700 dark:text-amber-300 font-bold'
-                    }`;
+                    input.className = `w-12 px-1.5 py-0.5 text-center font-mono text-xs rounded border bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-blue-500 ${!hasAct
+                        ? 'border-slate-200 dark:border-slate-700'
+                        : diff === 0
+                            ? 'border-emerald-400 text-emerald-700 dark:text-emerald-300 font-bold'
+                            : diff < 0
+                                ? 'border-rose-400 text-rose-700 dark:text-rose-300 font-bold'
+                                : 'border-amber-400 text-amber-700 dark:text-amber-300 font-bold'
+                        }`;
                     updateCuadreVarianceBanner(ledger);
                 }
             });

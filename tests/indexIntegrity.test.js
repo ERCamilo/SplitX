@@ -39,6 +39,8 @@ describe('index.html structural & script integrity', () => {
         assert.equal((body.match(/\bconst\s+showCustomDialog\s*=/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+buildEmployeeCardElement\s*=/g) || []).length, 0);
         assert.equal((body.match(/\bconst\s+generateSmartAdvisorData\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+commitStateToStorage\s*=/g) || []).length, 0);
+        assert.equal((body.match(/\bconst\s+computeCuadreSwapDeltas\s*=/g) || []).length, 0);
     });
 
     test('index.html does not block initial <head> load with xlsx or jspdf CDNs', () => {
@@ -131,6 +133,8 @@ describe('index.html structural & script integrity', () => {
         const jsconfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'jsconfig.json'), 'utf8'));
         assert.ok(jsconfig.include.includes('js/SplitXConfigUI.js'));
         assert.ok(jsconfig.include.includes('js/SplitXEditModal.js'));
+        assert.ok(jsconfig.include.includes('js/SplitXSync.js'));
+        assert.ok(jsconfig.include.includes('js/SplitXCuadre.js'));
         assert.ok(jsconfig.include.includes('js/SplitXActionDelegation.js'));
         assert.ok(jsconfig.include.includes('js/SplitXEarlyBoot.js'));
         assert.ok(jsconfig.include.includes('js/SheetStudioModel.js'));
