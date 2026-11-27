@@ -63,7 +63,8 @@ describe('mobile payroll workflow at 390x844', () => {
 
             // 2. Hybrid checklist mode (empty Mi Caja): left status pill marks directly Paid (✓✓) & enables undo button
             await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
-            await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double');
+            await page.waitForSelector('#employeeList button.status-paid-green[data-card-action="advance-status"]');
+            await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double', { state: 'attached' });
             await page.waitForSelector('#employeeList button[data-card-action="revert-status"]:not([disabled])');
 
             // Revert Paid -> Pendiente via confirmation dialog
@@ -91,7 +92,8 @@ describe('mobile payroll workflow at 390x844', () => {
             await page.waitForSelector('#employeeList button.status-packed[data-card-action="advance-status"]');
             // Click 2 -> Pagado (double check)
             await page.locator('#employeeList button[data-card-action="advance-status"]').first().click();
-            await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double');
+            await page.waitForSelector('#employeeList button.status-paid-green[data-card-action="advance-status"]');
+            await page.waitForSelector('#employeeList button[data-card-action="advance-status"] i.fa-check-double', { state: 'attached' });
 
             // 4. Open & close Operations / Backup modal via accessible aria-label buttons
             await page.locator('nav button[aria-label="Operaciones de nómina"]').click();
