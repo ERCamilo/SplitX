@@ -215,22 +215,35 @@
             if (chipsHTML) breakdownHTML = `<div style="${gridStyle}">${chipsHTML}</div>`;
         }
 
-        const isPaid = emp.paid || false;
+        const payoutStatus = (emp.payoutStatus === 'paid' || emp.payoutStatus === 'packed' || emp.payoutStatus === 'pending')
+            ? emp.payoutStatus
+            : (emp.paid ? 'paid' : 'pending');
+        const isPaid = payoutStatus === 'paid';
+        const isPacked = payoutStatus === 'packed';
+        const colorScheme = state.statusColorScheme === 'classic' ? 'classic' : 'traffic';
         const effAmount = getEffectiveEmployeeAmount(emp);
         const hasCents = (effAmount % 1) !== 0;
-        const isDeficit = emp.status !== 'ok' || (emp._missingAmount && emp._missingAmount > 0);
+        const isDeficit = !isPaid && !isPacked && (emp.status !== 'ok' || (emp._missingAmount && emp._missingAmount > 0));
         const isCentsDeficit = isDeficit && (emp._missingAmount || 0) < 1;
 
-        let statusClass = 'status-green';
-        let statusTooltip = '100% Cubierto en caja · Listo para pagar';
+        let statusClass = colorScheme === 'classic' ? 'status-green' : 'status-amber';
+        let statusIconClass = 'fa-clock';
+        let statusTooltip = '100% Cubierto en caja · Clic para armar sobre (✓)';
         if (isPaid) {
-            statusClass = 'status-paid';
-            statusTooltip = 'Pagado';
+            statusClass = colorScheme === 'classic' ? 'status-paid' : 'status-paid-green';
+            statusIconClass = 'fa-check-double';
+            statusTooltip = 'Pagado (✓✓) · Usa el botón deshacer de la derecha para revertir';
+        } else if (isPacked) {
+            statusClass = 'status-packed';
+            statusIconClass = 'fa-check';
+            statusTooltip = 'En sobre (desglose fijado) · Clic para marcar como Pagado (✓✓)';
         } else if (isDeficit && !isCentsDeficit) {
             statusClass = 'status-red';
+            statusIconClass = 'fa-triangle-exclamation';
             statusTooltip = `Faltan ${fmt(emp._missingAmount || 0)} en caja`;
         } else if (isCentsDeficit || hasCents) {
-            statusClass = 'status-yellow';
+            statusClass = colorScheme === 'classic' ? 'status-yellow' : 'status-amber';
+            statusIconClass = 'fa-coins';
             statusTooltip = isCentsDeficit ? `Faltan centavos: ${fmt(emp._missingAmount || 0)}` : 'Monto con centavos · Requiere redondeo';
         }
 
@@ -396,28 +409,63 @@
         }
 
         let errorNoteHTML = '';
-        if (!isPaid && isDeficit && !isCentsDeficit && !isPreview) {
+        if (!isPaid && !isPacked && isDeficit && !isCentsDeficit && !isPreview) {
             errorNoteHTML = `<div class="text-[11px] text-rose-600 dark:text-rose-400 font-semibold mt-0.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Faltan ${escapeHTML(fmt(emp._missingAmount || 0))} en caja</div>`;
-        } else if (!isPaid && isCentsDeficit && !isPreview) {
+        } else if (!isPaid && !isPacked && isCentsDeficit && !isPreview) {
             errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-coins mr-1"></i>Faltan centavos: ${escapeHTML(fmt(emp._missingAmount || 0))}</div>`;
-        } else if (!isPaid && hasCents) {
+        } else if (!isPaid && !isPacked && hasCents) {
             errorNoteHTML = `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"><i class="fa-solid fa-scissors mr-1"></i>Monto con centavos (${escapeHTML(fmt(emp.amount))})</div>`;
         }
 
         const cashBoxHTML = breakdownHTML || '<span class="text-[11px] text-slate-400 dark:text-slate-500 italic">Sin billetes asignados...</span>';
         const act = (/** @type {string} */ name) => (isPreview ? '' : `data-card-action="${name}" data-emp-id="${safeEmpId}"`);
 
+        const cardNumberMode = state.cardNumberMode === 'order' ? 'order' : 'ref';
+        const stableOrderNum = String((typeof emp._originalIndex === 'number' ? emp._originalIndex : index) + 1);
+        const hasEmpNum = !!(emp.employeeNumber && String(emp.employeeNumber).trim());
+        const pillNumberText = (cardNumberMode === 'ref' && hasEmpNum) ? String(emp.employeeNumber).trim() : stableOrderNum;
+        const pillNumSizeClass = pillNumberText.length >= 3 ? 'text-xs' : 'text-base';
+
+        const displayName = (hasEmpNum && emp.employeeName && !emp.isEdited) ? String(emp.employeeName) : String(emp.name || '');
+        const refBadgeHTML = (cardNumberMode === 'order' && hasEmpNum)
+            ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0" title="Referencia SA">Ref #${escapeHTML(emp.employeeNumber)}</span>`
+            : '';
+        const packedBadgeHTML = isPacked
+            ? `<span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1 shrink-0" title="Dinero apartado en sobre (desglose fijado)"><i class="fa-solid fa-lock text-[8px]"></i>En sobre</span>`
+            : '';
+
+        // Undo button adopts the PREVIOUS state's color so its destination is obvious at a glance
+        const canUndo = isPacked || isPaid;
+        const hasLocked = !!(emp.lockedDistribution && Object.keys(emp.lockedDistribution).length > 0);
+        let undoColorClass = 'emp-undo-disabled';
+        let undoTitle = 'Sin estado anterior al que retroceder';
+        if (isPacked) {
+            undoColorClass = colorScheme === 'classic' ? 'emp-undo-to-green' : 'emp-undo-to-amber';
+            undoTitle = 'Deshacer En sobre → devolver billetes a Pendiente';
+        } else if (isPaid) {
+            if (hasLocked) {
+                undoColorClass = 'emp-undo-to-blue';
+                undoTitle = 'Deshacer Pagado → volver a En sobre';
+            } else {
+                undoColorClass = colorScheme === 'classic' ? 'emp-undo-to-green' : 'emp-undo-to-amber';
+                undoTitle = 'Deshacer Pagado → volver a Pendiente';
+            }
+        }
+        const undoSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 6h2a4.5 4.5 0 1 1 0 9H4.5"/><polyline points="9.5 10.5 4.5 15 9.5 19.5"/></svg>';
+
         return `
-            <div class="emp-status-pill ${statusClass}" title="${escapeHTML(statusTooltip)}" ${act('toggle-paid')}>
-                <span class="text-base font-extrabold leading-none">${index + 1}</span>
-                ${isPaid ? '<i class="fa-solid fa-check text-[11px] mt-1"></i>' : ''}
-            </div>
+            <button type="button" class="emp-status-pill ${statusClass}" title="${escapeHTML(statusTooltip)}" aria-label="${escapeHTML(statusTooltip)}" ${act('advance-status')}>
+                <span class="${pillNumSizeClass} font-extrabold leading-none">${escapeHTML(pillNumberText)}</span>
+                <i class="fa-solid ${statusIconClass} text-[11px] mt-1" aria-hidden="true"></i>
+            </button>
 
             <div class="emp-card-content">
                 <div class="emp-info-block cursor-pointer select-none group" ${act('toggle-details')} title="Clic para alternar desglose de cálculo">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                        <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors" title="${escapeHTML(emp.name)}">${escapeHTML(emp.name)}</h3>
+                    <div class="flex items-center gap-1.5 min-w-0 flex-wrap">
+                        <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors" title="${escapeHTML(emp.name)}">${escapeHTML(displayName)}</h3>
+                        ${refBadgeHTML}
                         ${badgeHTML}
+                        ${packedBadgeHTML}
                     </div>
                     ${subTextHTML}
                     ${errorNoteHTML}
@@ -426,25 +474,25 @@
                 <div class="emp-cash-box">
                     ${cashBoxHTML}
                 </div>
+            </div>
 
-                <div class="emp-actions-bar">
-                    <button type="button" ${act('remove')}
-                        class="w-6 h-6 rounded-md flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all -mr-1 -mt-1"
-                        title="Eliminar empleado" aria-label="Eliminar empleado">
-                        <i class="fa-solid fa-xmark text-xs"></i>
+            <div class="emp-actions-bar">
+                <button type="button" ${act('remove')}
+                    class="w-6 h-6 rounded-md flex items-center justify-center text-slate-300 dark:text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-slate-800 transition-all"
+                    title="Eliminar empleado" aria-label="Eliminar empleado">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+                <div class="flex flex-col items-center gap-1.5 mt-auto">
+                    <button type="button" ${act('edit')}
+                        class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-750 transition-all border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 bg-white dark:bg-slate-800 shadow-2xs"
+                        title="Editar datos y nómina" aria-label="Editar datos y nómina">
+                        <i class="fa-solid fa-pen text-[11px]"></i>
                     </button>
-                    <div class="flex flex-col items-center gap-1.5 mt-auto">
-                        <button type="button" ${act('edit')}
-                            class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-750 transition-all border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 bg-white dark:bg-slate-800 shadow-2xs"
-                            title="Editar datos y nómina" aria-label="Editar datos y nómina">
-                            <i class="fa-solid fa-pen text-[11px]"></i>
-                        </button>
-                        <button type="button" ${act('toggle-paid')}
-                            class="w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-2xs ${isPaid ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700' : 'text-slate-300 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}"
-                            title="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}" aria-label="${isPaid ? 'Marcar como pendiente' : 'Marcar como pagado'}">
-                            <i class="fa-solid fa-check text-xs"></i>
-                        </button>
-                    </div>
+                    <button type="button" ${act('revert-status')} ${canUndo ? '' : 'disabled'}
+                        class="emp-undo-btn w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-2xs border ${undoColorClass}"
+                        title="${escapeHTML(undoTitle)}" aria-label="${escapeHTML(undoTitle)}">
+                        ${undoSvg}
+                    </button>
                 </div>
             </div>
         `;

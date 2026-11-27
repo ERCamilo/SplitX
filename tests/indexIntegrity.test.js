@@ -200,4 +200,10 @@ describe('index.html structural & script integrity', () => {
             'setCurrencyPreset must not keep stale colors from previous currencies overriding new preset');
         assert.match(appJs, /lastImportAction/, 'closePostImportModal must preserve inventory on append imports');
     });
+
+    test('index.html exposes 3-state Ledger UI: Cuadre tab, compact progress card, number toggle and status palette config', () => {
+        for (const id of ['tab-cuadre', 'view-cuadre', 'cuadreTableBody', 'ledgerProgressCard', 'cardNumToggleBtn', 'statusScheme-traffic', 'statusScheme-classic']) {
+            assert.match(html, new RegExp(`id="${id}"`), `missing 3-state Ledger element #${id}`);
+        }
+    });
 });

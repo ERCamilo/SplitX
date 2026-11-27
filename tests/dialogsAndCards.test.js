@@ -172,9 +172,92 @@ describe('SplitXEmployeeCard & Smart Advisor (Issue #28 extraction)', () => {
         assert.match(html, /Ana &lt;img src=x&gt;/);
         assert.match(html, /€ 150\.00/);
         assert.equal(/\$\s*150/.test(html), false, 'must not hardcode $');
-        assert.match(html, /data-card-action="toggle-paid"/);
+        assert.match(html, /data-card-action="advance-status"/);
+        assert.match(html, /data-card-action="revert-status"/);
         assert.match(html, /data-card-action="edit"/);
         assert.match(html, /data-card-action="remove"/);
         assert.match(html, /data-emp-id="42"/);
+    });
+
+    test('buildEmployeeCardHTML renders 3-state icons, pins actions bar outside content, and toggles SA ref vs order number', () => {
+        const baseState = {
+            currency: 'DOP',
+            currencySymbol: 'RD$',
+            denominations: [1000, 500],
+            coinDenoms: [25],
+            billColors: {},
+            billImages: {},
+            useDefaultImages: false,
+            roundCoins: true,
+            breakdownColumns: 5,
+            breakdownSize: 'normal',
+            breakdownFormat: 'badge',
+            payrollMode: 'normal',
+            statusColorScheme: 'traffic',
+            cardNumberMode: 'ref'
+        };
+        const render = (emp, stateOverrides = {}) => SplitXEmployeeCard.buildEmployeeCardHTML({
+            emp,
+            index: 3,
+            isPreview: false,
+            state: { ...baseState, ...stateOverrides },
+            expandedEmpCards: new Set(),
+            getEffectiveEmployeeAmount: (e) => e.amount,
+            fmt: (n) => `RD$ ${Number(n).toFixed(2)}`,
+            fmtNum: (n) => Number(n).toFixed(2)
+        });
+
+        // Pending (traffic default: amber + clock icon, SA employeeNumber on pill, actions bar sibling of content)
+        const pendingHtml = render({
+            id: 1, _originalIndex: 0, employeeNumber: '003', employeeName: 'Miguel Rodríguez',
+            name: 'Miguel Rodríguez (Ref #003)', amount: 1500, paid: false, payoutStatus: 'pending',
+            status: 'ok', distribution: { 1000: 1, 500: 1 }
+        });
+        assert.match(pendingHtml, /status-amber/);
+        assert.match(pendingHtml, /fa-clock/);
+        assert.match(pendingHtml, />003</);
+        assert.match(pendingHtml, /disabled[^>]*data-card-action="revert-status"|data-card-action="revert-status"[^>]*disabled/);
+        // Actions bar must appear AFTER closing emp-card-content (sibling, never nested inside)
+        const contentStart = pendingHtml.indexOf('<div class="emp-card-content">');
+        const actionsStart = pendingHtml.indexOf('<div class="emp-actions-bar">');
+        assert.ok(contentStart > 0 && actionsStart > contentStart);
+        const between = pendingHtml.slice(contentStart, actionsStart);
+        const opens = (between.match(/<div\b/g) || []).length;
+        const closes = (between.match(/<\/div>/g) || []).length;
+        assert.equal(opens, closes, 'emp-card-content must be closed BEFORE emp-actions-bar begins');
+
+        // Error state -> triangle-exclamation
+        const errHtml = render({
+            id: 2, _originalIndex: 1, name: 'Pedro', amount: 1500, paid: false, payoutStatus: 'pending',
+            status: 'error', _missingAmount: 500, distribution: { 1000: 1 }
+        });
+        assert.match(errHtml, /status-red/);
+        assert.match(errHtml, /fa-triangle-exclamation/);
+
+        // Packed state -> blue + single check + En sobre badge + active undo button
+        const packedHtml = render({
+            id: 3, _originalIndex: 2, employeeNumber: '005', name: 'Luis', amount: 1000, paid: false,
+            payoutStatus: 'packed', status: 'ok', distribution: { 1000: 1 }
+        }, { cardNumberMode: 'order' });
+        assert.match(packedHtml, /status-packed/);
+        assert.match(packedHtml, /fa-check(?!-double)/);
+        assert.match(packedHtml, /En sobre/);
+        assert.match(packedHtml, />3</, 'order mode must display stable 1-based original order');
+        assert.match(packedHtml, /Ref #005/);
+
+        // Paid state -> green in traffic palette, gray in classic palette, both with double check
+        const paidTraffic = render({
+            id: 4, _originalIndex: 3, name: 'Ana', amount: 1000, paid: true, payoutStatus: 'paid',
+            status: 'ok', distribution: { 1000: 1 }
+        }, { statusColorScheme: 'traffic' });
+        assert.match(paidTraffic, /status-paid-green/);
+        assert.match(paidTraffic, /fa-check-double/);
+
+        const paidClassic = render({
+            id: 4, _originalIndex: 3, name: 'Ana', amount: 1000, paid: true, payoutStatus: 'paid',
+            status: 'ok', distribution: { 1000: 1 }
+        }, { statusColorScheme: 'classic' });
+        assert.match(paidClassic, /status-paid\b/);
+        assert.match(paidClassic, /fa-check-double/);
     });
 });

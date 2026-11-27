@@ -19,6 +19,150 @@
     const fromCents = (cents) => Math.round(cents) / 100;
 
     /**
+     * Normaliza el estado de pago de un colaborador manteniendo compatibilidad con registros legados (`paid: boolean`).
+     * @param {any} emp
+     * @returns {'pending' | 'packed' | 'paid'}
+     */
+    const getEmployeePayoutStatus = (emp) => {
+        if (!emp || typeof emp !== 'object') return 'pending';
+        if (emp.payoutStatus === 'paid' || emp.payoutStatus === 'packed' || emp.payoutStatus === 'pending') {
+            return emp.payoutStatus;
+        }
+        return emp.paid === true ? 'paid' : 'pending';
+    };
+
+    /**
+     * Sanitiza un mapa de billetes fijados (`lockedDistribution`) a enteros positivos por denominación positiva.
+     * @param {unknown} raw
+     * @returns {Record<number, number> | null}
+     */
+    const sanitizeLockedDistribution = (raw) => {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        /** @type {Record<number, number>} */
+        const clean = {};
+        let hasEntries = false;
+        for (const [k, v] of Object.entries(raw)) {
+            const denom = Number(k);
+            const qty = Number.parseInt(String(v ?? ''), 10);
+            if (Number.isFinite(denom) && denom > 0 && Number.isFinite(qty) && qty > 0) {
+                clean[denom] = qty;
+                hasEntries = true;
+            }
+        }
+        return hasEntries ? clean : null;
+    };
+
+    /**
+     * Calcula el resumen contable del libro mayor (Cuadre de Mesa en vivo) en centavos enteros.
+     * @param {number[]} denominations
+     * @param {Record<number | string, number>} initialInventory
+     * @param {Array<any>} coverageResults
+     */
+    const computeLedgerSummary = (denominations, initialInventory, coverageResults) => {
+        const denoms = Array.isArray(denominations) ? denominations : [];
+        const inv = initialInventory && typeof initialInventory === 'object' ? initialInventory : {};
+        const list = Array.isArray(coverageResults) ? coverageResults : [];
+
+        /** @type {Record<number, number>} */
+        const packedBills = {};
+        /** @type {Record<number, number>} */
+        const paidBills = {};
+        /** @type {Record<number, number>} */
+        const committedBills = {};
+        /** @type {Record<number, number>} */
+        const physicalLooseOnTable = {};
+        /** @type {Record<number, number>} */
+        const overcommittedDenoms = {};
+
+        for (const d of denoms) {
+            packedBills[d] = 0;
+            paidBills[d] = 0;
+            committedBills[d] = 0;
+            physicalLooseOnTable[d] = Math.max(0, Number(inv[d]) || 0);
+        }
+
+        let paidCents = 0;
+        let packedCents = 0;
+        let pendingCents = 0;
+        let paidCount = 0;
+        let packedCount = 0;
+        let pendingCount = 0;
+        let shortageCount = 0;
+
+        for (const emp of list) {
+            const st = getEmployeePayoutStatus(emp);
+            const effCents = Math.max(0, toCents(emp.effectiveAmount !== undefined ? emp.effectiveAmount : emp.amount));
+            const locked = sanitizeLockedDistribution(emp.lockedDistribution);
+
+            if (st === 'paid') {
+                paidCount += 1;
+                paidCents += effCents;
+                if (locked) {
+                    for (const d of denoms) {
+                        const q = locked[d] || 0;
+                        if (q > 0) {
+                            paidBills[d] += q;
+                            committedBills[d] += q;
+                        }
+                    }
+                }
+            } else if (st === 'packed') {
+                packedCount += 1;
+                packedCents += effCents;
+                const src = locked || sanitizeLockedDistribution(emp.distribution) || {};
+                for (const d of denoms) {
+                    const q = src[d] || 0;
+                    if (q > 0) {
+                        packedBills[d] += q;
+                        committedBills[d] += q;
+                    }
+                }
+            } else {
+                pendingCount += 1;
+                pendingCents += effCents;
+                if (emp.status === 'error' || (emp._missingAmount || 0) > 0) {
+                    shortageCount += 1;
+                }
+            }
+        }
+
+        let totalBoxCents = 0;
+        let looseCents = 0;
+        for (const d of denoms) {
+            const dCents = toCents(d);
+            const initialQty = Math.max(0, Number(inv[d]) || 0);
+            const committedQty = committedBills[d] || 0;
+            totalBoxCents += initialQty * dCents;
+            if (committedQty > initialQty) {
+                overcommittedDenoms[d] = committedQty - initialQty;
+                physicalLooseOnTable[d] = 0;
+            } else {
+                physicalLooseOnTable[d] = initialQty - committedQty;
+                looseCents += physicalLooseOnTable[d] * dCents;
+            }
+        }
+
+        const totalPayrollCents = paidCents + packedCents + pendingCents;
+        return {
+            packedBills,
+            paidBills,
+            committedBills,
+            physicalLooseOnTable,
+            overcommittedDenoms,
+            totalBox: fromCents(totalBoxCents),
+            totalPayroll: fromCents(totalPayrollCents),
+            paidTotal: fromCents(paidCents),
+            packedTotal: fromCents(packedCents),
+            pendingTotal: fromCents(pendingCents),
+            looseTotal: fromCents(looseCents),
+            paidCount,
+            packedCount,
+            pendingCount,
+            shortageCount
+        };
+    };
+
+    /**
      * Sanitiza un límite bancario: vacío/inválido -> null (sin límite), negativo -> 0, entero >= 0 -> entero.
      * @param {unknown} val
      * @returns {number | null}
@@ -156,15 +300,29 @@
             return { distribution, remainder: fromCents(remCents) };
         };
 
-        // 1. Calculate Distribution and Return LEFTOVER Inventory (Practical Approach)
+        // 1. Calculate Distribution and Return LEFTOVER Inventory (Practical Ledger Approach)
         /** @param {boolean} [optimize] @param {number[] | null} [orderIndices] */
         const calculateDistributionPass = (optimize = false, orderIndices = null) => {
             const state = getState();
-            // We create a deep copy of inventory to simulate payments
+            // Deep copy initial inventory and first deduct bills already committed in locked envelopes
             /** @type {Record<number | string, number>} */
             let currentInventory = { ...state.inventory };
             const isNormal = state.payrollMode === 'normal';
             const totalEmps = state.employees.length;
+
+            // Ledger commit pass: deduct lockedDistribution of packed and ledger-paid employees BEFORE allocating pending
+            for (let i = 0; i < totalEmps; i++) {
+                const emp = state.employees[i];
+                const payoutStatus = getEmployeePayoutStatus(emp);
+                const locked = sanitizeLockedDistribution(emp.lockedDistribution);
+                if ((payoutStatus === 'packed' || payoutStatus === 'paid') && locked) {
+                    for (const [denomKey, qty] of Object.entries(locked)) {
+                        const avail = Math.max(0, Number(currentInventory[denomKey]) || 0);
+                        currentInventory[denomKey] = Math.max(0, avail - qty);
+                    }
+                }
+            }
+
             /** @type {any[]} */
             const results = new Array(totalEmps);
             const indices = Array.isArray(orderIndices) && orderIndices.length === totalEmps
@@ -173,6 +331,8 @@
 
             for (const idx of indices) {
                 const emp = state.employees[idx];
+                const payoutStatus = getEmployeePayoutStatus(emp);
+                const locked = sanitizeLockedDistribution(emp.lockedDistribution);
                 /** @type {Record<number, number>} */
                 let distribution = {};
                 let status = 'ok';
@@ -182,19 +342,20 @@
                 let notes = [];
                 const targetAmount = Math.max(0, fromCents(toCents(getEffectiveEmployeeAmount(emp))));
 
-                if (emp.paid) {
-                    // For PAID employees, we just calculate ideal for display
-                    // We DO NOT deduct from currentInventory because payment is done.
-                    distribution = getIdealBreakdown(targetAmount).distribution;
+                if (payoutStatus === 'paid') {
+                    // Ledger-paid preserves its locked bills (already deducted above); legacy/checklist paid shows ideal without deducting
+                    distribution = locked ? { ...locked } : getIdealBreakdown(targetAmount).distribution;
+                } else if (payoutStatus === 'packed') {
+                    // Envelope already assembled and bills reserved in commit pass above
+                    distribution = locked ? { ...locked } : getIdealBreakdown(targetAmount).distribution;
+                    missingAmount = 0;
                 } else {
-                    // The improved strategy is evaluated against the old plan
-                    // before it can affect other employees or the bank order.
+                    // Pending employee: allocate from remaining uncommitted cash
                     const allocation = allocateAvailable(targetAmount, state.denominations, currentInventory, optimize);
                     distribution = allocation.distribution;
                     const remaining = allocation.remainder;
                     if (remaining > 0) {
                         status = 'error';
-                        // We attach the remaining amount to the employee object for the advisor
                         missingAmount = remaining;
                         notes.push(`Faltan ${fmt(remaining)}`);
                     } else {
@@ -202,7 +363,17 @@
                     }
                 }
 
-                results[idx] = { ...emp, _missingAmount: missingAmount, effectiveAmount: targetAmount, distribution, status, notes };
+                results[idx] = {
+                    ...emp,
+                    _originalIndex: idx,
+                    payoutStatus,
+                    paid: payoutStatus === 'paid',
+                    _missingAmount: missingAmount,
+                    effectiveAmount: targetAmount,
+                    distribution,
+                    status,
+                    notes
+                };
             }
 
             // Treat the new-loan reserve as one more pending cash assignment (only in deductions / Nómina mode).
@@ -265,10 +436,11 @@
             // (e.g. Emp1=1000 taking both 500s before Emp2=700 & Emp3=700). UI order is preserved.
             const state = getState();
             const unpaid = [];
-            const paid = [];
+            const committed = [];
             for (let i = 0; i < state.employees.length; i++) {
                 const emp = state.employees[i];
-                if (emp.paid) paid.push(i);
+                const st = getEmployeePayoutStatus(emp);
+                if (st === 'paid' || st === 'packed') committed.push(i);
                 else unpaid.push({ idx: i, cents: Math.max(0, toCents(getEffectiveEmployeeAmount(emp))) });
             }
             if (unpaid.length < 2) return best;
@@ -293,14 +465,14 @@
                     if (aDiv !== bDiv) return aDiv - bDiv;
                     if (a.cents !== b.cents) return a.cents - b.cents;
                     return a.idx - b.idx;
-                }).map(x => x.idx).concat(paid),
+                }).map(x => x.idx).concat(committed),
                 // 2. Smallest unpaid first
-                [...unpaid].sort((a, b) => (a.cents - b.cents) || (a.idx - b.idx)).map(x => x.idx).concat(paid),
+                [...unpaid].sort((a, b) => (a.cents - b.cents) || (a.idx - b.idx)).map(x => x.idx).concat(committed),
                 // 3. Largest unpaid first
-                [...unpaid].sort((a, b) => (b.cents - a.cents) || (a.idx - b.idx)).map(x => x.idx).concat(paid)
+                [...unpaid].sort((a, b) => (b.cents - a.cents) || (a.idx - b.idx)).map(x => x.idx).concat(committed)
             ];
 
-            const seenOrders = new Set([unpaid.map(x => x.idx).concat(paid).join(',')]);
+            const seenOrders = new Set([unpaid.map(x => x.idx).concat(committed).join(',')]);
             for (const order of candidateOrders) {
                 const key = order.join(',');
                 if (seenOrders.has(key)) continue;
@@ -422,7 +594,7 @@
         if (!text) return { ok: true, value: 0 };
         const parsed = parseManualAmount(text, parseMoneyFn);
         if (!parsed.ok) return { ok: false, error: parsed.error };
-        return { ok: true, value: Math.min(/** @type {number} */ (parsed.amount), maxLoans) };
+        return { ok: true, value: Math.min(/** @type {number} */(parsed.amount), maxLoans) };
     };
 
     /** @param {any[]} employees @param {string} [payrollMode] */
@@ -443,7 +615,10 @@
             }
             count += 1;
             const newAmount = Math.floor(curAmount);
-            if (!hasPayroll) return { ...emp, amount: newAmount };
+            const resetEnvelope = getEmployeePayoutStatus(emp) === 'packed'
+                ? { payoutStatus: 'pending', paid: false, lockedDistribution: null }
+                : {};
+            if (!hasPayroll) return { ...emp, ...resetEnvelope, amount: newAmount };
             const newAfter = curAfter !== null ? Math.floor(curAfter) : emp.payroll.afterDiscounts;
             const calcNet = emp.payroll.calculatedNet;
             const diff = (calcNet !== undefined && calcNet !== null)
@@ -451,6 +626,7 @@
                 : emp.payroll.difference;
             return {
                 ...emp,
+                ...resetEnvelope,
                 amount: newAmount,
                 payroll: {
                     ...emp.payroll,
@@ -485,6 +661,9 @@
         createCore,
         toCents,
         fromCents,
+        getEmployeePayoutStatus,
+        sanitizeLockedDistribution,
+        computeLedgerSummary,
         nextEmployeeId,
         sanitizeInventoryQty,
         sanitizeBankLimit,

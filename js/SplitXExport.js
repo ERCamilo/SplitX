@@ -190,8 +190,11 @@
 
         const empRows = results.map((/** @type {any} */ emp, /** @type {number} */ idx) => {
             const effAmount = getEffectiveEmployeeAmount(emp);
+            const payoutStatus = (emp.payoutStatus === 'paid' || emp.payoutStatus === 'packed' || emp.payoutStatus === 'pending')
+                ? emp.payoutStatus
+                : (emp.paid ? 'paid' : 'pending');
             /** @type {Record<string | number, any>} */
-            const row = { idx: idx + 1, name: emp.name, amount: effAmount, paid: emp.paid, status: emp.status, payroll: emp.payroll };
+            const row = { idx: idx + 1, name: emp.name, amount: effAmount, paid: payoutStatus === 'paid', payoutStatus, status: emp.status, payroll: emp.payroll };
             denoms.forEach(d => { row[d] = emp.distribution[d] || 0; });
             return row;
         });
@@ -228,13 +231,23 @@
             ? csvRow(['No.', 'Nombre', 'Bruto', 'Bonificaciones', 'Descuentos', 'Despues descuentos', 'Prestamos', 'Neto', 'Pagado', 'Detalle', 'Estado'])
             : csvRow(['No.', 'Nombre', 'Monto', 'Pagado', 'Detalle', 'Estado']));
 
+        /** @param {any} row */
+        const formatPayoutLabel = (row) => {
+            const st = (row.payoutStatus === 'paid' || row.payoutStatus === 'packed' || row.payoutStatus === 'pending')
+                ? row.payoutStatus
+                : (row.paid ? 'paid' : 'pending');
+            if (st === 'paid') return 'Pagado';
+            if (st === 'packed') return 'En sobre';
+            return 'Pendiente';
+        };
+
         empRows.forEach((/** @type {any} */ row) => {
             /** @type {string[]} */
             const details = [];
             denoms.forEach(d => {
                 if (row[d] > 0) details.push(`${row[d]}x${d}`);
             });
-            const paidStatus = row.paid ? 'SI' : 'NO';
+            const paidStatus = formatPayoutLabel(row);
             if (hasPayroll) {
                 const p = row.payroll || {};
                 lines.push(csvRow([
@@ -404,13 +417,14 @@
                         emp.amount
                     ]
                     : [emp.amount];
+                const pLabel = emp.payoutStatus === 'packed' ? 'En sobre' : (emp.paid ? 'Pagado' : 'Pendiente');
                 s2Data.push([
                     emp.idx,
                     emp.name,
                     ...payrollValues,
                     ...denoms.map(d => emp[d] || 0),
                     emp.status === 'ok' ? 'OK' : 'Incompleto',
-                    emp.paid ? 'Sí' : 'No'
+                    pLabel
                 ]);
             });
 
@@ -649,7 +663,7 @@
             /** @type {any[]} */
             const empBody = empRows.map((/** @type {any} */ emp) => [
                 emp.idx,
-                emp.name,
+                emp.payoutStatus === 'packed' ? `${emp.name} [En sobre]` : (emp.paid ? `${emp.name} [Pagado]` : emp.name),
                 money(emp.amount),
                 ...denoms.map(d => emp[d] > 0 ? emp[d] : '—')
             ]);

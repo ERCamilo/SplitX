@@ -406,24 +406,54 @@
                 ? hasPayrollChanged(emp.originalData, { name, net: calc.net, gross: calc.gross, bonuses: calc.bonuses, discounts: calc.discounts, loans: calc.loans })
                 : (emp.isEdited || false);
 
-            state.employees = state.employees.map((/** @type {any} */ e) => {
-                if (e.id !== id) return e;
-                return {
-                    ...e,
-                    name,
-                    amount: calc.net,
-                    payroll,
-                    isEdited: !e.isManual ? isEdited : false
-                };
-            });
+            const currentStatus = emp.payoutStatus || (emp.paid ? 'paid' : 'pending');
+            const amountChanged = Math.abs((Number(emp.amount) || 0) - calc.net) > 0.001;
 
-            if (state.employees.some((/** @type {any} */ e) => e.payroll)) {
-                state.payrollMode = 'deductions';
+            const applySave = (/** @type {boolean} */ resetEnvelope, /** @type {string | null} */ customToast) => {
+                state.employees = state.employees.map((/** @type {any} */ e) => {
+                    if (e.id !== id) return e;
+                    const ledgerPatch = resetEnvelope
+                        ? { payoutStatus: 'pending', paid: false, lockedDistribution: null }
+                        : {};
+                    return {
+                        ...e,
+                        ...ledgerPatch,
+                        name,
+                        amount: calc.net,
+                        payroll,
+                        isEdited: !e.isManual ? isEdited : false
+                    };
+                });
+
+                if (state.employees.some((/** @type {any} */ e) => e.payroll)) {
+                    state.payrollMode = 'deductions';
+                }
+
+                deps.saveData();
+                closeEditModal();
+                deps.showToast(customToast || `Empleado ${name} actualizado correctamente.`, customToast ? 'warning' : 'success');
+            };
+
+            if (currentStatus === 'paid' && amountChanged) {
+                return deps.showCustomConfirm({
+                    title: 'Colaborador ya marcado como Pagado',
+                    message: `${emp.name} ya está marcado como Pagado. Cambiar su monto neto a ${deps.fmt(calc.net)} liberará el registro de efectivo fijado y lo devolverá a Pendiente para cuadrar la diferencia. ¿Deseas continuar?`,
+                    icon: 'fa-triangle-exclamation',
+                    type: 'warning',
+                    confirmText: 'Sí, actualizar y pasar a Pendiente',
+                    cancelText: 'Cancelar'
+                }).then((ok) => {
+                    if (!ok) return;
+                    applySave(true, `Monto de ${name} actualizado. Volvió a Pendiente para reajustar el pago.`);
+                });
             }
 
-            deps.saveData();
-            closeEditModal();
-            deps.showToast(`Empleado ${name} actualizado correctamente.`);
+            if (currentStatus === 'packed' && amountChanged) {
+                applySave(true, `El monto de ${name} cambió: el sobre volvió a Pendiente para rearmarlo con los nuevos billetes.`);
+                return;
+            }
+
+            applySave(false, null);
         };
 
         /** @param {string | number} [empId] */

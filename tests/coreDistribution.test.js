@@ -253,6 +253,63 @@ describe('bounded optimizer integration: protect payroll regressions', () => {
     });
 });
 
+describe('3-State Payout Ledger (Pendiente -> En sobre -> Pagado)', () => {
+    test('packed and paid-with-lockedDistribution deduct committed bills while legacy paid without lockedDistribution does not', () => {
+        const { getEmployeePayoutStatus, computeLedgerSummary } = require('../js/SplitXCore.js');
+        assert.equal(getEmployeePayoutStatus({ paid: false }), 'pending');
+        assert.equal(getEmployeePayoutStatus({ paid: true }), 'paid');
+        assert.equal(getEmployeePayoutStatus({ payoutStatus: 'packed', paid: false }), 'packed');
+
+        const { core, state } = make({
+            denominations: [2000, 1000, 500, 200],
+            inventory: { 2000: 3, 1000: 2, 500: 2, 200: 5 }, // 6000 + 2000 + 1000 + 1000 = 10,000
+            employees: [
+                { id: 1, name: 'Ana', amount: 2500, paid: true, payoutStatus: 'paid', lockedDistribution: { 2000: 1, 500: 1 } },
+                { id: 2, name: 'Luis', amount: 3000, paid: false, payoutStatus: 'packed', lockedDistribution: { 2000: 1, 1000: 1 } },
+                { id: 3, name: 'Marta', amount: 2000, paid: false, payoutStatus: 'pending' }
+            ]
+        });
+
+        const coverage = core.calculateDistribution();
+        assert.deepEqual(coverage.results[0].distribution, { 2000: 1, 500: 1 });
+        assert.equal(coverage.results[0].payoutStatus, 'paid');
+        assert.deepEqual(coverage.results[1].distribution, { 2000: 1, 1000: 1 });
+        assert.equal(coverage.results[1].payoutStatus, 'packed');
+        assert.equal(coverage.results[1]._missingAmount, 0);
+        // Remaining 2000 bill covers Marta cleanly
+        assert.deepEqual(coverage.results[2].distribution, { 2000: 1 });
+        assert.equal(coverage.results[2]._missingAmount, 0);
+
+        const summary = computeLedgerSummary(state.denominations, state.inventory, coverage.results);
+        assert.equal(summary.totalBox, 10000);
+        assert.equal(summary.paidTotal, 2500);
+        assert.equal(summary.packedTotal, 3000);
+        assert.equal(summary.pendingTotal, 2000);
+        // Physically loose on table = 10000 - 2500 (paid) - 3000 (packed) = 4500
+        assert.equal(summary.looseTotal, 4500);
+        assert.equal(summary.physicalLooseOnTable[2000], 1);
+        assert.equal(summary.physicalLooseOnTable[1000], 1);
+        assert.equal(summary.physicalLooseOnTable[500], 1);
+        assert.equal(summary.physicalLooseOnTable[200], 5);
+        assert.equal(summary.paidCount, 1);
+        assert.equal(summary.packedCount, 1);
+        assert.equal(summary.pendingCount, 1);
+    });
+
+    test('roundEmployeeAmounts releases packed envelopes whose amount is truncated', () => {
+        const emps = [
+            { id: 1, name: 'Ana', amount: 500.50, paid: false, payoutStatus: 'packed', lockedDistribution: { 500: 1 } },
+            { id: 2, name: 'Luis', amount: 500, paid: false, payoutStatus: 'packed', lockedDistribution: { 500: 1 } }
+        ];
+        const res = roundEmployeeAmounts(emps, 'normal');
+        assert.equal(res.count, 1);
+        assert.equal(res.employees[0].payoutStatus, 'pending');
+        assert.equal(res.employees[0].lockedDistribution, null);
+        assert.equal(res.employees[1].payoutStatus, 'packed');
+        assert.deepEqual(res.employees[1].lockedDistribution, { 500: 1 });
+    });
+});
+
 describe('domain validations and rounding helpers (Issue #25)', () => {
     test('sanitizeInventoryQty clamps negatives and invalid inputs to 0', () => {
         assert.equal(sanitizeInventoryQty(-5), 0);

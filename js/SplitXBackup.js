@@ -140,7 +140,42 @@
 
         if (cleanPayload.data) {
             if (Array.isArray(cleanPayload.data.employees)) {
-                cleanPayload.data.employees = cleanPayload.data.employees.filter((/** @type {unknown} */ e) => isPlainObj(e));
+                cleanPayload.data.employees = cleanPayload.data.employees
+                    .filter((/** @type {unknown} */ e) => isPlainObj(e))
+                    .map((/** @type {any} */ e) => {
+                        if (e.payoutStatus !== undefined) {
+                            const validStatus = (e.payoutStatus === 'pending' || e.payoutStatus === 'packed' || e.payoutStatus === 'paid')
+                                ? e.payoutStatus
+                                : (e.paid === true ? 'paid' : 'pending');
+                            e.payoutStatus = validStatus;
+                            e.paid = validStatus === 'paid';
+                        }
+                        if (e.lockedDistribution !== undefined) {
+                            if (isPlainObj(e.lockedDistribution)) {
+                                /** @type {Record<number, number>} */
+                                const cleanDist = {};
+                                let countEntries = 0;
+                                for (const [k, v] of Object.entries(e.lockedDistribution)) {
+                                    const d = Number(k);
+                                    const q = Number.parseInt(String(v ?? ''), 10);
+                                    if (Number.isFinite(d) && d > 0 && Number.isFinite(q) && q > 0) {
+                                        cleanDist[d] = q;
+                                        countEntries += 1;
+                                    }
+                                }
+                                e.lockedDistribution = countEntries > 0 ? cleanDist : null;
+                            } else {
+                                e.lockedDistribution = null;
+                            }
+                        }
+                        return e;
+                    });
+            }
+            if (cleanPayload.data.statusColorScheme !== undefined) {
+                cleanPayload.data.statusColorScheme = cleanPayload.data.statusColorScheme === 'classic' ? 'classic' : 'traffic';
+            }
+            if (cleanPayload.data.cardNumberMode !== undefined) {
+                cleanPayload.data.cardNumberMode = cleanPayload.data.cardNumberMode === 'order' ? 'order' : 'ref';
             }
             if (cleanPayload.data.currencySymbol !== undefined) {
                 cleanPayload.data.currencySymbol = SplitXCurrencies.sanitizeCurrencySymbol(cleanPayload.data.currencySymbol);

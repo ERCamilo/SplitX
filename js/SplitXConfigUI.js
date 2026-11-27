@@ -181,6 +181,28 @@
 
             const switchZeros = /** @type {HTMLInputElement | null} */ (document.getElementById('switchShowZeros'));
             if (switchZeros) switchZeros.checked = state.breakdownShowZeros === true;
+
+            const currentScheme = state.statusColorScheme === 'classic' ? 'classic' : 'traffic';
+            ['traffic', 'classic'].forEach(sc => {
+                const btn = document.getElementById(`statusScheme-${sc}`);
+                if (btn) {
+                    const isActive = currentScheme === sc;
+                    btn.className = isActive
+                        ? 'py-1.5 px-2.5 text-xs font-bold rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs flex items-center justify-center gap-1.5'
+                        : 'py-1.5 px-2.5 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center gap-1.5';
+                }
+            });
+
+            const currentNumMode = state.cardNumberMode === 'order' ? 'order' : 'ref';
+            ['ref', 'order'].forEach(nm => {
+                const btn = document.getElementById(`cardNumMode-${nm}`);
+                if (btn) {
+                    const isActive = currentNumMode === nm;
+                    btn.className = isActive
+                        ? 'py-1.5 px-2.5 text-xs font-bold rounded-md transition-all bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs flex items-center justify-center gap-1.5'
+                        : 'py-1.5 px-2.5 text-xs font-medium rounded-md transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center gap-1.5';
+                }
+            });
         };
 
         const renderCustomBillsConfig = () => {
@@ -345,6 +367,20 @@
             renderAppearanceConfig();
         };
 
+        /** @param {string} scheme */
+        const setStatusColorScheme = (scheme) => {
+            deps.getState().statusColorScheme = scheme === 'classic' ? 'classic' : 'traffic';
+            deps.saveData();
+            renderAppearanceConfig();
+        };
+
+        /** @param {string} mode */
+        const setCardNumberMode = (mode) => {
+            deps.getState().cardNumberMode = mode === 'order' ? 'order' : 'ref';
+            deps.saveData();
+            renderAppearanceConfig();
+        };
+
         /** @param {number} denom @param {string} color */
         const updateBillColor = (denom, color) => {
             const safe = deps.sanitizeHexColor(color);
@@ -435,6 +471,8 @@
             setBreakdownColumns,
             toggleBreakdownGroupByType,
             toggleBreakdownShowZeros,
+            setStatusColorScheme,
+            setCardNumberMode,
             renderAppearancePreviewCard,
             renderAppearanceConfig,
             renderCustomBillsConfig,

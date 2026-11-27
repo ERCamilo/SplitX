@@ -182,6 +182,33 @@ describe('SplitXExport CSV injection protection & currency formatting (Issues #2
         assert.equal(/Recaudación Restante en Empresa,200/.test(csv), false);
     });
 
+    test('buildCSVContent reflects 3-state payoutStatus (Pendiente / En sobre / Pagado)', () => {
+        const csv = SplitXExport.buildCSVContent({
+            currencySymbol: 'RD$',
+            data: {
+                payrollMode: 'normal',
+                denoms: [1000],
+                summary: { 1000: 2 },
+                empRows: [
+                    { idx: 1, name: 'Ana', amount: 1000, paid: true, payoutStatus: 'paid', status: 'ok', 1000: 1 },
+                    { idx: 2, name: 'Luis', amount: 1000, paid: false, payoutStatus: 'packed', status: 'ok', 1000: 1 },
+                    { idx: 3, name: 'Marta', amount: 1000, paid: false, payoutStatus: 'pending', status: 'ok', 1000: 1 }
+                ],
+                payrollSummary: { count: 0, gross: 0, bonuses: 0, discounts: 0, loans: 0, net: 0 },
+                loanFundResult: { amount: 0, distribution: {}, status: 'ok', missingAmount: 0 },
+                loanFundAmount: 0,
+                loanFundMissing: 0,
+                loanFundDistribution: {},
+                bankData: { breakdown: {}, remainder: 0 },
+                bankSummary: { 1000: 0 },
+                totalToWithdraw: 0
+            }
+        });
+        assert.match(csv, /Ana,1000,Pagado,/);
+        assert.match(csv, /Luis,1000,En sobre,/);
+        assert.match(csv, /Marta,1000,Pendiente,/);
+    });
+
     test('loadScriptOnce removes failed <script> tag so retry after transient network error succeeds (Sprint C)', async () => {
         const scripts = [];
         const prevDoc = globalThis.document;

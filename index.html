@@ -156,12 +156,45 @@
             </div>
         </div>
 
-        <!-- Progress Bar -->
-        <div class="mt-3 flex items-center gap-3">
-            <div class="progress-track flex-grow">
-                <div id="cashProgressBar" class="progress-fill bg-blue-500" style="width:0%"></div>
+        <!-- Compact Live Progress & Table-Cash Card -->
+        <div id="ledgerProgressCard" class="mt-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2.5 shadow-2xs">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2 text-xs">
+                    <span class="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-layer-group text-blue-500"></i> Avance de Pagos
+                    </span>
+                    <span id="ledgerCountsBadge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">0 pendientes</span>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <div id="cashStatusText" class="text-xs text-slate-500 dark:text-slate-400 text-right">Calculando...</div>
+                    <button type="button" data-sx-click="openCuadreView" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-colors">
+                        <i class="fa-solid fa-scale-balanced mr-1"></i>Ver cuadre →
+                    </button>
+                </div>
             </div>
-            <div id="cashStatusText" class="text-xs text-slate-500 shrink-0 min-w-[120px] text-right">Calculando...</div>
+            <div class="progress-track w-full flex overflow-hidden h-2.5">
+                <div id="ledgerPaidBar" class="h-full bg-emerald-500 transition-all duration-300" style="width:0%"></div>
+                <div id="ledgerPackedBar" class="h-full bg-blue-600 transition-all duration-300" style="width:0%"></div>
+                <div id="cashProgressBar" class="h-full bg-amber-400/60 transition-all duration-300" style="width:0%"></div>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+                <div class="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <span class="text-slate-500 dark:text-slate-400 text-[11px]">Pagado</span>
+                    <span id="ledgerPaidDisplay" class="font-mono font-bold text-slate-800 dark:text-slate-100">RD$ 0</span>
+                </div>
+                <div class="px-2.5 py-1.5 rounded-lg bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 flex items-center justify-between gap-2">
+                    <span class="text-blue-700 dark:text-blue-300 text-[11px] font-medium">En sobre</span>
+                    <span id="ledgerPackedDisplay" class="font-mono font-bold text-blue-700 dark:text-blue-300">RD$ 0</span>
+                </div>
+                <div class="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-950/70 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <span class="text-slate-500 dark:text-slate-400 text-[11px]">Falta armar</span>
+                    <span id="ledgerPendingDisplay" class="font-mono font-bold text-slate-800 dark:text-slate-100">RD$ 0</span>
+                </div>
+                <div class="px-2.5 py-1.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-between gap-2" title="Efectivo que debe quedarte físicamente suelto en la mesa ahora mismo">
+                    <span class="text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold">En mesa ahora</span>
+                    <span id="ledgerLooseDisplay" class="font-mono font-extrabold text-indigo-800 dark:text-indigo-200">RD$ 0</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -188,12 +221,15 @@
         <div class="mobile-panel w-full lg:w-80 xl:w-96 shrink-0 flex flex-col gap-3" id="panel-caja">
 
             <!-- Panel tab switcher (desktop inline, mobile visible) -->
-            <div class="flex gap-1 bg-white rounded-xl border border-slate-200 p-1">
+            <div class="flex gap-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-1">
                 <button data-sx-click="switchTab" data-sx-arg="inventory" id="tab-inventory" class="panel-tab active flex-1 text-center">
-                    <i class="fa-solid fa-wallet mr-1.5"></i>Mi Caja
+                    <i class="fa-solid fa-wallet mr-1"></i>Mi Caja
                 </button>
                 <button data-sx-click="switchTab" data-sx-arg="bank" id="tab-bank" class="panel-tab inactive flex-1 text-center">
-                    <i class="fa-solid fa-building-columns mr-1.5"></i>Banco
+                    <i class="fa-solid fa-building-columns mr-1"></i>Banco
+                </button>
+                <button data-sx-click="switchTab" data-sx-arg="cuadre" id="tab-cuadre" class="panel-tab inactive flex-1 text-center">
+                    <i class="fa-solid fa-scale-balanced mr-1"></i>Cuadre
                 </button>
             </div>
 
@@ -247,6 +283,45 @@
                 </div>
             </div>
 
+            <!-- Cuadre de Mesa Panel (Live Non-Destructive Ledger Reconciliation) -->
+            <div id="view-cuadre" class="hidden bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+                <div class="px-4 py-3 bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-2">
+                    <div>
+                        <div class="text-sm font-bold text-indigo-950 dark:text-indigo-100">Cuadre de Mesa (En mano)</div>
+                        <div class="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">Tilda cada denominación al contar tus billetes sueltos</div>
+                    </div>
+                    <span id="cuadreLooseTotalDisplay" class="font-mono font-extrabold text-xs text-indigo-700 dark:text-indigo-200 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800 shrink-0">RD$ 0</span>
+                </div>
+
+                <div id="cuadreOvercommitWarning" class="hidden mx-3 mt-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-semibold"></div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead class="text-[11px] text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-950 sticky top-0">
+                            <tr>
+                                <th class="px-2.5 py-2 text-center w-8">Ok</th>
+                                <th class="px-2 py-2">Billete</th>
+                                <th class="px-1.5 py-2 text-center">Caja</th>
+                                <th class="px-1.5 py-2 text-center text-blue-600 dark:text-blue-400">Sobres</th>
+                                <th class="px-1.5 py-2 text-center">Pag.</th>
+                                <th class="px-3 py-2 text-right font-bold">Mano</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuadreTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+                    </table>
+                </div>
+
+                <div class="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-1.5 text-xs">
+                    <div id="cuadreBalanceFooter" class="space-y-1 font-mono"></div>
+                    <div class="pt-2 flex items-center justify-between gap-2 border-t border-slate-200/80 dark:border-slate-800">
+                        <span id="cuadreChecklistStatus" class="text-[11px] text-slate-500 dark:text-slate-400">0 verificados</span>
+                        <button type="button" data-sx-click="clearCuadreChecks" class="text-[11px] font-semibold text-blue-600 dark:text-sky-400 hover:underline">
+                            Limpiar tildes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- ── RIGHT PANEL: Employees ───────────────────────── -->
@@ -287,9 +362,13 @@
                             <i class="fa-solid fa-rotate-left text-xs"></i>
                             <span class="hidden sm:inline">Operaciones</span>
                         </button>
-                        <button data-sx-click="cycleSortMode" id="sortBtn" class="toolbar-btn" title="Ordenar lista">
+                        <button data-sx-click="cycleSortMode" id="sortBtn" class="toolbar-btn" title="Alternar orden por prioridad o lista fija">
                             <i class="fa-solid fa-arrow-down-short-wide text-xs"></i>
-                            <span class="hidden sm:inline" id="sortBtnLabel">Orden</span>
+                            <span class="hidden sm:inline" id="sortBtnLabel">Prioridad</span>
+                        </button>
+                        <button data-sx-click="toggleCardNumberMode" id="cardNumToggleBtn" class="toolbar-btn" title="Conmutar entre # de referencia SA y # de orden en SplitX">
+                            <i class="fa-solid fa-hashtag text-xs"></i>
+                            <span class="hidden sm:inline" id="cardNumToggleLabel">Ref SA</span>
                         </button>
                         <div id="payrollModeSwitch" class="mode-switch" role="group" aria-label="Modo de préstamos">
                             <button id="payrollModeNormal" data-sx-click="setPayrollMode" data-sx-arg="normal" class="active" title="Sin Préstamos: Bruto + Bonificaciones - Descuentos">Sin Préstamos</button>
@@ -362,6 +441,10 @@
         <div class="bnav-item" id="bnav-banco" data-sx-click="openBankMobile">
             <div class="bnav-icon"><i class="fa-solid fa-building-columns"></i></div>
             <span>Banco</span>
+        </div>
+        <div class="bnav-item" id="bnav-cuadre" data-sx-click="openCuadreView">
+            <div class="bnav-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+            <span>Cuadre</span>
         </div>
         <div class="bnav-item" id="bnav-ajustes" data-sx-click="openConfigModal">
             <div class="bnav-icon"><i class="fa-solid fa-gear"></i></div>
@@ -496,6 +579,42 @@
                             <input type="checkbox" id="switchShowZeros" data-sx-change="toggleBreakdownShowZeros" class="sr-only peer">
                             <div class="w-9 h-5 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
+                    </div>
+                </div>
+
+                <!-- 3-State Status Colors & Card Numbering -->
+                <div class="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 mb-3.5 space-y-3">
+                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-traffic-light text-blue-600 dark:text-sky-400"></i> Estados y Numeración de Tarjetas
+                    </div>
+                    <div class="space-y-1.5">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Paleta de colores de estado (Pendiente → En sobre → Pagado)</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">Elige cómo se colorea la barra izquierda de cada colaborador.</div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200/80 dark:border-slate-800">
+                            <button type="button" id="statusScheme-traffic" data-sx-click="setStatusColorScheme" data-sx-arg="traffic"
+                                class="py-1.5 px-2.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
+                                <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="w-2 h-2 rounded-full bg-blue-600"></span><span class="w-2 h-2 rounded-full bg-emerald-500"></span></span>
+                                <span>Ámbar → Azul → Verde</span>
+                            </button>
+                            <button type="button" id="statusScheme-classic" data-sx-click="setStatusColorScheme" data-sx-arg="classic"
+                                class="py-1.5 px-2.5 text-xs font-semibold rounded-md transition-all flex items-center justify-center gap-1.5">
+                                <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="w-2 h-2 rounded-full bg-blue-600"></span><span class="w-2 h-2 rounded-full bg-slate-400"></span></span>
+                                <span>Verde → Azul → Gris</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="h-px bg-slate-200/80 dark:bg-slate-800"></div>
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                            <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">Número mostrado en la barra izquierda</div>
+                            <div class="text-[11px] text-slate-500 dark:text-slate-400">La referencia interna de SA nunca se modifica en documentos ni hojas.</div>
+                        </div>
+                        <div class="inline-flex p-0.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-[11px] font-bold shrink-0">
+                            <button type="button" id="cardNumMode-ref" data-sx-click="setCardNumberMode" data-sx-arg="ref" class="px-2.5 py-1 rounded-md transition-all"># Ref SA</button>
+                            <button type="button" id="cardNumMode-order" data-sx-click="setCardNumberMode" data-sx-arg="order" class="px-2.5 py-1 rounded-md transition-all"># Orden SplitX</button>
+                        </div>
                     </div>
                 </div>
 

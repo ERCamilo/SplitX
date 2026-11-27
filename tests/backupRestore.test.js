@@ -156,6 +156,36 @@ describe('SplitXBackup: full versioned backup & validated restore (Issue #11)', 
         assert.deepEqual(after.people, {});
     });
 
+    test('validateBackup preserves and sanitizes 3-state payoutStatus, lockedDistribution, statusColorScheme and cardNumberMode', () => {
+        const input = {
+            schema: 'splitx-backup/v1',
+            version: 1,
+            exportedAt: '2026-11-26T00:00:00Z',
+            payload: {
+                data: {
+                    currency: 'DOP',
+                    statusColorScheme: 'classic',
+                    cardNumberMode: 'order',
+                    employees: [
+                        { id: 1, name: 'Ana', amount: 2500, paid: false, payoutStatus: 'packed', lockedDistribution: { 2000: 1, 500: 1, '-5': 2, bad: 'x' } },
+                        { id: 2, name: 'Luis', amount: 1000, paid: false, payoutStatus: 'invalid_state', lockedDistribution: 'nope' }
+                    ]
+                },
+                history: null,
+                sheets: null,
+                documents: null
+            }
+        };
+        const clean = SplitXBackup.validateBackup(input);
+        assert.equal(clean.payload.data.statusColorScheme, 'classic');
+        assert.equal(clean.payload.data.cardNumberMode, 'order');
+        assert.equal(clean.payload.data.employees[0].payoutStatus, 'packed');
+        assert.equal(clean.payload.data.employees[0].paid, false);
+        assert.deepEqual(clean.payload.data.employees[0].lockedDistribution, { 2000: 1, 500: 1 });
+        assert.equal(clean.payload.data.employees[1].payoutStatus, 'pending');
+        assert.equal(clean.payload.data.employees[1].lockedDistribution, null);
+    });
+
     test('restoreBackup rolls back all keys atomically if a write fails mid-restore and clears legacy/corrupt keys on success (Sprint B)', () => {
         const map = new Map();
         let failKey = null;

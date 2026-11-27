@@ -148,6 +148,15 @@ describe('SplitXEditModal pure payroll & loan calculations (#28)', () => {
             assert.equal(saved, 1);
             assert.equal(state.employees[0].name, 'Ana María');
             assert.equal(state.employees[0].amount, 8500);
+
+            // Editing the net amount of a 'packed' employee resets payoutStatus to 'pending' and clears lockedDistribution
+            state.employees[0].payoutStatus = 'packed';
+            state.employees[0].lockedDistribution = { 1000: 8, 500: 1 };
+            modal.openEditModal(10);
+            elements.get('editEmpNet').value = '9000';
+            modal.saveEmployeeModal();
+            assert.equal(state.employees[0].payoutStatus, 'pending');
+            assert.equal(state.employees[0].lockedDistribution, null);
         } finally {
             globalThis.document = prevDoc;
         }
