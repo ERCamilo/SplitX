@@ -698,15 +698,25 @@ const app = (() => {
             });
             if (!ok) return;
         }
+        const removedLabel = empLabel(emp);
         state.employees = state.employees.filter(e => e.id !== id);
         clearCuadreState();
-        saveData();
+        if (!saveData()) return;
+        showToast(`Eliminado: ${removedLabel}.`, 'info', {
+            actionLabel: 'Deshacer',
+            durationMs: 6000,
+            onAction: () => undoAction()
+        });
     };
 
     const undoAdvanceTransition = (id, expectedStatus, prevStatus, prevPaid, prevLocked) => {
         const cur = state.employees.find(e => e.id === id);
         if (!cur) return;
         if (SplitXCore.getEmployeePayoutStatus(cur) !== expectedStatus) return;
+        if (undoStack.length > 0) {
+            undoAction();
+            return;
+        }
         state.employees = state.employees.map(e =>
             e.id === id
                 ? { ...e, payoutStatus: prevStatus, paid: prevPaid, lockedDistribution: prevLocked }
@@ -2263,7 +2273,7 @@ const app = (() => {
                 <td class="px-1 py-2 text-center font-mono text-slate-500 dark:text-slate-400">${paidQty > 0 ? `-${paidQty}` : '0'}</td>
                 <td class="px-1.5 py-2 text-right font-mono font-extrabold text-sm text-indigo-700 dark:text-indigo-300">${looseQty}</td>
                 <td class="px-2 py-1.5 text-center">
-                    <input type="number" min="0" step="1" placeholder="${looseQty}" value="${actualVal}"
+                    <input type="number" min="0" step="1" placeholder="—" value="${actualVal}"
                         data-cuadre-actual="${denom}" aria-label="Conteo real de denominación ${denom}"
                         class="w-12 px-1.5 py-0.5 text-center font-mono text-xs rounded border bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 outline-none focus:ring-1 focus:ring-blue-500 ${inputTone}">
                 </td>
@@ -2732,6 +2742,7 @@ const app = (() => {
                 else cuadreCheckedDenoms.delete(d);
                 const coverage = calculateDistribution();
                 renderCuadre(SplitXCore.computeLedgerSummary(state.denominations, state.inventory, coverage.results, coverage.loanFundResult));
+                cuadreBody.querySelector(`[data-cuadre-denom="${d}"]`)?.focus();
             });
             cuadreBody.addEventListener('input', (e) => {
                 const input = e.target.closest('[data-cuadre-actual]');

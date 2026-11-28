@@ -255,4 +255,39 @@ describe('index.html structural & script integrity', () => {
         assert.match(appCss, /\.emp-cash-box\s*\{[^}]*overflow-x:\s*auto/, '.emp-cash-box must allow horizontal scroll on narrow mobile viewports');
         assert.equal(/html\.dark\s+\.bg-white\s*\{[^}]*!important/.test(appCss), false, 'dark mode .bg-white rule must not use !important and clobber Tailwind dark: utilities');
     });
+
+    test('Fase 2 UX flow guards: Documentos, Hojas and Principal regressions stay fixed', () => {
+        const docHtml = fs.readFileSync(path.join(ROOT, 'document-studio.html'), 'utf8');
+        const docJs = fs.readFileSync(path.join(ROOT, 'js', 'DocumentStudio.js'), 'utf8');
+        const fbJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXFormulaBuilder.js'), 'utf8');
+        const sheetJs = fs.readFileSync(path.join(ROOT, 'js', 'SheetStudio.js'), 'utf8');
+        const sheetCss = fs.readFileSync(path.join(ROOT, 'css', 'sheet-studio.css'), 'utf8');
+        const appJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXApp.js'), 'utf8');
+        const editJs = fs.readFileSync(path.join(ROOT, 'js', 'SplitXEditModal.js'), 'utf8');
+        const appCss = fs.readFileSync(path.join(ROOT, 'css', 'app.css'), 'utf8');
+
+        // Documentos UX
+        assert.match(docHtml, /data-act="prev-emp"/, 'document-studio.html must expose previous-employee button');
+        assert.match(docHtml, /data-act="next-emp"/, 'document-studio.html must expose next-employee button');
+        assert.match(docJs, /#sxdocName[\s\S]*cur\.name\s*=\s*nextName/, 'DocumentStudio snapshot() must persist template rename');
+        assert.match(docJs, /SplitXDialogs[\s\S]*showConfirm/, 'DocumentStudio must prefer SplitXDialogs.showConfirm over native confirm');
+        assert.match(docJs, /result\.missing\.map\(fieldLabel\)/, 'DocumentStudio must display missing fields with Spanish labels');
+        assert.match(docJs, /createElement\('optgroup'\)/, 'DocumentStudio must group field selector options');
+
+        // Hojas UX & responsive
+        assert.match(fbJs, /const add = item => \{[\s\S]*inlineInp\.value\s*=\s*''/, 'FormulaBuilder add() must clear inline input to prevent zombie concatenation');
+        assert.match(fbJs, /#ssVarFixedValueWrap/, 'FormulaBuilder must hide fixed-value input in formula mode');
+        assert.match(fbJs, /#ssVarOverridesWrap/, 'FormulaBuilder must hide employee overrides in formula mode');
+        assert.match(sheetJs, /repositionLayer\(\)/, 'SheetStudio scroll must reposition popovers without recreating innerHTML');
+        assert.match(sheetJs, /pointercancel/, 'SheetStudio drag-resize must clean up on pointercancel');
+        assert.match(sheetCss, /\.ss-btn\[aria-pressed="true"\]/, 'sheet-studio.css must style active mode buttons');
+        assert.match(sheetCss, /@media \(max-width:1024px\)/, 'sheet-studio.css must provide responsive layout for tablet/mobile');
+        assert.match(sheetCss, /@media \(hover:none\)/, 'sheet-studio.css must reveal row handles/menus on touch devices');
+
+        // Principal UX
+        assert.match(appJs, /Eliminado: \$\{removedLabel\}[\s\S]*onAction:\s*\(\)\s*=>\s*undoAction\(\)/, 'removeEmployee must offer Undo toast wired to undoAction()');
+        assert.match(appJs, /cuadreBody\.querySelector\(`\[data-cuadre-denom="\$\{d\}"\]`\)\?\.focus\(\)/, 'Cuadre checkbox toggle must preserve keyboard focus');
+        assert.match(editJs, /Modo «Sin Préstamos»/, 'EditModal must clearly indicate when payrollMode is normal (Sin Préstamos)');
+        assert.match(appCss, /#empSearchInput::-webkit-search-cancel-button/, 'app.css must hide duplicate native search cancel button');
+    });
 });

@@ -116,7 +116,7 @@
         const currentAdjustmentTypes = { bonus: 'fixed', discount: 'fixed' };
 
         /** @param {string} id */
-        const byId = (id) => /** @type {any} */ (document.getElementById(id));
+        const byId = (id) => /** @type {any} */(document.getElementById(id));
 
         const updateModalCalculations = (manualNetEdit = false) => {
             const state = deps.getState();
@@ -148,12 +148,16 @@
             const isReconciled = Math.abs(diff) <= 0.01;
 
             const statusEl = byId('editModalReconciledStatus');
+            const isNormalNoLoans = state.payrollMode === 'normal' && loans > 0;
             if (currentNet < 0) {
                 statusEl.className = 'text-xs flex items-center gap-1.5 text-rose-700 dark:text-rose-400 font-semibold';
                 statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> <span>El sueldo neto no puede ser negativo</span>';
             } else if (previewCalc.uncollectedExcess > 0) {
                 statusEl.className = 'text-xs flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-semibold';
                 statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Deducciones exceden el salario en ${deps.escapeHTML(deps.fmt(previewCalc.uncollectedExcess))} (neto limitado a ${deps.escapeHTML(deps.fmt(0))})</span>`;
+            } else if (isNormalNoLoans) {
+                statusEl.className = 'text-xs flex items-center gap-1.5 text-blue-700 dark:text-sky-300 font-medium';
+                statusEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>Modo «Sin Préstamos»: en nómina se pagará ${deps.escapeHTML(deps.fmt(Math.max(0, previewCalc.afterDiscounts)))} sin descontar el préstamo (${deps.escapeHTML(deps.fmt(loans))}).</span>`;
             } else if (isReconciled) {
                 statusEl.className = 'text-xs flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium';
                 statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Nómina cuadrada perfectamente</span>';
@@ -162,8 +166,9 @@
                 statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Monto manual difiere en ${diff > 0 ? '+' : ''}${deps.escapeHTML(deps.fmt(diff))} del cálculo</span>`;
             }
 
-            byId('editModalBreakdownTotal').textContent = deps.fmt(Math.max(0, currentNet));
-            const breakdown = deps.getIdealBreakdown(Math.max(0, currentNet)).distribution;
+            const effectivePreviewAmount = isNormalNoLoans ? Math.max(0, previewCalc.afterDiscounts) : Math.max(0, currentNet);
+            byId('editModalBreakdownTotal').textContent = deps.fmt(effectivePreviewAmount);
+            const breakdown = deps.getIdealBreakdown(effectivePreviewAmount).distribution;
             const chipsContainer = byId('editModalBreakdownChips');
             let chipsHTML = '';
             state.denominations.forEach((/** @type {number} */ d) => {
@@ -358,7 +363,7 @@
 
             for (const check of [grossRes, bonusRes, discountRes, loansRes, netRes, loanPrincipalRes, loanRateRes, loanInterestRes, loanRemRes]) {
                 if (!check.ok) {
-                    deps.showToast(/** @type {string} */ (check.error), 'info');
+                    deps.showToast(/** @type {string} */(check.error), 'info');
                     return;
                 }
             }

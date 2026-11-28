@@ -475,15 +475,17 @@
                   <label>ID<input id="ssVarId" class="ss-inp" placeholder="transporte" maxlength="32" value="${esc(current?.id || '')}" ${current ? 'readonly' : ''}></label>
                   <label>Nombre<input id="ssVarLabel" class="ss-inp" maxlength="60" placeholder="Transporte" value="${esc(current?.label || '')}"></label>
                   <label>Tipo<select id="ssVarKind" class="ss-inp"><option value="fixed" ${current?.kind !== 'formula' ? 'selected' : ''}>Número</option><option value="formula" ${current?.kind === 'formula' ? 'selected' : ''}>Fórmula</option></select></label>
-                  <label>Valor general<input id="ssVarValue" type="number" step="any" class="ss-inp" value="${current?.kind === 'fixed' ? esc(current.value) : '0'}"></label>
+                  <label id="ssVarFixedValueWrap">Valor general<input id="ssVarValue" type="number" step="any" class="ss-inp" value="${current?.kind === 'fixed' ? esc(current.value) : '0'}"></label>
                 </div>
                 <label style="display:block;margin-top:8px">Fórmula (si seleccionas «Fórmula»)<input id="ssVarFormula" class="ss-inp" style="width:100%" maxlength="180" placeholder="gross * 5% + transporte" value="${esc(current?.formula || '')}"></label>
-                <p class="ss-hint">Campos disponibles: gross (bruto), days (días), dailyRate (tarifa), bonuses y cualquier variable propia por su ID. Operadores: + − × ÷ ( ) y %.</p>
-                <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
+                <p id="ssVarFormulaHint" class="ss-hint">Campos disponibles: gross (bruto), days (días), dailyRate (tarifa), bonuses y cualquier variable propia por su ID. Operadores: + − × ÷ ( ) y %.</p>
+                <div id="ssVarOverridesWrap">
+                <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:8px">
                   <label>Empleado (excepción opcional)<select id="ssVarEmployee" class="ss-inp"><option value="">Valor general</option>${options}</select></label>
                   <label>Valor para ese empleado<input id="ssVarOverride" type="number" step="any" class="ss-inp" placeholder="Sin excepción"></label>
                 </div>
                 <p class="ss-hint">Las excepciones se aplican a variables de tipo Número y se asocian al número del empleado (o ID local si no tiene número).</p>
+                </div>
                 <p id="ssVarsMsg" role="alert" style="color:var(--err,#b91c1c);font-size:12px;min-height:18px;margin:8px 0"></p>
                 <div class="ss-row-btns" style="justify-content:flex-end">
                   ${current ? '<button class="ss-btn" data-act="vars-new" type="button">Nueva variable</button>' : ''}
@@ -873,30 +875,50 @@
             return html;
         };
 
+        const resolvePopAnchor = (p) => {
+            if (!p) return null;
+            if (p.type === 'chip') return rootEl.querySelector(`#ssCanvas .ss-chip.is-sel`) || rootEl.querySelector('.ss-chip.is-sel');
+            if (p.type === 'row') return $(`#ssRowMenu${p.v}`);
+            if (p.type === 'title') return $(`#ssTitleMenu${p.v}`);
+            if (p.type === 'tpl') return $('#ssTplBtn');
+            if (p.type === 'page') return $('#ssPageBtn');
+            if (p.type === 'checks') return $('#ssChecksBtn');
+            return null;
+        };
+        const positionPop = (pop, anchor) => {
+            if (!pop || !anchor) return;
+            const a = anchor.getBoundingClientRect();
+            const w = pop.offsetWidth; const h = pop.offsetHeight;
+            const vw = window.innerWidth; const vh = window.innerHeight;
+            const left = Math.min(Math.max(8, a.left), vw - w - 8);
+            let top = a.bottom + 6;
+            if (top + h > vh - 8) top = Math.max(8, a.top - h - 6);
+            pop.style.left = `${left}px`;
+            pop.style.top = `${top}px`;
+        };
+        const repositionLayer = () => {
+            const pop = $('#ssPop');
+            if (!pop || !state.pop) return;
+            const anchor = resolvePopAnchor(state.pop);
+            if (!anchor) { state.pop = null; const host = $('#ssLayer'); if (host) host.innerHTML = ''; return; }
+            positionPop(pop, anchor);
+        };
         const renderLayer = () => {
             const host = $('#ssLayer');
             if (!host) return;
             const p = state.pop;
             if (!p) { host.innerHTML = ''; return; }
             let body = '';
-            let anchor = null;
-            if (p.type === 'chip') { body = popChip(); anchor = rootEl.querySelector(`#ssCanvas .ss-chip.is-sel`) || rootEl.querySelector('.ss-chip.is-sel'); }
-            else if (p.type === 'row') { body = popRow(p.v); anchor = $(`#ssRowMenu${p.v}`); }
-            else if (p.type === 'title') { body = popTitle(p.v); anchor = $(`#ssTitleMenu${p.v}`); }
-            else if (p.type === 'tpl') { body = popTpl(); anchor = $('#ssTplBtn'); }
-            else if (p.type === 'page') { body = popPage(); anchor = $('#ssPageBtn'); }
-            else if (p.type === 'checks') { body = `<h3 class="ss-lbl">Verificación</h3>${checksHTML(moneyChecks())}`; anchor = $('#ssChecksBtn'); }
+            if (p.type === 'chip') body = popChip();
+            else if (p.type === 'row') body = popRow(p.v);
+            else if (p.type === 'title') body = popTitle(p.v);
+            else if (p.type === 'tpl') body = popTpl();
+            else if (p.type === 'page') body = popPage();
+            else if (p.type === 'checks') body = `<h3 class="ss-lbl">Verificación</h3>${checksHTML(moneyChecks())}`;
+            const anchor = resolvePopAnchor(p);
             if (!body || !anchor) { state.pop = null; host.innerHTML = ''; return; }
             host.innerHTML = `<div class="ss-pop" id="ssPop" role="dialog">${body}</div>`;
-            const pop = $('#ssPop');
-            const a = anchor.getBoundingClientRect();
-            const w = pop.offsetWidth; const h = pop.offsetHeight;
-            const vw = window.innerWidth; const vh = window.innerHeight;
-            let left = Math.min(Math.max(8, a.left), vw - w - 8);
-            let top = a.bottom + 6;
-            if (top + h > vh - 8) top = Math.max(8, a.top - h - 6);
-            pop.style.left = `${left}px`;
-            pop.style.top = `${top}px`;
+            positionPop($('#ssPop'), anchor);
         };
 
         // ─── Paso de impresión ─────────────────────────────────────────────
@@ -1408,6 +1430,7 @@
                 const up = () => {
                     document.removeEventListener('pointermove', move);
                     document.removeEventListener('pointerup', up);
+                    document.removeEventListener('pointercancel', up);
                     rz = false;
                     rootEl.classList.remove('ss-resizing');
                     rootEl.style.cursor = '';
@@ -1419,6 +1442,7 @@
                 rootEl.style.cursor = getComputedStyle(h).cursor;
                 document.addEventListener('pointermove', move);
                 document.addEventListener('pointerup', up);
+                document.addEventListener('pointercancel', up);
             });
             // En el documento: al redibujar, el foco puede quedar fuera del editor.
             document.addEventListener('keydown', (e) => {
@@ -1581,7 +1605,11 @@
                 drag = null; setTrash(false); clearOver();
                 rootEl.querySelectorAll('.ss-chip.dragging').forEach((x) => x.classList.remove('dragging'));
             });
-            rootEl.addEventListener('scroll', () => { if (state.pop) renderLayer(); }, true);
+            let scrollRaf = 0;
+            rootEl.addEventListener('scroll', () => {
+                if (!state.pop || scrollRaf) return;
+                scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; repositionLayer(); });
+            }, true);
             window.addEventListener('resize', () => {
                 clearTimeout(bindEvents.t);
                 bindEvents.t = setTimeout(() => { if (!rootEl.hidden) touch(state.printing ? 'print' : 'canvas layer'); }, 150);

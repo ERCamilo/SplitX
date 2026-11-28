@@ -150,6 +150,12 @@
             const active=kind.value==='formula';
             box.style.display=active?'block':'none';
             formLabel.style.display=active && mode==='text'?'block':'none';
+            const formulaHint = /** @type {HTMLElement | null} */ (host.querySelector('#ssVarFormulaHint'));
+            if (formulaHint) formulaHint.style.display = active && mode==='text' ? 'block' : 'none';
+            const fixedValWrap = /** @type {HTMLElement | null} */ (host.querySelector('#ssVarFixedValueWrap'));
+            if (fixedValWrap) fixedValWrap.style.display = active ? 'none' : '';
+            const overridesWrap = /** @type {HTMLElement | null} */ (host.querySelector('#ssVarOverridesWrap'));
+            if (overridesWrap) overridesWrap.style.display = active ? 'none' : '';
             area.style.display=mode==='visual'?'block':'none';
             q('#ssVarModeVisual').setAttribute('aria-pressed',String(mode==='visual'));
             q('#ssVarModeText').setAttribute('aria-pressed',String(mode==='text'));
@@ -167,6 +173,8 @@
         };
         /** @param {any} item */
         const add = item => {
+            const inlineInp = /** @type {HTMLInputElement | null} */ (canvas.querySelector('#ssVarInlineInput'));
+            if (inlineInp) inlineInp.value = '';
             chips.push(clone(item));
             selectedIndex=-1;editingNumberIndex=-1;
             msg.textContent='';renderTokens();previewValue();

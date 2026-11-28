@@ -45,7 +45,11 @@
     <aside class="panel preview-panel">
         <h2>Vista previa por empleado</h2>
         <label for="sxdocEmployee">Empleado</label>
-        <select id="sxdocEmployee"></select>
+        <div class="row">
+            <button type="button" data-act="prev-emp" aria-label="Empleado anterior" title="Empleado anterior">‹</button>
+            <select id="sxdocEmployee" style="flex:1;min-width:0"></select>
+            <button type="button" data-act="next-emp" aria-label="Empleado siguiente" title="Empleado siguiente">›</button>
+        </div>
         <div class="person-data">
             <h2>Datos complementarios</h2>
             <p class="muted">Solo para documentos; no cambia los datos originales de SA.</p>
