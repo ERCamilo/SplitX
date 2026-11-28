@@ -53,6 +53,8 @@
         let bound = false, loaded = false;
         /** @type {Range | null} */
         let savedRange = null;
+        /** @type {{ id: string, html: string } | null} */
+        let lastImportBackup = null;
         /** @param {string} selector @returns {any} */
         const q = selector => rootEl.querySelector(selector);
         const current = () => state.templates.find((/** @type {any} */ t) => t.id === state.activeId) || state.templates[0];
@@ -262,15 +264,8 @@
         const importFile = async file => {
             if (!file) return;
             if (file.size > 5 * 1024 * 1024) { status('El archivo supera 5 MB.', true); q('#sxdocFile').value = ''; return; }
-            const editor = q('#sxdocEditor');
-            if (editor && editor.textContent.trim()) {
-                const ok = await askConfirm(
-                    'Reemplazar plantilla activa',
-                    `Importar "${file.name}" reemplazará el contenido actual de "${current().name}". ¿Deseas continuar?`,
-                    'Sí, reemplazar'
-                );
-                if (!ok) { q('#sxdocFile').value = ''; return; }
-            }
+            snapshot();
+            const prevBackup = current() ? { id: current().id, html: current().html } : null;
             status('Importando "' + file.name + '"...');
             try {
                 let html, warnings = 0;
@@ -284,9 +279,19 @@
                 if (!html || !html.trim()) throw Error('El documento no contiene texto legible.');
                 const content = sanitize(html);
                 if (content.length > D.MAX_HTML) throw Error('El contenido supera el límite de tamaño.');
+                lastImportBackup = prevBackup;
                 q('#sxdocEditor').innerHTML = content;
                 snapshot(); save(); preview();
                 status('Importado. Revisa títulos, tablas y campos.' + (warnings ? ' Advertencias de Word: ' + warnings : ''));
+                const statusEl = q('#sxdocStatus');
+                if (statusEl && lastImportBackup) {
+                    const undoBtn = document.createElement('button');
+                    undoBtn.type = 'button';
+                    undoBtn.dataset.act = 'undo-import';
+                    undoBtn.textContent = 'Deshacer importación';
+                    undoBtn.style.marginLeft = '8px';
+                    statusEl.appendChild(undoBtn);
+                }
             } catch (/** @type {any} */ e) { status('No se pudo importar: ' + e.message, true); }
             q('#sxdocFile').value = '';
         };
@@ -344,6 +349,13 @@
             else if (action === 'new') addTemplate(false);
             else if (action === 'duplicate') addTemplate(true);
             else if (action === 'delete') void deleteTemplate();
+            else if (action === 'undo-import' && lastImportBackup && current()?.id === lastImportBackup.id) {
+                q('#sxdocEditor').innerHTML = sanitize(lastImportBackup.html);
+                lastImportBackup = null;
+                snapshot();
+                try { save(); preview(); status('Importación deshecha.'); }
+                catch (/** @type {any} */ err) { status('No se pudo guardar: ' + err.message, true); }
+            }
             else if (action === 'prev-emp' && selectedIndex > 0) {
                 selectedIndex -= 1;
                 const empSel = q('#sxdocEmployee');

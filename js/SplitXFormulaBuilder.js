@@ -327,8 +327,8 @@
             const tokens=Array.from(canvas.querySelectorAll('[data-formula-token]'));
             for(let i=0;i<tokens.length;i++){
                 const rect=tokens[i].getBoundingClientRect();
-                if(e.clientY<rect.top+rect.height/2 ||
-                    (e.clientY<=rect.bottom && e.clientX<rect.left+rect.width/2))return i;
+                if(e.clientY<rect.top ||
+                    (e.clientY<=rect.bottom && e.clientX<=rect.left+rect.width/2+1))return i;
             }
             return tokens.length;
         };
