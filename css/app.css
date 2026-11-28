@@ -243,6 +243,8 @@ html, body, * {
     justify-content: flex-start;
     min-height: 46px;
     width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
 }
 @media (max-width: 640px) {
     .emp-cash-box {
@@ -602,9 +604,8 @@ html.dark #employeeCountBadge {
     border: 1px solid #334155 !important;
 }
 
-html.dark .bg-white {
-    background-color: #111827 !important;
-    border-color: #1f2937 !important;
+:where(.dark) .bg-white {
+    background-color: #111827;
 }
 html.dark .bg-slate-50, 
 html.dark .bg-slate-50\/80 {
@@ -885,12 +886,16 @@ html.dark .seg-btn.active {
 
 /* ── Inventory Rows & Steppers ── */
 html.dark .inv-row {
-    background: #111827 !important;
-    border: 1px solid #1f2937 !important;
+    background: #111827;
+    border: 1px solid #1f2937;
 }
 html.dark .inv-row:hover {
-    border-color: #374151 !important;
-    background: #162032 !important;
+    border-color: #374151;
+    background: #162032;
+}
+html.dark .inv-row.inv-row-overcommitted {
+    background: rgba(136, 19, 55, 0.30);
+    border-color: #9f1239;
 }
 html.dark .stepper-btn.minus {
     background: #0b0f17 !important;
@@ -965,6 +970,9 @@ html.dark .add-drawer {
 }
 html.dark .add-drawer h3 {
     color: #f8fafc !important;
+}
+html.dark .drawer-handle {
+    background: #334155;
 }
 html.dark .bottom-nav {
     background: #0f172a !important;

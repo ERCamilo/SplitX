@@ -1164,12 +1164,12 @@ const app = (() => {
             const tab = document.getElementById(`importTab-${t}`);
             const info = document.getElementById(`importInfo-${t}`);
             if (t === mode) {
-                tab.classList.add('bg-white', 'text-blue-700', 'shadow-sm');
-                tab.classList.remove('text-slate-500');
+                tab.classList.add('bg-white', 'dark:bg-slate-800', 'text-blue-700', 'dark:text-blue-300', 'shadow-sm');
+                tab.classList.remove('text-slate-500', 'dark:text-slate-400', 'hover:text-slate-700', 'dark:hover:text-slate-200');
                 info.classList.remove('hidden');
             } else {
-                tab.classList.remove('bg-white', 'text-blue-700', 'shadow-sm');
-                tab.classList.add('text-slate-500');
+                tab.classList.remove('bg-white', 'dark:bg-slate-800', 'text-blue-700', 'dark:text-blue-300', 'shadow-sm');
+                tab.classList.add('text-slate-500', 'dark:text-slate-400', 'hover:text-slate-700', 'dark:hover:text-slate-200');
                 info.classList.add('hidden');
             }
         });
@@ -1454,7 +1454,7 @@ const app = (() => {
             const shapeStyle = isRound ? 'width:32px;height:32px;' : 'width:54px;height:28px;';
             const hasImg = !!getBillImage(denom);
             const innerHTML = hasImg ? '' : (isRound ? `<div class="coin-inner"></div><span class="coin-text">${denom}</span>` : `<div class="banknote-inner"></div><span class="banknote-text">${denom}</span>`);
-            if (overQty > 0) div.classList.add('border-rose-300', 'dark:border-rose-800', 'bg-rose-50/40', 'dark:bg-rose-950/30');
+            if (overQty > 0) div.classList.add('inv-row-overcommitted', 'border-rose-300', 'dark:border-rose-800', 'bg-rose-50/40', 'dark:bg-rose-950/30');
 
             div.innerHTML = `
                 <div class="flex items-center gap-2.5 min-w-0">
@@ -1500,11 +1500,11 @@ const app = (() => {
                 let deficitHTML = `<div class="font-semibold flex flex-col gap-1 mt-2">`;
 
                 advisorData.deficit.forEach(d => {
-                    let colorClass = "text-red-600";
+                    let colorClass = "text-red-600 dark:text-rose-400";
                     let icon = "fa-arrow-trend-down";
 
                     if (maxSurplus > 0 && d.denom < maxSurplus) {
-                        colorClass = "text-yellow-600";
+                        colorClass = "text-yellow-600 dark:text-amber-300";
                         icon = "fa-rotate"; // Icon indicating "Change/Swap"
                     }
 
@@ -1513,14 +1513,14 @@ const app = (() => {
                 deficitHTML += `</div>`;
 
                 let surplusHTML = advisorData.surplus.length > 0
-                    ? `<div class="mb-1 text-green-700 font-semibold"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Sobran: ` + advisorData.surplus.map(s => `${s.count}x${escapeHTML(getCurrencySymbol())}${s.denom}`).join(', ') + `</div>`
-                    : `<div class="mb-1 text-slate-500 italic text-[10px]">No hay sobrantes útiles.</div>`;
+                    ? `<div class="mb-1 text-green-700 dark:text-emerald-400 font-semibold"><i class="fa-solid fa-arrow-trend-up mr-1"></i>Sobran: ` + advisorData.surplus.map(s => `${s.count}x${escapeHTML(getCurrencySymbol())}${s.denom}`).join(', ') + `</div>`
+                    : `<div class="mb-1 text-slate-500 dark:text-slate-400 italic text-[10px]">No hay sobrantes útiles.</div>`;
 
                 advisorEl.innerHTML = `
-                    <p class="font-bold text-orange-800 mb-2 border-b border-orange-200 pb-1">Asesor de Cambio</p>
+                    <p class="font-bold text-orange-800 dark:text-orange-200 mb-2 border-b border-orange-200 dark:border-orange-800/70 pb-1">Asesor de Cambio</p>
                     ${surplusHTML}
                     ${deficitHTML}
-                    <p class="mt-2 text-[10px] text-orange-700 italic">Consejo: Usa los sobrantes para cubrir los faltantes amarillos.</p>
+                    <p class="mt-2 text-[10px] text-orange-700 dark:text-orange-300 italic">Consejo: Usa los sobrantes para cubrir los faltantes amarillos.</p>
                 `;
             } else {
                 advisorEl.classList.add('hidden');

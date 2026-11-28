@@ -62,7 +62,7 @@
         /** @param {string} message @param {boolean} [failure] */
         const status = (message, failure=false) => {
             const el = q('#sxdocStatus');
-            if (el) {el.textContent=message;el.style.color=failure?'#b91c1c':'#0f766e';}
+            if (el) {el.textContent=message;el.style.color=failure?'var(--dflag-fg,#b91c1c)':'var(--dstatus,#0f766e)';}
         };
         const save = () => {
             const clean = D.safeState(state);

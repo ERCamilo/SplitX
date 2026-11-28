@@ -222,11 +222,11 @@
 
             const badgeEl = byId('editModalBadge');
             if (emp.isManual) {
-                badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 inline-flex items-center gap-1';
+                badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1';
                 badgeEl.innerHTML = '<i class="fa-solid fa-user-plus text-[8px]"></i> Manual';
                 badgeEl.classList.remove('hidden');
             } else if (emp.isEdited) {
-                badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1';
+                badgeEl.className = 'px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1';
                 badgeEl.innerHTML = '<i class="fa-solid fa-pen text-[8px]"></i> Editado';
                 badgeEl.classList.remove('hidden');
             } else {

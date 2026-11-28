@@ -225,4 +225,34 @@ describe('index.html structural & script integrity', () => {
             assert.match(html, new RegExp(`id="${id}"`), `missing Undo/Redo or toast region element #${id}`);
         }
     });
+
+    test('Fase 1 UI/Dark Mode/Stacking guards: Documentos, Hojas and Principal regressions stay fixed', () => {
+        const docCss = fs.readFileSync(path.join(ROOT, 'css', 'document-studio.css'), 'utf8');
+        const docJs = fs.readFileSync(path.join(ROOT, 'js', 'DocumentStudio.js'), 'utf8');
+        const sheetCss = fs.readFileSync(path.join(ROOT, 'css', 'sheet-studio.css'), 'utf8');
+        const sheetJs = fs.readFileSync(path.join(ROOT, 'js', 'SheetStudio.js'), 'utf8');
+        const appCss = fs.readFileSync(path.join(ROOT, 'css', 'app.css'), 'utf8');
+
+        // Documentos: dark mode, high-contrast primary hover, z-index 95, scoped select width, tokenized status
+        assert.match(docCss, /html\.dark\s+\.sxdoc\s*\{/, 'document-studio.css must define html.dark .sxdoc tokens');
+        assert.match(docCss, /z-index:\s*95/, 'document-studio.css must use z-index: 95 (below toasts 100 and dialogs 110)');
+        assert.match(docCss, /\.sxdoc\s+button\.primary:hover:not\(:disabled\)/, 'document-studio.css must preserve contrast on primary button hover');
+        assert.match(docCss, /\.sxdoc\s+\.bar\s+select\s*\{[^}]*width:\s*auto/, 'document-studio.css must constrain .bar select width');
+        assert.match(docJs, /var\(--dflag-fg/, 'DocumentStudio.js must use CSS tokens for status color');
+
+        // Hojas: valid --fg token, z-index within scale (no 99999), dark paper & status contrast
+        assert.equal(/z-index:\s*99999/.test(sheetJs), false, 'SheetStudio.js must not use runaway z-index:99999');
+        assert.equal(/var\(--text\b/.test(sheetJs), false, 'SheetStudio.js must use var(--fg) instead of undefined var(--text)');
+        assert.match(sheetCss, /html\.dark\s+\.ss-paper\s+\.ss-dropzone/, 'sheet-studio.css must keep muted text legible on white paper in dark mode');
+        assert.match(sheetCss, /html\.dark\s+\.ss-status\.ok/, 'sheet-studio.css must adjust .ss-status.ok contrast in dark mode');
+
+        // Principal: no icon collision with Undo, toast clears FAB & bottom-nav, cash-box scrolls on mobile, no !important .bg-white clobber, honest factory reset copy
+        const navOpBtn = html.match(/<button\b[^>]*data-sx-click="openOperationsModal"[^>]*>[\s\S]*?<\/button>/i);
+        assert.ok(navOpBtn, 'navbar Operations button must exist');
+        assert.match(navOpBtn[0], /fa-sliders/, 'navbar Operations button must use fa-sliders (not fa-rotate-left)');
+        assert.match(html, /id="toastRegion"[^>]*class="[^"]*bottom-36\s+lg:bottom-4/, '#toastRegion must clear mobile FAB and tablet bottom-nav');
+        assert.match(html, /Restablecer de Fábrica \(Borrar Todo\)/, 'opResetAll card must clearly warn it is a full factory reset');
+        assert.match(appCss, /\.emp-cash-box\s*\{[^}]*overflow-x:\s*auto/, '.emp-cash-box must allow horizontal scroll on narrow mobile viewports');
+        assert.equal(/html\.dark\s+\.bg-white\s*\{[^}]*!important/.test(appCss), false, 'dark mode .bg-white rule must not use !important and clobber Tailwind dark: utilities');
+    });
 });

@@ -458,8 +458,8 @@
             const current = state.store.variables.find(v => v.id === state.variableEdit);
             const options = employees.filter(e => employeeVarId(e)).map(e =>
                 `<option value="${esc(employeeVarId(e))}">${esc(e.employeeNumber || e.name)} · ${esc(e.name)}</option>`).join('');
-            host.innerHTML = `<div style="position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.62);display:flex;justify-content:center;align-items:center;padding:16px">
-              <section role="dialog" aria-modal="true" aria-label="Variables personalizadas" style="background:var(--surface,#fff);color:var(--text,#1e293b);width:min(620px,100%);max-height:92vh;overflow:auto;border-radius:15px;border:1px solid var(--border,#ddd);padding:18px;box-shadow:0 12px 36px #0003">
+            host.innerHTML = `<div style="position:fixed;inset:0;z-index:85;background:rgba(15,23,42,.62);display:flex;justify-content:center;align-items:center;padding:16px">
+              <section role="dialog" aria-modal="true" aria-label="Variables personalizadas" style="background:var(--surface,#fff);color:var(--fg,#1e293b);width:min(620px,100%);max-height:92vh;overflow:auto;border-radius:15px;border:1px solid var(--border,#ddd);padding:18px;box-shadow:0 12px 36px #0003">
                 <div class="ss-row-btns"><h2 style="font-size:18px;margin:0">Variables propias para impresión</h2><div class="ss-grow"></div><button class="ss-btn" data-act="vars-close" type="button">Cerrar ✕</button></div>
                 <p class="ss-hint">Úsalas en sobres y hojas de firmas. No modifican los importes originales de SA. Puedes combinarlas con campos importados en fórmulas.</p>
                 <div id="ssVarsList" style="display:flex;flex-direction:column;gap:5px;margin:12px 0;max-height:180px;overflow:auto">
@@ -484,7 +484,7 @@
                   <label>Valor para ese empleado<input id="ssVarOverride" type="number" step="any" class="ss-inp" placeholder="Sin excepción"></label>
                 </div>
                 <p class="ss-hint">Las excepciones se aplican a variables de tipo Número y se asocian al número del empleado (o ID local si no tiene número).</p>
-                <p id="ssVarsMsg" role="alert" style="color:#b91c1c;font-size:12px;min-height:18px;margin:8px 0"></p>
+                <p id="ssVarsMsg" role="alert" style="color:var(--err,#b91c1c);font-size:12px;min-height:18px;margin:8px 0"></p>
                 <div class="ss-row-btns" style="justify-content:flex-end">
                   ${current ? '<button class="ss-btn" data-act="vars-new" type="button">Nueva variable</button>' : ''}
                   <button class="ss-btn primary" data-act="vars-save" type="button">${current ? 'Guardar cambios' : 'Crear variable'}</button>
